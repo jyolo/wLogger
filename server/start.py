@@ -1,24 +1,31 @@
 from flask import Flask
 from multiprocessing import Queue
+from server.admin.user import user
+from server.admin.home import home
+from environs import Env
 import os
 
+
+env = Env()
+env.read_env()
+
+
+
+
+
 app = Flask(__name__)
-queue = Queue()
 
-@app.route('/')
-def index():
-    for i in range(10):
-        print('123123')
-        queue.put('123123')
-
-    return 'pid:%s' % (os.getpid())
+# app.register_blueprint(home,url_prefix='/')
+# app.register_blueprint(user,url_prefix='/user')
 
 
+# def start_server():
+#     app.run(debug=True)
 
-def start_server():
-    app.debug = True
-    app.run()
+
 
 if __name__ == "__main__":
-
-    start_server()
+    print('123')
+    # evn = Env.read_env()
+    # print(evn)
+    # start_server()
