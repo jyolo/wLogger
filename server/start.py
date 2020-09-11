@@ -7,27 +7,31 @@ from server.admin.home import home
 
 
 
-
-
 app = Flask(__name__)
-app.register_blueprint(home,url_prefix='/')
-app.register_blueprint(user,url_prefix='/user')
 
 # start this server from the main.py
-def start_server():
-    env_file = os.path.dirname(os.path.abspath(__file__)) + '/.env'
-    env = Env()
-    env.read_env(path=env_file)
+def start_server(conf_dict = {}):
+    """
+    when run in subprocess need conf_dict of the flask config
+    :param conf_dict:
+    :return:
+    """
+    if(not conf_dict and __name__ != '__main__'):
+        raise ValueError('miss flask config of args conf_dict')
+    else:
+        app.config.from_pyfile( os.path.dirname(os.path.abspath(__file__)) + '/config.py' )
 
-    if(not os.path.exists(env_file)):
-        raise FileNotFoundError('webserver .env file not found')
+    app.config.from_mapping(conf_dict)
+    app.register_blueprint(home, url_prefix='/')
+    app.register_blueprint(user, url_prefix='/user')
 
-    app.run(
-        host = env.str('HOST'),
-        port = env.str('PORT'),
-    )
+
+    app.run()
 
 
 
 if __name__ == "__main__":
+
     start_server()
+
+    # app.run()
