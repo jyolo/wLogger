@@ -9,7 +9,5 @@ class Adapter(metaclass=ABCMeta):
         print('base: %s' % log_path)
 
     @abstractmethod
-    def get_log_format(self):pass
+    def getLogFormat(self):pass
 
-    @abstractmethod
-    def set_log_format(self,format_str,type):pass

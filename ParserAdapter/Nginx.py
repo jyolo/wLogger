@@ -43,32 +43,32 @@ class Handler(Adapter):
         print('Nginx')
 
 
-    def get_log_format(self):
-        return [
-            {'$remote_addr': {'desc': '客户端IP' , 'example':'127.0.0.1' }},
-            {'$http_x_forwarded_for': {'desc': '客户端代理IP多个逗号分割' ,'example':'203.98.182.163, 203.98.182.163'}},
-            {'$request': {'desc': '请求信息' ,'example':'GET /api/server/?size=50&page=1 HTTP/1.1'}},
-            {'$request_body': {'desc': 'post提交的数据' ,'example':'name=xxx&age=18'}},
-            {'$request_length': {'desc': '请求的字节长度' ,'example':'988'}},
-            {'$request_time': {'desc': '请求花费的时间' ,'example':'0.018'}},
-            {'$upstream_response_time': {'desc': 'nginx交给后端cgi响应的时间(小于$request_time)' ,'example':'0.018'}},
-            {'$status': {'desc': '请求状态码' ,'example':'200'}},
-            {'$bytes_sent':{'desc':'发送给客户端的总字节数(包括响应头)' ,'example':'113'} },
-            {'$body_bytes_sent':{'desc':'发送给客户端的总字节数(不包括响应头)' ,'example':'266'} },
-            {'$connection':{'desc':'连接到序列号' ,'example':'26'} },
-            {'$connection_requests':{'desc':'每个连接到序列号的请求次数' ,'example':'3'} },
-            {'$http_referer':{'desc':'请求的来源网址' ,'example':'www.baidu.com'} },
-            {'$http_user_agent':{'desc':'客户端的UA信息' ,'example':'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/73.0.3683.86 Safari/537.36'} },
-            {'$upstream_addr':{'desc':'后端接收请求的服务的ip或地址' ,'example':'unix:/tmp/php-cgi-71.sock'} },
-            {'$time_iso8601':{'desc':'iso8601时间格式' ,'example':'2020-09-11T15:20:43+08:00'} },
-            {'$time_local':{'desc':'本地时间格式' ,'example':'11/Sep/2020:15:20:43 +0800'} },
+    def getLogFormat(self):
+        return {
+            '$remote_addr': {'desc': '客户端IP' , 'example':'127.0.0.1' },
+            '$remote_user': {'desc': '记录客户端用户名称' , 'example':'client_name' },
+            '$http_x_forwarded_for': {'desc': '客户端代理IP多个逗号分割' ,'example':'203.98.182.163, 203.98.182.169'},
+            '$request': {'desc': '请求信息' ,'example':'GET /api/server/?size=50&page=1 HTTP/1.1'},
+            '$request_method': {'desc': '请求方法' ,'example':'GET'},
+            '$request_uri': {'desc': '请求链接' ,'example':'/api/server/?size=50&page=1'},
+            '$request_body': {'desc': 'post提交的数据' ,'example':'name=xxx&age=18'},
+            '$request_length': {'desc': '请求的字节长度' ,'example':'988'},
+            '$request_time': {'desc': '请求花费的时间' ,'example':'0.018'},
+            '$upstream_response_time': {'desc': 'nginx交给后端cgi响应的时间(小于$request_time)' ,'example':'0.018'},
+            '$status': {'desc': '请求状态码' ,'example':'200'},
+            '$bytes_sent':{'desc':'发送给客户端的总字节数(包括响应头)' ,'example':'113'} ,
+            '$body_bytes_sent':{'desc':'发送给客户端的总字节数(不包括响应头)' ,'example':'266'} ,
+            '$connection':{'desc':'连接到序列号' ,'example':'26'} ,
+            '$connection_requests':{'desc':'每个连接到序列号的请求次数' ,'example':'3'} ,
+            '$host':{'desc':'请求头里的host属性,如果没有就返回 server_name' ,'example':'www.baidu.com'} ,
+            '$http_host':{'desc':'请求头里的host属性' ,'example':'www.baidu.com'} ,
+            '$http_referer':{'desc':'请求的来源网址' ,'example':'www.baidu.com'} ,
+            '$http_user_agent':{'desc':'客户端的UA信息' ,'example':'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/73.0.3683.86 Safari/537.36'} ,
+            '$upstream_addr':{'desc':'后端接收请求的服务的ip或地址' ,'example':'unix:/tmp/php-cgi-71.sock'} ,
+            '$time_iso8601':{'desc':'iso8601时间格式' ,'example':'2020-09-11T15:20:43+08:00'} ,
+            '$time_local':{'desc':'本地时间格式' ,'example':'11/Sep/2020:15:20:43 +0800'} ,
+        }
 
-        ]
-
-    def set_log_format(self,log_format ,type='string'):
-        if type not in ['string','json']:
-            raise ValueError('设置日志格式 type 只支持string或json格式')
-        pass
 
 
 
