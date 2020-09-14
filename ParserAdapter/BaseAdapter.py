@@ -11,3 +11,8 @@ class Adapter(metaclass=ABCMeta):
     @abstractmethod
     def getLogFormat(self):pass
 
+    @abstractmethod
+    def parse(self):pass
+
+    @abstractmethod
+    def getLogFormatByConfStr(self ):pass

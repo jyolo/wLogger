@@ -1,6 +1,6 @@
 from ParserAdapter.BaseAdapter import Adapter
 from parse import parse,search,findall
-import os,json
+import os,json,re
 
 """
 $remote_addr,$http_x_forwarded_for  #记录客户端IP地址
@@ -47,30 +47,97 @@ class Handler(Adapter):
         return {
             '$remote_addr': {'desc': '客户端IP' , 'example':'127.0.0.1' },
             '$remote_user': {'desc': '记录客户端用户名称' , 'example':'client_name' },
-            '$http_x_forwarded_for': {'desc': '客户端代理IP多个逗号分割' ,'example':'203.98.182.163, 203.98.182.169'},
-            '$request': {'desc': '请求信息' ,'example':'GET /api/server/?size=50&page=1 HTTP/1.1'},
-            '$request_method': {'desc': '请求方法' ,'example':'GET'},
-            '$request_uri': {'desc': '请求链接' ,'example':'/api/server/?size=50&page=1'},
-            '$request_body': {'desc': 'post提交的数据' ,'example':'name=xxx&age=18'},
-            '$request_length': {'desc': '请求的字节长度' ,'example':'988'},
-            '$request_time': {'desc': '请求花费的时间' ,'example':'0.018'},
-            '$upstream_response_time': {'desc': 'nginx交给后端cgi响应的时间(小于$request_time)' ,'example':'0.018'},
-            '$status': {'desc': '请求状态码' ,'example':'200'},
-            '$bytes_sent':{'desc':'发送给客户端的总字节数(包括响应头)' ,'example':'113'} ,
-            '$body_bytes_sent':{'desc':'发送给客户端的总字节数(不包括响应头)' ,'example':'266'} ,
-            '$connection':{'desc':'连接到序列号' ,'example':'26'} ,
-            '$connection_requests':{'desc':'每个连接到序列号的请求次数' ,'example':'3'} ,
+            '$http_x_forwarded_for': {'desc': '客户端代理IP多个逗号分割' ,'example':'203.98.182.163, 203.98.182.169' },
+            '$request': {'desc': '请求信息' ,'example':'GET /api/server/?size=50&page=1 HTTP/1.1' },
+            '$request_method': {'desc': '请求方法' ,'example':'GET' },
+            '$scheme':{'desc': '请求协议' ,'example':'HTTP/1.1'  } ,
+            '$request_uri': {'desc': '请求链接' ,'example':'/api/server/?size=50&page=1' },
+            '$request_body': {'desc': 'post提交的数据' ,'example':'name=xxx&age=18'  },
+            '$request_length': {'desc': '请求的字节长度' ,'example':'988' ,'format':'d' },
+            '$request_time': {'desc': '请求花费的时间' ,'example':'0.018' ,'format':'g'},
+            '$msec': {'desc': '当前的Unix时间戳 (1.3.9, 1.2.6)' ,'example':'' ,'format':'g'},
+            '$upstream_response_time': {'desc': 'nginx交给后端cgi响应的时间(小于$request_time)' ,'example':'0.018' ,'format':'g'},
+            '$status': {'desc': '请求状态码' ,'example':'200','format':'d'},
+            '$bytes_sent':{'desc':'发送给客户端的总字节数(包括响应头)' ,'example':'113' ,'format':'d'} ,
+            '$body_bytes_sent':{'desc':'发送给客户端的总字节数(不包括响应头)' ,'example':'266' ,'format':'d'} ,
+            '$connection':{'desc':'连接到序列号' ,'example':'26' ,'format':'d'} ,
+            '$connection_requests':{'desc':'每个连接到序列号的请求次数' ,'example':'3' ,'format':'d'} ,
             '$host':{'desc':'请求头里的host属性,如果没有就返回 server_name' ,'example':'www.baidu.com'} ,
             '$http_host':{'desc':'请求头里的host属性' ,'example':'www.baidu.com'} ,
             '$http_referer':{'desc':'请求的来源网址' ,'example':'www.baidu.com'} ,
             '$http_user_agent':{'desc':'客户端的UA信息' ,'example':'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/73.0.3683.86 Safari/537.36'} ,
             '$upstream_addr':{'desc':'后端接收请求的服务的ip或地址' ,'example':'unix:/tmp/php-cgi-71.sock'} ,
-            '$time_iso8601':{'desc':'iso8601时间格式' ,'example':'2020-09-11T15:20:43+08:00'} ,
-            '$time_local':{'desc':'本地时间格式' ,'example':'11/Sep/2020:15:20:43 +0800'} ,
+            '$upstream_http_host':{'desc':'服务端响应的地址 ' ,'example':'unix:/tmp/php-cgi-71.sock'} ,
+            '$time_iso8601':{'desc':'iso8601时间格式' ,'example':'2020-09-11T15:20:43+08:00','format':'ti'} ,
+            '$time_local':{'desc':'本地时间格式' ,'example':'11/Sep/2020:15:20:43 +0800','format':'th'} ,
         }
 
 
+    """
+        日志解析
+    """
+    def parse(self,log_format='',log_line=''):
+        #  多个空格替换成一个空格
+        line = re.sub(r'\s+', ' ', log_line)
+        # 处理日志匹配 (耗时操作)
+        res = search(log_format, line)
+        if (res is None):
+            raise ValueError('没有匹配到数据')
 
+        return res.named
+
+
+    """
+        根据录入的格式化字符串 返回 parse 所需 log_format 配置
+    """
+    def getLogFormatByConfStr(self ,log_conf='' ,log_type = 'string'):
+        if log_type not in ['string','json']:
+            raise ValueError('_type 参数类型错误')
+
+
+        # 去掉换行
+        str = log_conf.replace("\n", '')
+
+        # 处理换行后的 引号
+        str = re.sub(r'\'\s+\'', '', str)
+
+
+        if (log_type == 'string'):
+            # 获取日志名字后面的 日志格式
+            res = re.findall(r'\s?log_format\s+(\w+)\s+\'([\s|\S]?\$\w+[\s|\S]+)+\'', str)
+
+        elif (log_type == 'json'):
+            # 获取日志名字后面的 日志格式
+            res = re.findall(r'\s?log_format\s+(\w+)\s+\'\{([\'|\"](\w+)[\'|\"]\:[\'|\"](\S+)[\'|\"])+\}\'', str)
+
+        if not res:
+            raise ValueError('获取格式化字符串失败')
+            return
+
+        # 日志名称
+        log_name = res[0][0]
+        # 获取到匹配到的 日志格式
+        log_format_str = res[0][1].strip()
+        format = re.sub(r'(\$\w+)+', self.__replaceLogVars, log_format_str)
+
+        return (log_name ,format)
+
+    """
+        找到匹配中的日志变量
+    """
+    def __replaceLogVars(self,matched):
+
+        try:
+            log_format = self.getLogFormat()
+            vars = log_format[matched.group()]
+        except KeyError :
+            raise ValueError('%s 日志变量 handle 里面不存在' % matched.group())
+
+        if('format' in vars and len(vars['format'])):
+            s = matched.group().replace('$', '') +':'+ vars['format']
+        else:
+            s = matched.group().replace('$','')
+        return '{%s}' % s
 
 
 
