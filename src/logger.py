@@ -43,6 +43,41 @@ class loggerParse(object):
 
         return self.__format
 
+
+    def startRead(self ,log_path):
+        postion = 0
+        with open(log_path, 'rb') as fd:
+
+            while True:
+                if (postion > 0):
+                    print('------------read position : %s-------------' % postion)
+                    fd.seek(postion)
+
+                start_time = time.time()
+                print('read position : %s' % postion)
+
+                for line in fd:
+
+                    line = line.decode(encoding='utf-8')
+                    if (len(line) == 0):
+                        continue
+
+                    postion = fd.tell()
+
+                    # if (log_type == 'string'):
+                    # 数据解析
+                    #     # res = obj.parse(log_format=log_format, log_line=line)
+                    #     print(line)
+                    # elif (log_type == 'json'):
+                    #     print(line)
+
+                    # todo 数据上报
+                    print(line)
+
+                end_time = time.time();
+                print(print('耗时: %s' % (end_time - start_time)))
+                time.sleep(1)
+
     """
         动态调用handel方法 and 给出友好的错误提示
     """
@@ -99,8 +134,9 @@ if __name__ == "__main__":
         log_path = '/www/wwwlogs/local.test.com.log',
 
     )
-    web_conf = '/www/server/nginx/conf/nginx.conf'
 
+
+    web_conf = '/www/server/nginx/conf/nginx.conf'
     # 根据配置文件 自动获取 log_format 字符串
     with open(web_conf,'rb') as fd:
         content = fd.read().decode(encoding="utf-8")
@@ -138,50 +174,17 @@ if __name__ == "__main__":
 #     """
 
     '''
-    读取日志文件分发 到 队列 start
+        获取解析日志的 log_name , log_formater  
     '''
     str = conf_list[0]
-
-
     log_type = 'string'
+    log_name,log_formater = obj.getLogFormatByConfStr(log_conf=str,log_type='string')
+    print('---------%s %s' % (log_name,log_formater))
 
-    log_name,log_format = obj.getLogFormatByConfStr(log_conf=str,log_type='string')
-
-    print('---------%s %s' % (log_name,log_format))
-
-    postion = 0
-    with open(obj.log_path,'rb') as fd:
-        
-        while True:
-            if(postion > 0):
-                print('------------read position : %s-------------' % postion)
-                fd.seek(postion)
-
-            start_time = time.time()
-            print('read position : %s' % postion)
-
-            for line in fd:
-
-                line = line.decode(encoding='utf-8')
-                if(len(line) == 0 ):
-                    continue
-
-                postion = fd.tell()
-
-                # if (log_type == 'string'):
-                #     # res = obj.parse(log_format=log_format, log_line=line)
-                #     print(line)
-                # elif (log_type == 'json'):
-                #     print(line)
-
-
-                # todo 数据上报
-                print(line)
-
-
-            end_time = time.time();
-            print(print('耗时: %s' % (end_time - start_time) ))
-            time.sleep(1)
+    '''
+     读取日志文件分发 到 队列 start
+     '''
+    obj.startRead(obj.log_path)
 
 
 
