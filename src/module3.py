@@ -7,6 +7,7 @@ import time,asyncio,json
 
 
 redis = Redis(host='127.0.0.1',db=1)
+
 pipe = redis.pipeline(transaction=True)
 
 
@@ -23,12 +24,13 @@ deque = deque()
 # dq = m.get_deque()
 
 
-def starRead(log_path):
+
+async def starRead(log_path):
     postion = 0
 
     while True:
 
-        time.sleep(1)
+        await asyncio.sleep(1)
 
         try:
 
@@ -50,19 +52,18 @@ def starRead(log_path):
                         continue
 
                     postion = fd.tell()
-                    # deque.append(line)
+                    deque.append(line)
 
-                    data = json.dumps({'position': postion,'line':line ,'file':log_path})
-                    pipe.lpush('log_line',data)
+                    # data = json.dumps({'position': postion,'line':line ,'file':log_path})
+                    # pipe.lpush('log_line',data)
 
 
 
                     # for i in list(deque):
                     #     data = json.dumps({'position': postion,'line':i ,'file':log_path})
 
-
                     # redis 提交
-                pipe.execute()
+                # pipe.execute()
                 # pipe.close()
                 # 记录当前的 position
                 # postion = fd.tell()
@@ -71,17 +72,40 @@ def starRead(log_path):
 
                 end_time = time.time()
                 print('耗时: %s' % (end_time - start_time))
-            break
+
 
         except RedisError:
             # print('------------read current position : %s-------------' % fd.tell())
             print('redis connect error wait for redis-sever ')
 
 
+each_task_handle_num = 100
+
+async def sendLineToSever():
+
+    while True:
+        await asyncio.sleep(1)
+        for i in range(each_task_handle_num):
+            pipe.lpush(deque.pop())
+
+        pipe.execute()
+        pipe.close()
+        print("\nsendLineToSever : %s --- %s\n" % (time.time() ,len(list(deque))))
 
 
 
+async def start():
+    task_num = 2
+    task = []
+    # for i in  range(task_num):
+    #     task.append(asyncio.ensure_future(starRead('/www/wwwlogs/local.test.com.log')))
+    task.append(asyncio.ensure_future(starRead('/www/wwwlogs/local.test.com.log')))
 
+    for i in range(task_num):
+        task.append(asyncio.ensure_future(sendLineToSever()))
+
+
+    done,pading = await asyncio.wait(task)
 
 
 
@@ -89,4 +113,10 @@ if __name__ == "__main__":
 
     logPath = '/www/wwwlogs/local.test.com.log'
 
-    starRead(logPath)
+    # starRead(logPath)
+
+    loop = asyncio.get_event_loop()
+
+
+    asyncio.run(start())
+    loop.run_forever()
