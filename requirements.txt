@@ -2,3 +2,5 @@ Flask == 1.1.1
 configparser == 5.0.0
 environs == 8.0.0
 parse == 1.17.0
+redis == 3.5.3
+mongo == 0.2.0

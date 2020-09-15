@@ -1,12 +1,20 @@
 from multiprocessing.managers import BaseManager,ListProxy
 from multiprocessing import Queue
-from multiprocessing.connection import Listener
-import time
+from collections import deque
+from pymongo import MongoClient
+from redis import Redis
+import time,json
 
+redis = Redis(host='127.0.0.1',port=6379 ,db=1)
+
+mongo = MongoClient(host='127.0.0.1',port=27017)
 
 
 class MyManager(BaseManager):
-    pass
+
+    def __init__(self,*args,**kwargs):
+        super(MyManager,self).__init__(*args,**kwargs)
+
 
 
 
@@ -14,46 +22,77 @@ class MyManager(BaseManager):
 m = MyManager(address=('0.0.0.0',5656),authkey=b'123123')
 
 
-# subprocess start -------------------begin
 
-# queue = Queue()
-# task = []
-#
-# m.register('get_queue',lambda :queue)
-# m.register('get_task',lambda :task ,ListProxy)
-#
-# m.start()
-#
-# q = m.get_queue()
-# t = m.get_task()
-#
-# for i in range(10):
-#     q.put(i)
-#     t.append(i)
-#
-# while True:
-#     time.sleep(1)
-#     print('queue len %s ' % q.qsize())
-#     print('task len %s' % len(t))
+if __name__ == "__main__":
 
-# subprocess start -------------------end
+    # subprocess start -------------------begin
 
 
-s = m.get_server()
-queue = Queue()
-task = []
+    queue = Queue()
+    _deque = deque()
 
-m.register('get_queue',lambda :queue)
-m.register('get_task',lambda :task ,ListProxy)
 
-s.serve_forever()
+    task = []
+
+    m.register('get_deque',lambda :_deque ,ListProxy)
+    m.register('get_queue',lambda :queue )
+
+
+    # m.register('get_task',lambda :task ,ListProxy)
+
+    m.start()
+
+    dq = m.get_deque()
+    q = m.get_queue()
 
 
 
 
-# if __name__ == "__main__":
+
+    for i in range(10):
+        dq.append(i)
+
+    pipe = redis.pipeline(transaction=True)
 
 
-    # print(s.debug_info())
+    while True:
+        time.sleep(1)
+        start_time = time.time()
+        print('start_time : %s' % start_time)
 
-    # m.start()
+        # print('dqueue len : %s ;queue len : %s' % (len(dq) ,q.qsize()))
+        # print(dq.pop())
+
+        ever_take_num = 100000
+
+        total = redis.llen('log_line')
+        lines_list = []
+        if(total):
+            if total < ever_take_num:
+                take_num = total
+            else:
+                take_num = ever_take_num
+
+            for i in range(take_num):
+                pipe.rpop('log_line')
+
+            lines = pipe.execute()
+
+            for item in lines:
+                lines_list.append(json.loads(lines[0].decode(encoding='utf-8')))
+
+        if len(lines_list):
+            print(len(lines_list))
+            a = mongo['test']['line'].insert_many(lines_list,ordered=False,bypass_document_validation=True)
+            # print(a.inserted_ids)
+
+            del lines_list
+            end_time = time.time()
+            print('耗时: %s' % (end_time - start_time))
+
+
+        # print('queue len %s ' % q.__len__())
+        # print('task len %s' % len(t))
+
+
+    # subprocess start -------------------end

@@ -10,19 +10,17 @@ m = BaseManager(address=('192.168.0.188',5656),authkey=b'123123')
 
 m.connect()
 
-
 m.register('get_queue')
 q = m.get_queue()
 
 m.register('get_task')
 task = m.get_task()
 
-
 while True:
     time.sleep(2)
-    
-    if(len(task) > 0):
-        task.pop()
+
+    if (len(task) > 0):
+        task.push('1111111111')
         print(len(task))
 
         continue
@@ -31,6 +29,7 @@ while True:
 
         break
 
+m.start()
 
 
 
@@ -42,9 +41,6 @@ while True:
 
 
 
-# if __name__ == "__main__":
+if __name__ == "__main__":
 
-
-    # print(s.debug_info())
-
-    # m.start()
+    pass
