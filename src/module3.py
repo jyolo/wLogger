@@ -1,10 +1,7 @@
-from multiprocessing import Queue
+from multiprocessing import Queue,Process
 from multiprocessing.managers import BaseManager
-from multiprocessing import Process
-from multiprocessing import Queue
-from collections import deque
 from redis import Redis,RedisError
-import time,asyncio,json,aioredis,traceback
+import time,asyncio,json,aioredis,traceback,mmap,os,collections,platform
 
 
 
@@ -25,155 +22,150 @@ import time,asyncio,json,aioredis,traceback
 # q = m.get_queue()
 # dq = m.get_deque()
 
-task_num = 10
 
 
-async def getRedisConnect():
-     redis_pool = await aioredis.create_redis_pool(
-        address=('127.0.0.1',6379),
-        maxsize=task_num,
-        db=1
-    )
 
-     return redis_pool
 
-async def starRead(log_path,_deque):
+
+
+# async def getRedisConnect():
+#      redis_pool =
+#      return redis_pool
+
+
+
+def starRead(log_path,queue):
     postion = 0
 
     while True:
 
-        await asyncio.sleep(1)
+        time.sleep(1)
 
-        try:
+        with open(log_path, 'rb') as fd:
 
-            # redis.ping()
+            if (postion > 0):
+                # print('------------read position : %s-------------' % postion)
+                fd.seek(postion)
 
-            with open(log_path, 'rb') as fd:
+            start_time = time.time()
+            # print('read position : %s start at: %s' % (postion, start_time))
 
-                if (postion > 0):
-                    print('------------read position : %s-------------' % postion)
-                    fd.seek(postion)
+            for line in fd:
+                linestr = line.decode(encoding='utf-8')
+                if (len(linestr) == 0):
+                    continue
 
-                start_time = time.time()
-                print('read position : %s' % postion)
+                postion = fd.tell()
+                queue.put(linestr)
 
-                for line in fd:
-
-                    line = line.decode(encoding='utf-8')
-                    if (len(line) == 0):
-                        continue
-
-                    postion = fd.tell()
-                    _deque.append(line)
-                    # _queue.put(line)
-                    # data = json.dumps({'position': postion,'line':line ,'file':log_path})
-                    # pipe.lpush('log_line',data)
-
-                    # for i in list(deque):
-                    #     data = json.dumps({'position': postion,'line':i ,'file':log_path})
-
-                    # redis 提交
-                # pipe.execute()
-                # pipe.close()
-                # 记录当前的 position
-                # postion = fd.tell()
-                # print('------------read current position : %s-------------' % postion)
-                # print(redis.llen('log_line'))
-
-                end_time = time.time()
-                print('耗时: %s 队列长度 deque: %s' % ( int(end_time - start_time), len(list(_deque)) ))
+            end_time = time.time()
+            # print('耗时: %s 队列长度 deque: %s' % (end_time - start_time, len(list(deque))))
+            # print('耗时: %s 队列长度 deque: %s' % (end_time - start_time, queue.qsize()))
 
 
-        except RedisError:
-            # print('------------read current position : %s-------------' % fd.tell())
-            print('redis connect error wait for redis-sever ')
 
 
-each_task_handle_num = 100000
 
-async def sendLineToSever(_deque):
+async def sendLineToSever(queue ,task_num,each_task_handle_num,task_index):
     try:
 
-        redis = await getRedisConnect()
-
-
-        # total = await redis.llen('log_line')
-        #
-        # for i in range(total):
-        #     line = await redis.lpop('log_line')
-        #     if line:
-        #         deque.append(line)
-        #
-        #
-        # print(len(list(deque)))
-        # return
+        redis = await aioredis.create_redis_pool(
+            address=('127.0.0.1',6379),
+            maxsize=task_num,
+            db=1
+        )
 
         while True:
             await asyncio.sleep(1)
-
-
-
             start_time = time.time()
 
-            if (len(list(_deque)) == 0):
-                print('wait for deque data')
-                continue
 
-            print('-----------sendLineToSever  : %s 队列总长 : %s' % (start_time, len(list(_deque))))
+            # print('-----------sendLineToSever %s : %s 队列总长 : %s' % (task_index ,start_time, queue.qsize() ))
             pipe = redis.pipeline()
 
-            for i in range(each_task_handle_num):
-                try:
-                    lines = _deque.pop()
-                    pipe.lpush('log_line', lines)
-                except IndexError as e: # deque empty
+            if(queue.qsize() < each_task_handle_num):
+                handle_num = queue.qsize()
+            else:
+                handle_num = each_task_handle_num
+
+
+            for i in range(handle_num):
+                if queue.empty():
                     break
+                try:
+                    # lines = queue.get_nowait()
+                    lines = queue.get()
+                except Exception :
+                    break
+
+                pipe.lpush('log_line', lines)
+
 
 
             handle_lines = await pipe.execute()
 
             end_time = time.time()
-            print('----------sendLineToSever开始时间:%s  耗时: %s ------- 处理数据: %s' % (
-            start_time, int(end_time - start_time), len(handle_lines)))
-            # print('----------sendLineToSever耗时: %s ------- 处理数据: %s' % ( (end_time - start_time) , len(list(deque)) ) )
+            print('+++pid:%s+++sendLineToSever %s 耗时: %s ---at:%s---- 处理数据: %s 队列总长 : %s' %
+                  (
+                    os.getpid(),
+                    task_index,
+                    int(end_time - start_time),
+                    time.time(),
+                    len(handle_lines),
+                    queue.qsize()
+                  )
+              )
+            # print('++++++++++++sendLineToSever %s 耗时: %s ------- 处理数据: ' % (task_index, int(end_time - start_time)))
+
+
     except Exception as e:
         traceback.print_exc()
 
 
 
 
-
-async def start(_queue):
+async def subProcessStart(queue ,task_num,each_task_handle_num):
     task = []
-
-    task.append(asyncio.ensure_future(starRead('/www/wwwlogs/local.test.com.log',_queue)))
-
-    # for i in range(task_num):
-    #     task.append(asyncio.ensure_future(sendLineToSever()))
-
-    done, pading = await asyncio.wait(task)
-    print(pading)
-
-async def subProcessStart(_deque):
-    task = []
-
-    # task.append(asyncio.ensure_future(starRead('/www/wwwlogs/local.test.com.log')))
 
     for i in range(task_num):
-        task.append(asyncio.ensure_future(sendLineToSever(_deque)))
+        task.append(asyncio.ensure_future(sendLineToSever(queue ,task_num,each_task_handle_num ,i)))
 
     done, pading = await asyncio.wait(task)
     print(pading)
 
-def mainProcess(deque):
-    loop = asyncio.get_event_loop()
-    # asyncio.run(start(deque))
-    # loop.run_forever()
-    loop.run_until_complete(start(deque))
+def mainProcess(task_num=5,each_task_handle_num=5000 ,task_process=1):
 
-def subProcess(_deque):
+    queue = Queue()
+
+    p_list = []
+    for i  in range(task_process):
+        p_list.append(
+            Process(target=subProcess ,args=(queue,task_num,each_task_handle_num,))
+        )
+
+    for p in p_list:
+        p.start()
+
+    # 2910231  2904112 2907578
+    starRead('/www/wwwlogs/local.test.com.log', queue)
+
+    # pid = os.fork()
+    # if pid == 0:
+    #     subProcess(queue,task_num,each_task_handle_num)
+    #     pass
+    # else:
+    #     # while True:
+    #     #     time.sleep(1)
+    #     #     pass
+    #     starRead('/www/wwwlogs/local.test.com.log', queue)
+        # loop = asyncio.get_event_loop()
+        # asyncio.run(start(deque))
+        # loop.run_until_complete(start())
+
+def subProcess(queue,task_num,each_task_handle_num):
+
     loop = asyncio.get_event_loop()
-    asyncio.run(subProcessStart(_deque))
+    asyncio.run(subProcessStart(queue,task_num,each_task_handle_num))
     loop.run_forever()
 
 if __name__ == "__main__":
@@ -182,11 +174,20 @@ if __name__ == "__main__":
     #
     # starRead(logPath)
 
-    _deque = deque()
-    queue = Queue()
 
-    mainProcess(_deque)
-    print('123')
+
+    mainProcess(
+        task_num = 4,
+        each_task_handle_num = 10000,
+        task_process=4
+    )
+    # 4 个进程 1个协程 2:19 平均每秒 4W
+    # 4 个进程 4个协程 1:41 平均每秒 4W (数据丢失2910231 2901905)
+    # 1 个进程 4个协程 4:14 平均每秒 2W
+
+
+
+
     # p = Process(target=subProcess ,args=(_deque,))
     # p.start()
     # p.join()
