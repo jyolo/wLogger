@@ -93,8 +93,8 @@ async def sendLineToSever(queue ,task_num,each_task_handle_num,task_index):
                 if queue.empty():
                     break
                 try:
-                    lines = queue.get_nowait()
-                    # lines = queue.get()
+                    # lines = queue.get_nowait()
+                    lines = queue.get()
                 except Exception :
                     break
 
@@ -182,7 +182,9 @@ if __name__ == "__main__":
         task_process=4
     )
     # 4 个进程 1个协程 10000 2:19 平均每秒 4W
-    # 4 个进程 1个协程 50000 2:37 平均每秒 4W
+    # 4 个进程 1个协程 50000 get_nowait 2:37 平均每秒 4W
+    # 4 个进程 1个协程 50000 get 2:02 平均每秒 4W (数据丢失2910231 2895095)
+
     # 4 个进程 4个协程 1:41 平均每秒 4W (数据丢失2910231 2901905)
     # 1 个进程 4个协程 4:14 平均每秒 2W
 
