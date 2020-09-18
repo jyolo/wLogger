@@ -2,7 +2,8 @@ from multiprocessing import Queue,Process
 from multiprocessing.managers import BaseManager
 from redis import Redis,RedisError
 # from src.logger import loggerParse
-import time,asyncio,json,aioredis,traceback,mmap,os,collections,platform,copy,fileinput
+from threading import Thread,ThreadError,RLock
+import time,asyncio,json,aioredis,traceback,mmap,os,collections,platform,copy
 
 
 
@@ -39,73 +40,125 @@ class Reader(object):
         self.log_path = log_path
         self.queue = queue
         self.fd = self.__getFileFd()
+        # 文件切割中标志
+        self.cutting_file = False
+        self.lock = RLock()
 
 
     def __getFileFd(self):
         return open(self.log_path ,'rb+')
         # return fileinput.input(self.log_path )
 
-
     def full_cut(self):
 
-        start_time = time.perf_counter()
-        print("\n start_time -------chunckFile------- %s \n" % start_time)
+        while True:
+            time.sleep(1)
+            start_time = time.perf_counter()
+            print("\n start_time -------cutting file start --- queue_len:%s---- %s \n" % ( len(list(self.queue)) ,start_time) )
 
-        with open(self.log_path,'rb+') as fd:
-            fd.seek(0)
-            fd.truncate()
-
-        file_suffix = time.strftime('%Y_%m_%d', time.localtime())
-        # size = round(os.path.getsize(self.log_path) / 1024)
-        queue_list = list(self.queue)
-        print(len(queue_list))
-        # print(today)
-        # print('file size %s KB ' % size)
-        # print('last line %s ' % last_line)
-
-        last_line_seek = queue_list[-1][0]
-        print(last_line_seek)
-
-        split_file = self.log_path +'_'+ file_suffix
-        split_content = []
+            if len(list(self.queue)) < 100000:
+            # if len(list(self.queue)) < 4000:
+                continue
 
 
-        for i in range(len(queue_list)):
-            # self.queue.popleft()  # 从左边开始 清空队列 和 queue_list 相同的数据
-            # split_content.append(queue_list[i][1])
-            split_content.append( self.queue.popleft()[1] )
+            # self.lock.acquire(blocking=True)
 
-        end_time = time.perf_counter()
-        print("\n end_time -------chunckFile------- %s 耗时： %s \n" % (end_time, round(end_time - start_time, 2)))
-        del queue_list
-        print(len(list(self.queue)))
-        print(len(split_content))
-        # # 翻转 保持时间正序
-        split_content.reverse()
-        with open(split_file ,'wb+') as split_file_fd:
-            split_file_fd.writelines(split_content)
+            reader_queue = self.queue
+            self.lock.acquire(blocking=True)
 
-        # with open(self.log_path, 'rb+') as fd:
-        #     fd.seek(324)
-        #     print(fd.truncate(324))
-        #
-        #
+            # 清空文件
+            self.fd.seek(0)
+            self.fd.truncate()
 
-        end_time = time.perf_counter()
-        print("\n end_time -------chunckFile------- %s 耗时： %s \n" % (end_time , round(end_time - start_time,2)) )
-        # lines = list(copy_queue)[0:3]
-        # for l in lines:
-        #     position = l.split('__pos__')[0]
-        #     with open(self.log_path,'rb+') as fd:
-        #         fd.seek(int(position))
-        #         print(position)
-                # print(fd.truncate())
+            self.lock.release()
+            print(';;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;full_cut;;;;;;finnish truncate;;;;;;;;;;;;; mark at %s' % time.perf_counter())
+            time.sleep(1) # 让出线程 让reader 去读
+            # 完成清空标记 结束
+            # self.cutting_file = True
+
+            print(';;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;full_cut;;;;;;;;;;;;;;;;;;; mark at %s' % time.perf_counter())
+            # time.sleep(1)  # 阻塞1秒 供线程切换
 
 
+            print('>>>>>>>>>>>>>>> %s <<<<<<<<<<<<<' % len(list(reader_queue)))
 
-        # half_point = round( len(list(copy_queue))/2 )
-        # # list(copy_queue)[0:1050540]
-        # print(half_point)
+            # 创建新文件 &  移除队列前面
+            end_time = time.perf_counter()
+            print("\n end_time -------cutting file end truncate------- %s 耗时： %s \n" % (end_time, round(end_time - start_time, 2)))
+
+
+            file_suffix = time.strftime('%Y_%m_%d', time.localtime())
+            # size = round(os.path.getsize(self.log_path) / 1024)
+
+            queue_list = list(reader_queue)
+            print('>>>>>>>>>>>>>>>reader_queue %s  >>>> self_queue len: %s ' % ( len(queue_list) ,len(list(self.queue)) ) )
+
+            split_file = self.log_path + '_' + file_suffix
+            split_content = []
+
+            # 移除队列
+            for i in range(len(queue_list)):
+                split_content.append(self.queue.popleft()[1])
+
+
+            end_time = time.perf_counter()
+            print("\n end_time--queue len: %s-----cutting file end create new file------- %s 耗时： %s \n"
+                  % ( len(list(self.queue)), end_time, round(end_time - start_time, 2)))
+
+
+            # 写入新的切割文件
+            with open(split_file, 'wb+') as split_file_fd:
+                split_file_fd.writelines(split_content)
+
+            del queue_list
+            del split_content
+            reader_queue = None
+
+
+            end_time = time.perf_counter()
+            print("\n end_time -------chunckFile------- %s 耗时： %s \n" % (end_time, round(end_time - start_time, 2)))
+
+
+
+    def startRead(self):
+        try:
+            position = 0
+            self.fd.seek(position,0)
+
+            while True:
+                time.sleep(1)
+                start_time = time.perf_counter()
+                print("\n start_time -------read file---queue len: %s---- %s \n" % (len(list(self.queue)) ,start_time) )
+
+                # if self.cutting_file == True:
+                #     print(';;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;reader01;;;;;;;;;;;;;;;;;;; reload at: %s' % time.perf_counter())
+                #     # self.fd.close()
+                #     # self.fd = self.__getFileFd()
+                #     self.fd.seek(0)
+                #     self.cutting_file = False
+
+                self.lock.acquire(blocking=True)
+                for line in self.fd:
+                    position = self.fd.tell()
+                    line = (position ,line)
+                    self.queue.append(line)
+
+                self.lock.release()
+
+                queue_len = len(list(self.queue))
+                # print(queue_len) # 97442 102552
+                # print(queue_len) # 93616 106302
+                # print(queue_len) # 96237 103672
+                # print(queue_len) # 96237 103672
+
+                end_time = time.perf_counter()
+                print("\n end_time -------read file---queue_len :%s ----%s 耗时:%s \n" % (queue_len,end_time, round(end_time - start_time, 2)))
+
+
+        finally:
+            print('close the fd')
+            self.fd.close()
+
 
     # 对半切
     def half_cut(self,queue_len):
@@ -164,86 +217,15 @@ class Reader(object):
         # print(half_point)
 
 
-    def startRead(self):
-        try:
-            position = 0
-            self.fd.seek(position,0)
-            # 文件切割中
-            self.cutting_file = False
 
-            while True:
-                time.sleep(1)
-                start_time = time.perf_counter()
-                print("\n start_time -------read file------- %s \n" % start_time)
-                for line in self.fd:
-                    position = self.fd.tell()
-                    line = (position ,line)
-                    self.queue.append(line)
+    def run(self,method_name):
+        print('%s ,%s' % (method_name  ,time.perf_counter()))
+        getattr(self,method_name)()
 
-
-                if self.cutting_file == True:
-                    self.fd.close()
-                    self.fd = self.__getFileFd()
-                    self.cutting_file = False
-                    self.startRead()
-
-
-
-                queue_len = len(list(self.queue))
-                print(queue_len)
-                if queue_len == 35 and self.cutting_file == False:
-                    self.cutting_file = True
-                    print('full_cut')
-                    self.full_cut()
-                    # self.half_cut(queue_len)
-                    pass
-
-                end_time = time.perf_counter()
-                print("\n end_time -------read file-------%s 耗时:%s \n" % (end_time, round(end_time - start_time, 2)))
-                # break
-
-        finally:
-            print('close the fd')
-            self.fd.close()
-
-    def getQueue(self):
-        return self.queue
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         print('123123123')
         self.fd.close()
-
-
-
-def starRead(log_path,queue):
-    postion = 0
-
-    while True:
-
-        time.sleep(1)
-
-        start_time = time.time()
-        print('read position : %s start at: %s' % (postion, start_time))
-
-        with open(log_path, 'rb') as fd:
-
-            if (postion > 0):
-                # print('------------read position : %s-------------' % postion)
-                fd.seek(postion)
-
-            for line in fd:
-                # linestr = line.decode(encoding='utf-8')
-                if (len(line) == 0):
-                    continue
-
-                postion = fd.tell()
-                # queue.put(linestr)
-                queue.append(line)
-                break
-
-            end_time = time.time()
-            print('耗时: %s 队列长度 deque: %s' % (end_time - start_time, len(list(queue))))
-            # print('耗时: %s 队列长度 deque: %s' % (end_time - start_time, queue.qsize()))
 
 
 
@@ -252,11 +234,23 @@ if __name__ == "__main__":
 
 
     log = '/www/wwwlogs/local.test.com.log'
+    # log = '/www/wwwlogs/local.test.com.log_2020_09_18'
     # queue = Queue()
     queue = collections.deque()
 
     s_time = time.perf_counter()
     r = Reader(log_path=log,queue=queue)
-    r.startRead()
-    # print('队列总长: %s ;耗时: %s' % (len(list(r.queue)) , (time.perf_counter() - s_time ) )  )
 
+
+    jobs = ['startRead','full_cut']
+    # jobs = ['startRead']
+    t = []
+    for i in jobs:
+        t.append(Thread(target=r.run ,args=(i,)) )
+
+
+    for i in t:
+        i.start()
+
+    for i in t:
+        i.join()
