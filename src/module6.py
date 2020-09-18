@@ -53,26 +53,26 @@ class Reader(object):
 
         while True:
             time.sleep(1)
-            start_time = time.perf_counter()
-            print("\n start_time -------cutting file start --- queue_len:%s---- %s \n" % ( len(list(self.queue)) ,start_time) )
 
+
+            # if len(list(self.queue)) < 100000:
             if len(list(self.queue)) < 100000:
-            # if len(list(self.queue)) < 4000:
                 continue
 
+            start_time = time.perf_counter()
+            print("\n start_time -------cutting file start --- queue_len:%s---- %s \n" % (
+            len(list(self.queue)), start_time))
 
-            # self.lock.acquire(blocking=True)
-
-            reader_queue = self.queue
-            self.lock.acquire(blocking=True)
 
             # 清空文件
+            self.lock.acquire(blocking=True)
             self.fd.seek(0)
             self.fd.truncate()
-
+            reader_queue = copy.deepcopy(list(self.queue))
             self.lock.release()
-            print(';;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;full_cut;;;;;;finnish truncate;;;;;;;;;;;;; mark at %s' % time.perf_counter())
-            time.sleep(1) # 让出线程 让reader 去读
+            end_time = time.perf_counter()
+            print(';;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;full_cut;;;;;;finnish truncate;;;;;;;;;;;;; mark at %s' % round(end_time - start_time, 2))
+            time.sleep(3) # 让出线程 让reader 去读
             # 完成清空标记 结束
             # self.cutting_file = True
 
@@ -98,7 +98,7 @@ class Reader(object):
 
             # 移除队列
             for i in range(len(queue_list)):
-                split_content.append(self.queue.popleft()[1])
+                split_content.append(self.queue.popleft())
 
 
             end_time = time.perf_counter()
@@ -139,8 +139,8 @@ class Reader(object):
 
                 self.lock.acquire(blocking=True)
                 for line in self.fd:
-                    position = self.fd.tell()
-                    line = (position ,line)
+                    # position = self.fd.tell()
+                    # line = (position ,line)
                     self.queue.append(line)
 
                 self.lock.release()
