@@ -18,7 +18,6 @@ class loggerParse(object):
     def logFormat(self):
         return self.__format
 
-
     @logFormat.setter
     def logFormat(self,value):
 
@@ -44,45 +43,10 @@ class loggerParse(object):
         return self.__format
 
 
-    def startRead(self ,log_path):
-        postion = 0
-        with open(log_path, 'rb') as fd:
-
-            while True:
-                if (postion > 0):
-                    print('------------read position : %s-------------' % postion)
-                    fd.seek(postion)
-
-                start_time = time.time()
-                print('read position : %s' % postion)
-
-                for line in fd:
-
-                    line = line.decode(encoding='utf-8')
-                    if (len(line) == 0):
-                        continue
-
-                    postion = fd.tell()
-
-                    # if (log_type == 'string'):
-                    # 数据解析
-                    #     # res = obj.parse(log_format=log_format, log_line=line)
-                    #     print(line)
-                    # elif (log_type == 'json'):
-                    #     print(line)
-
-                    # todo 数据上报
-                    print(line)
-
-                end_time = time.time();
-                print(print('耗时: %s' % (end_time - start_time)))
-                time.sleep(1)
 
 
 
-    """
-        动态调用handel方法 and 给出友好的错误提示
-    """
+    #  动态调用handel方法 and 给出友好的错误提示
     def __getattr__(self, item ,**kwargs):
 
         if hasattr(self.__handler,item):
@@ -124,9 +88,6 @@ class loggerParse(object):
 
 
 
-def startReadLog():
-    pass
-
 
 
 if __name__ == "__main__":
@@ -141,28 +102,9 @@ if __name__ == "__main__":
     # print(obj.getLogFormatByConfStr())
 
     web_conf = '/www/server/nginx/conf/nginx.conf'
-    # 根据配置文件 自动获取 log_format 字符串
-    with open(web_conf,'rb') as fd:
-        content = fd.read().decode(encoding="utf-8")
+    obj.getLoggerFormatByServerConf(web_conf)
 
-
-    res = re.findall(r'log_format\s+\w+\s+\'[\s\S]*\S?\'\S?\;' ,content)
-
-    conf_list = res[0].strip().strip(';').split(';')
-
-    print('自动获取到 %s 个日志格式配置' % len(conf_list))
-
-    print(conf_list)
-    str = conf_list[0]
-    # print(conf_list[0])
-    # print(conf_list[1])
-    # print(conf_list[2])
-    # print(conf_list[3])
-    #
-    # exit()
-
-
-
+    # log_name, log_formater = obj.getLogFormatByConfStr(log_conf=str, log_type='string')
 
     # 根据用户自定义的字符串 生成 配置项
     # str = "$remote_addr - $request $request_time - $status \n"
@@ -177,6 +119,13 @@ if __name__ == "__main__":
 #
 #
 #     """
+
+    # nginx 默认值
+    """
+        log_format  combined  '$remote_addr - $remote_user  [$time_local]  '
+                       ' "$request"  $status  $body_bytes_sent  '
+                       ' "$http_referer"  "$http_user_agent" ';
+    """
 
     '''
         获取解析日志的 log_name , log_formater  

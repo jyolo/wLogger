@@ -122,6 +122,23 @@ class Handler(Adapter):
 
         return (log_name ,format)
 
+
+    def getLoggerFormatByServerConf(self,server_conf_path):
+
+
+        # 根据配置文件 自动获取 log_format 字符串
+        with open(server_conf_path,'rb') as fd:
+            content = fd.read().decode(encoding="utf-8")
+
+
+        res = re.findall(r'log_format\s+\w+\s+\'[\s\S]*\S?\'\S?\;' ,content)
+
+        conf_list = res[0].strip().strip(';').split(';')
+
+        print('自动获取到 %s 个日志格式配置' % len(conf_list))
+
+        return conf_list
+
     """
         找到匹配中的日志变量
     """
