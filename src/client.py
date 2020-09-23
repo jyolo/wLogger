@@ -1,11 +1,12 @@
+# coding=UTF-8
 from multiprocessing import Queue,Process
 from redis import Redis,RedisError
 from configparser import ConfigParser
 from threading import Thread,RLock
-import time,asyncio,json,aioredis,traceback,mmap,os,collections,platform,copy,importlib
+import time,asyncio,json,aioredis,traceback,mmap,os,collections,platform,copy,importlib,sys
 
 
-
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))) )
 
 
 class Base(object):
@@ -30,18 +31,17 @@ class loggerParse(object):
 
 
     def __init__(self ,server_type,server_conf):
-        print(server_type)
+
         self.server_type = server_type
         self.__handler = self.__findHandlerAdapter(server_type)()
-        self.format = self.__handler.getLogFormat(server_conf)
+        self.format = self.__handler.getLogFormat()
         self.logger_format = self.__handler.getLoggerFormatByServerConf(server_conf_path=server_conf)
-        print(self.logger_format)
-        # 允许的的日志变量
-        self.__allow_log_format_vars = self.__getAllowKeysFromHandleFormat()
 
 
-    def parse(self):
-        pass
+    # def parse(self,log_format='',log_line=''):
+    #
+    #     self.__handler.parse(log_format='',log_line='')
+    #     pass
 
 
     #  动态调用handel方法 and 给出友好的错误提示
@@ -69,19 +69,7 @@ class loggerParse(object):
         except ModuleNotFoundError:
             raise ValueError('server_type %s not found' % server_type)
 
-    def __getAllowKeysFromHandleFormat(self):
-        handle_format = self.__format
 
-        allow_vars = []
-        for hf in handle_format:
-
-            if not isinstance(handle_format[hf],dict):
-                raise ValueError('%s handle 的format 格式有误' % self.server_type)
-
-            allow_vars.append(hf)
-
-
-        return allow_vars
 
 
 class Reader(Base):
@@ -92,19 +80,22 @@ class Reader(Base):
         'stop' : 0,
     }
 
-    def __init__(self,log_path = None ,share_queue = None,save_engine = None):
+    def __init__(self,log_file_conf = None ,share_queue = None):
         super(Reader, self).__init__()
-        self.log_path = log_path
+        self.log_path = log_file_conf['file_path']
+        self.log_format_name = log_file_conf['log_format_name']
+        self.read_type = log_file_conf['read_type']
+        self.cut_file_type = log_file_conf['cut_file_type']
+        self.cut_file_point = log_file_conf['cut_file_point']
+
         self.share_queue = share_queue
         self.queue = collections.deque()
-        self.reader_queue = copy.deepcopy(self.queue)
-        self.outpuer_queue = copy.deepcopy(self.queue)
-        self.outpuer_max_length = 10000
+
         self.fd = self.__getFileFd()
         # 文件切割中标志
         self.cutting_file = False
         self.lock = RLock()
-        self.save_engine = save_engine
+
 
     def __getRedis(self):
         # return Redis(host='127.0.0.1', db=1)
@@ -196,8 +187,6 @@ class Reader(Base):
                 self.event['cut_file'] = 0
 
 
-
-
     def watcher(self):
         p = self.output_process
         p.start()
@@ -214,12 +203,21 @@ class Reader(Base):
         getattr(self,method_name)()
 
 class Outputer(Base):
-    def __init__(self,share_queue):
+    def __init__(self,share_queue,log_format_name ):
         super(Outputer,self).__init__()
-        self.queue = share_queue
+        self.share_queue = share_queue
         self.save_engine = self.conf['client.output']['type'].lower().capitalize()
         self.call_engine = 'saveTo%s' %  self.save_engine
+
         self.logParse = loggerParse(self.conf['client.input']['server_type'] ,self.conf['client.input']['server_conf'])
+        try:
+            self.format_str = self.logParse.logger_format[log_format_name]
+        except KeyError: # 找不到 则用默认
+            self.format_str = self.logParse.logger_format['defualt']
+
+        self.log_format_parse_str = self.logParse.getLogFormatByConfStr(log_conf = self.format_str ,log_type='string')
+
+
 
         if not hasattr(self , self.call_engine ):
             raise ValueError('Outputer 未定义 "%s" 该存储方法' %  self.save_engine)
@@ -227,7 +225,21 @@ class Outputer(Base):
 
     def saveToRedis(self):
 
-        print(self._root)
+        # log_files = eval(self.conf['client.input']['log_files'].strip())
+        # print(log_files)
+
+        while True:
+            time.sleep(1)
+            print('111111111')
+
+            print(self.log_format_parse_str)
+            line = self.share_queue.get()
+            line = line.decode(encoding='utf-8')
+            print(line)
+
+            res = self.logParse.parse(log_format=self.log_format_parse_str[1],log_line= line)
+            print(res)
+
         # redis = Redis(host='127.0.0.1', db=1)
         # # redis = Redis(host='120.78.248.191',password='xiaofeibao@DEVE#redis%PASSWD*2018^',port=35535, db=1)
         #
@@ -239,8 +251,6 @@ class Outputer(Base):
         #
         #     if queue.qsize() == 0:
         #         continue
-        #
-        #
         #
         #     pipe = redis.pipeline()
         #     for i in range(queue.qsize()):
@@ -262,9 +272,9 @@ def startOutput(share_queue ):
 
 
 
-def startReader(log_path ,share_queue,output_process):
+def startReader(log_path ,share_queue):
     r = Reader(log_path=log_path, share_queue=share_queue)
-    r.output_process = output_process
+    r.output_process = Process(target=startOutput ,args=(queue,) )
 
     jobs = ['readLog', 'cutFile', 'watcher']
     t = []
@@ -293,7 +303,7 @@ if __name__ == "__main__":
     #     for line in fd:
     #         queue.put(line)
 
-    startOutput(share_queue=queue)
+    # startOutput(share_queue=queue)
 
-    # p = Process(target=startOutput ,args=(queue,'redis',) )
-    # startReader(log_path=log, share_queue=queue,output_process=p)
+
+    startReader(log_path=log, share_queue=queue)

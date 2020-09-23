@@ -38,9 +38,7 @@ class Handler(Adapter):
 
 
 
-    def __init__(self,*args ,**kwargs):
-        super(Handler,self).__init__(*args,**kwargs)
-        print('Nginx')
+    def __init__(self,*args ,**kwargs):pass
 
 
     def getLogFormat(self):
@@ -135,9 +133,20 @@ class Handler(Adapter):
 
         conf_list = res[0].strip().strip(';').split(';')
 
-        print('自动获取到 %s 个日志格式配置' % len(conf_list))
+        format_list = {}
+        for i in conf_list:
+            res = re.findall(r'log_format\s+(\w+)\s+',i)
+            if len(res):
+                format_list[res[0]] = i
 
-        return conf_list
+
+        format_list['defualt'] = """ 
+            log_format  main '$remote_addr - $remote_user [$time_local] "$request" $status $body_bytes_sent "$http_referer" "$http_user_agent" "$http_x_forwarded_for" ';
+        """
+
+
+
+        return format_list
 
     """
         找到匹配中的日志变量

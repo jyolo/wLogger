@@ -4,7 +4,7 @@ from abc import abstractmethod,ABCMeta
 class Adapter(metaclass=ABCMeta):
 
 
-    def __init__(self,log_path):pass
+    def __init__(self):pass
 
     @abstractmethod
     def getLogFormat(self):pass
