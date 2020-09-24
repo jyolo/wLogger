@@ -1,6 +1,6 @@
 from ParserAdapter.BaseAdapter import Adapter
 from parse import parse,search,findall
-import os,json,re
+import os,json,re,time
 
 """
 $remote_addr,$http_x_forwarded_for  #记录客户端IP地址
@@ -82,6 +82,10 @@ class Handler(Adapter):
         if (res is None):
             raise ValueError('没有匹配到数据')
 
+        if 'time_local' in res.named:
+            res.named['time_local'] = str(res.named['time_local']).replace('+08:00','')
+
+
         return res.named
 
 
@@ -141,10 +145,10 @@ class Handler(Adapter):
 
 
         format_list['defualt'] = """ 
-            log_format  main '$remote_addr - $remote_user [$time_local] "$request" $status $body_bytes_sent "$http_referer" "$http_user_agent" "$http_x_forwarded_for" ';
+            log_format  main '$remote_addr - $remote_user [$time_local] "$request" $status $body_bytes_sent "$http_referer" "$http_user_agent"  ';
         """
 
-
+        del content
 
         return format_list
 

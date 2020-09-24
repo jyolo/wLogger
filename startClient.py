@@ -1,20 +1,29 @@
-from src.client import loggerParse,Outputer,Reader,Base
+from src.client import loggerParse,OutputCustomer,Reader,Base
 from multiprocessing import Queue,Process
 from threading import Thread
+import multiprocessing,sys
 
 
 
-def startOutput(share_queue  ,log_format_name ):
-    obj = Outputer(share_queue=share_queue,log_format_name=log_format_name)
-    getattr(obj,obj.call_engine)()
+def runOutputCustomer( ):
+    obj = OutputCustomer()
 
+    p_list = []
+    for i in range( round(multiprocessing.cpu_count() / 2) ):
+        p = Process(target = getattr(obj, obj.call_engine))
+        p_list.append(p)
 
+    for i in p_list:
+        i.start()
 
-def startReader(share_queue ,log_files_conf):
+    for i in p_list:
+        i.join()
+
+def runReader(share_queue ,log_files_conf):
+
     r = Reader(log_file_conf=log_files_conf, share_queue=share_queue)
-    r.output_process = Process(target=startOutput ,args=(share_queue,log_files_conf['log_format_name'] ) )
 
-    jobs = ['readLog', 'cutFile', 'watcher']
+    jobs = ['readLog', 'cutFile']
     t = []
     for i in jobs:
         th = Thread(target=r.runMethod, args=(i,))
@@ -28,17 +37,36 @@ def startReader(share_queue ,log_files_conf):
         i.join()
 
 
-def run():
+def startReader():
     queue = Queue()
     base = Base()
     logFiles = eval(base.conf['client.input']['log_files'].strip())
-    # for i in logFiles:
-    #     print(i)
+    plist = []
+    for i in logFiles:
+        p = Process(target=runReader, args=(queue, i))
+        plist.append(p)
 
-    p = Process(target=startReader ,args=(queue,logFiles[0]))
-    p.start()
-    p.join()
+    for i in plist:
+        i.start()
+
+    for i in plist:
+        i.join()
+
+
+
 
 if __name__ == "__main__":
 
-    run()
+    # startReader()
+
+    # runOutputCustomer()
+    args = sys.argv[1:]
+    if args[0] == '-run' :
+        if args[1] == 'client':
+            startReader()
+        elif args[1] == 'customer':
+            runOutputCustomer()
+        else:
+            raise ValueError('example: python3 startClient.py -run [client | customer]')
+    else:
+        raise ValueError('example: python3 startClient.py -run [client | customer]')
