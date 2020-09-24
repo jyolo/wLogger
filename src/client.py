@@ -342,7 +342,7 @@ class OutputCustomer(Base):
             time.sleep(1)
             keys = self.getClientQueueKeys()
             if len(keys) == 0:
-                print('pid: %s wait for data')
+                print('pid: %s wait for data' % os.getpid())
                 continue
 
             workerListData = []
