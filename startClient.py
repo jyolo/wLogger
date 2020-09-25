@@ -5,19 +5,7 @@ import multiprocessing,sys
 
 
 
-def runOutputCustomer( ):
-    obj = OutputCustomer()
 
-    p_list = []
-    for i in range( round(multiprocessing.cpu_count() / 2) ):
-        p = Process(target = getattr(obj, obj.call_engine))
-        p_list.append(p)
-
-    for i in p_list:
-        i.start()
-
-    for i in p_list:
-        i.join()
 
 def runReader(share_queue ,log_files_conf):
 
@@ -54,6 +42,9 @@ def startReader():
 
 
 
+def worker():
+    obj = OutputCustomer()
+    getattr(obj, obj.call_engine)()
 
 if __name__ == "__main__":
 
@@ -65,7 +56,21 @@ if __name__ == "__main__":
         if args[1] == 'client':
             startReader()
         elif args[1] == 'customer':
-            runOutputCustomer()
+            # runOutputCustomer()
+
+            p_list = []
+            for i in range( 4 ):
+            # for i in range( multiprocessing.cpu_count() ):
+                p = Process(target = worker)
+                p_list.append(p)
+
+            for i in p_list:
+                i.start()
+
+            for i in p_list:
+                i.join()
+
+
         else:
             raise ValueError('example: python3 startClient.py -run [client | customer]')
     else:

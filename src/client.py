@@ -1,7 +1,7 @@
 # coding=UTF-8
 from multiprocessing import Queue,Process
 from redis import Redis,RedisError
-from configparser import ConfigParser
+from configparser import RawConfigParser
 from threading import Thread,RLock
 from pymongo import MongoClient
 import time,asyncio,json,aioredis,traceback,mmap,os,collections,platform,copy,importlib,sys,threading
@@ -25,19 +25,20 @@ class Base(object):
         if ( not os.path.exists(config_path) ):
             raise FileNotFoundError('config.ini not found in the project root path')
 
-        conf = ConfigParser()
+        conf = RawConfigParser()
         conf.read(config_path, encoding="utf-8")
 
         return conf
 
     def _getQueue(self):
 
+
         if self.conf['client.queue']['type'] == 'redis':
             try:
                 return Redis(
                     host = self.conf['client.queue']['host'],
-                    port = self.conf['client.queue']['port'],
-                    password = self.conf['client.queue']['password'],
+                    port = int(self.conf['client.queue']['port']),
+                    password = str(self.conf['client.queue']['password']),
                     db = self.conf['client.queue']['db']
                 )
 
@@ -53,44 +54,34 @@ class Base(object):
 class loggerParse(object):
 
 
-    def __init__(self ,server_type,server_conf):
+    def __init__(self ,server_type,server_conf = None):
 
         self.server_type = server_type
         self.__handler = self.__findHandlerAdapter(server_type)()
         self.format = self.__handler.getLogFormat()
-        self.logger_format = self.__handler.getLoggerFormatByServerConf(server_conf_path=server_conf)
+        if server_conf:
+            self.logger_format = self.__handler.getLoggerFormatByServerConf(server_conf_path=server_conf)
 
 
-    # def parse(self,log_format='',log_line=''):
-    #
-    #     self.__handler.parse(log_format='',log_line='')
-    #     pass
+    def getLogFormatByConfStr(self,log_format_conf):
+
+        return  self.__handler.getLogFormatByConfStr( log_format_conf,'string')
 
 
-    #  动态调用handel方法 and 给出友好的错误提示
-    def __getattr__(self, item ,**kwargs):
-
-        if hasattr(self.__handler,item):
-            def __callHandleMethod(**kwargs):
-                if(list(kwargs.keys()) != ["log_format", "log_line"]) and item == 'parse':
-                    raise ValueError('%s handle %s 方法:需要两个kwargs (log_format="", log_line="")' % (self.server_type, item))
-
-                if (list(kwargs.keys()) != ["log_conf", "log_type"]) and item == 'getLogFormatByConfStr':
-                    raise ValueError('%s handle %s 方法:需要两个kwargs (log_conf="", log_type="")' % (self.server_type, item))
+    def parse(self,log_format,log_line):
+        return  self.__handler.parse(log_format=log_format,log_line=log_line)
 
 
-                return getattr(self.__handler,item)(**kwargs)
-        else:
-            raise ValueError('%s handle 没有 %s 方法'  % (self.server_type,item) )
-
-        return __callHandleMethod
 
     def __findHandlerAdapter(self,server_type):
+        handler_module = 'ParserAdapter.%s' % server_type.lower().capitalize()
         try:
-            handler_module = 'ParserAdapter.%s' % server_type.lower().capitalize()
+
             return importlib.import_module(handler_module).Handler
         except ModuleNotFoundError:
-            raise ValueError('server_type %s not found' % server_type)
+            sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))) + '/ParserAdapter')
+            return importlib.import_module(handler_module).Handler
+
 
 
 
@@ -110,11 +101,17 @@ class Reader(Base):
             self.log_format_name = 'defualt'
         else:
             self.log_format_name = log_file_conf['log_format_name']
+
+        self.app_name = log_file_conf['app_name']
         self.read_type = log_file_conf['read_type']
         self.cut_file_type = log_file_conf['cut_file_type']
         self.cut_file_point = log_file_conf['cut_file_point']
-        self.queue_key = self.conf['client.queue']['prefix'] + self.conf['client.input']['node_id'] + ':'+ self.log_format_name + ':' + log_file_conf['app_name']
-        self.redis_status_key = self.conf['client.input']['node_id'] + ':server_info'
+
+
+        self.queue_key = self.conf['client.queue']['prefix'] + 'logger'
+        self.server_conf = loggerParse(self.conf['server_info']['server_type'],self.conf['server_info']['server_conf']).logger_format
+
+
 
         self.share_queue = share_queue
 
@@ -196,8 +193,16 @@ class Reader(Base):
 
             self.lock.acquire()
             for line in self.fd:
-                # self.reader_queue.append(line)
-                pipe.lpush(self.queue_key,line)
+
+                data = {}
+                data['node_id'] = self.conf['client.input']['node_id']
+                data['app_name'] = self.app_name
+                data['log_format_name'] = self.log_format_name
+                data['line'] = line.decode(encoding='utf-8')
+                data['server_conf'] = self.server_conf
+                data = json.dumps(data)
+
+                pipe.lpush(self.queue_key,data)
                 # self.share_queue.put(line)
 
             pipe.execute()
@@ -227,14 +232,18 @@ class OutputCustomer(Base):
 
     def __init__(self ):
         super(OutputCustomer,self).__init__()
+
         self.client_queue = self._getQueue()
+        self.client_queue_key = self.conf['client.queue']['prefix'] + 'logger'
         self.client_queue_prefix = self.conf['client.queue']['prefix']
+
 
         self.save_engine = self.conf['custom.save_engine']['type'].lower().capitalize()
         self.call_engine = 'saveTo%s' %  self.save_engine
 
-        self.logParse = loggerParse(self.conf['custom.server_info']['server_type'] ,self.conf['custom.server_info']['server_conf'])
-        self.log_format_parse_str = None
+        self.logParse = loggerParse(self.conf['server_info']['server_type'] ,server_conf=None)
+
+
 
         if not hasattr(self , self.call_engine ):
             raise ValueError('Outputer 未定义 "%s" 该存储方法' %  self.save_engine)
@@ -243,68 +252,10 @@ class OutputCustomer(Base):
 
     def getClientQueueKeys(self):
         queue = self.client_queue
-        _list = queue.keys(self.client_queue_prefix + '*')
+        _list = queue.keys(self.client_queue_prefix + ':logger')
         _list = list(map(lambda x:x.decode(encoding='utf-8'),_list))
         return _list
 
-    def mongodbThreadHandle(self ,queue_key ,workerListData,mongodb_client):
-        t = threading.current_thread()
-
-
-        betch_max_size = int(self.conf['custom.server_info']['batch_insert_queue_max_size'])
-        insertList = []
-
-        while True:
-
-            time.sleep(1)
-
-            if self.client_queue.llen(queue_key) == 0:
-                continue
-
-
-            print('pid:%s run in thread id: %s handle queue_key:%s' % (os.getpid() , t.getName() ,queue_key))
-
-            for i in range(betch_max_size):
-
-                line = self.client_queue.lpop(queue_key)
-                if line:
-                    line = line.decode(encoding='utf-8')
-                    try:
-                        line_data = self.logParse.parse(log_format=workerListData['log_format_parse_str'], log_line=line)
-                    except ValueError as e:
-                        print(workerListData['log_format_parse_str'])
-                        print(line)
-                        exit()
-
-                    line_data['node_id'] = workerListData['node_id']
-                    line_data['app_name'] = workerListData['app_name']
-                    insertList.append(line_data)
-
-
-            if len(insertList):
-                res = mongodb_client.insert_many(insertList,ordered=False)
-                insertList = []
-
-
-
-        return True
-
-    def parseKey(self ,queue_key):
-        data = {}
-        key_info = queue_key.split(':')
-        data['node_id'] = key_info[1]
-        log_format_name = key_info[2]
-        data['app_name'] = key_info[3]
-
-        try:
-            format_str = self.logParse.logger_format[log_format_name]
-        except KeyError: # 找不到 则用默认
-            format_str = self.logParse.logger_format['defualt']
-
-
-        fname , data['log_format_parse_str'] = self.logParse.getLogFormatByConfStr(log_conf=format_str, log_type='string')
-
-        return data
 
 
     def saveToMongodb(self):
@@ -340,25 +291,82 @@ class OutputCustomer(Base):
 
         while True:
             time.sleep(1)
-            keys = self.getClientQueueKeys()
-            if len(keys) == 0:
+            num = self.client_queue.llen(self.client_queue_key)
+
+            if num == 0:
                 print('pid: %s wait for data' % os.getpid())
                 continue
 
-            workerListData = []
-            t_list = []
-            for i in keys:
-                workerListData = self.parseKey(i)
+            betch_max_size = int(self.conf['custom']['batch_insert_queue_max_size'])
+            insertList = []
 
-                t = Thread(target=self.mongodbThreadHandle, args=(i,workerListData, mongodb_client))
-                t_list.append(t)
+            start_time = time.perf_counter()
+            print("\n customer -------pid: %s -- take from queue len: %s---- %s \n" % (os.getpid(), self.client_queue.llen(self.client_queue_key), start_time))
+
+            pipe = self.client_queue.pipeline()
+            for i in range(betch_max_size):
+                pipe.lpop(self.client_queue_key)
+            queue_list = pipe.execute()
 
 
-            for i in t_list:
-                i.start()
+            end_time = time.perf_counter()
+            print("\n customer -------pid: %s -- take from  queue len: %s---- 耗时: %s \n" % (
+            os.getpid(), len(queue_list), round(end_time - start_time, 2)))
 
-            for i in t_list:
-                i.join
+
+            if len(queue_list) == 0:
+                print('pid: %s wait for data' % os.getpid())
+                continue
+
+            start_time = time.perf_counter()
+            print("\n customer -------pid: %s -- reg data len: %s---- %s \n" % (
+            os.getpid(), len(queue_list), start_time))
+
+            for i in queue_list:
+                if not i :
+                    continue
+
+                line = i.decode(encoding='utf-8')
+
+                if line:
+                    line_data = json.loads(line)
+                    server_conf = line_data['server_conf']
+
+                    parse_str = server_conf[line_data['log_format_name']]
+                    parse_str = self.logParse.getLogFormatByConfStr(parse_str)
+                    try:
+                        line_data['line'] = line_data['line'].strip()
+                        parse_data = self.logParse.parse(parse_str, line_data['line'])
+
+                    except Exception as e:
+                        self.client_queue.append(line)
+                        traceback.print_exc()
+                        exit()
+
+
+                    del line_data['server_conf']
+                    del line_data['line']
+
+                    line_data.update(parse_data)
+
+                    insertList.append(line_data)
+
+            end_time = time.perf_counter()
+            print("\n customer -------pid: %s -- reg datas len: %s---- 耗时: %s \n" % (
+            os.getpid(), len(insertList), round(end_time - start_time, 2)))
+
+
+            if len(insertList):
+                start_time = time.perf_counter()
+                print("\n customer -------pid: %s -- insert into mongodb: %s---- %s \n" % (
+                    os.getpid(), len(insertList), start_time))
+
+                res = mongodb_client.insert_many(insertList, ordered=False)
+
+                insertList = []
+
+                end_time = time.perf_counter()
+                print("\n customer -------pid: %s -- insert into mongodb: %s---- 耗时: %s \n" % (os.getpid(), len(res.inserted_ids), round(end_time - start_time ,2) ))
 
 
 

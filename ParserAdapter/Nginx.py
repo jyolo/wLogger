@@ -1,5 +1,5 @@
 from ParserAdapter.BaseAdapter import Adapter
-from parse import parse,search,findall
+from parse import parse,search,findall,compile
 import os,json,re,time
 
 """
@@ -77,8 +77,19 @@ class Handler(Adapter):
     def parse(self,log_format='',log_line=''):
         #  多个空格替换成一个空格
         line = re.sub(r'\s+', ' ', log_line)
+
+        p = compile(log_format.strip())
+
+        res = p.parse(line.strip())
+
+        # print(res.named)
+        # ss = '[25/Sep/2020:10:58:18 +0800] local.test2.com 127.0.0.1 - "GET /index.html?test2=asdasdad HTTP/1.0" 200 1079 "-" "ApacheBench/2.3" "-"'
+        # ff = '[{time_local:th}] {host} {remote_addr} - "{request}" {status:d} {body_bytes_sent:d} "{http_referer}" "{http_user_agent}" "{http_x_forwarded_for}"  '
+        # # print(parse(ff,ss))
+        # exit()
         # 处理日志匹配 (耗时操作)
-        res = search(log_format, line)
+
+        # res = search(log_format, line)
         if (res is None):
             raise ValueError('没有匹配到数据')
 
@@ -92,13 +103,13 @@ class Handler(Adapter):
     """
         根据录入的格式化字符串 返回 parse 所需 log_format 配置
     """
-    def getLogFormatByConfStr(self ,log_conf='' ,log_type = 'string'):
+    def getLogFormatByConfStr(self ,log_format_conf ,log_type):
         if log_type not in ['string','json']:
             raise ValueError('_type 参数类型错误')
 
 
         # 去掉换行
-        str = log_conf.replace("\n", '')
+        str = log_format_conf.replace("\n", '')
 
         # 处理换行后的 引号
         str = re.sub(r'\'\s+\'', '', str)
@@ -122,7 +133,8 @@ class Handler(Adapter):
         log_format_str = res[0][1].strip()
         format = re.sub(r'(\$\w+)+', self.__replaceLogVars, log_format_str)
 
-        return (log_name ,format)
+        # return (log_name ,format)
+        return format
 
 
     def getLoggerFormatByServerConf(self,server_conf_path):
