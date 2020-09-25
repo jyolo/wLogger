@@ -301,7 +301,7 @@ class OutputCustomer(Base):
             insertList = []
 
             start_time = time.perf_counter()
-            print("\n customer -------pid: %s -- take from queue len: %s---- %s \n" % (os.getpid(), self.client_queue.llen(self.client_queue_key), start_time))
+            print("\n customer -------pid: %s -- take from queue len: %s---- start \n" % (os.getpid(), self.client_queue.llen(self.client_queue_key)))
 
             pipe = self.client_queue.pipeline()
             for i in range(betch_max_size):
@@ -310,7 +310,7 @@ class OutputCustomer(Base):
 
 
             end_time = time.perf_counter()
-            print("\n customer -------pid: %s -- take from  queue len: %s---- 耗时: %s \n" % (
+            print("\n customer -------pid: %s -- take from  queue len: %s----end 耗时: %s \n" % (
             os.getpid(), len(queue_list), round(end_time - start_time, 2)))
 
 
@@ -319,8 +319,8 @@ class OutputCustomer(Base):
                 continue
 
             start_time = time.perf_counter()
-            print("\n customer -------pid: %s -- reg data len: %s---- %s \n" % (
-                os.getpid(), len(queue_list), start_time))
+            print("\n customer -------pid: %s -- reg data len: %s---- start \n" % (
+                os.getpid(), len(queue_list)))
 
 
             for i in queue_list:
@@ -340,8 +340,6 @@ class OutputCustomer(Base):
 
                         parse_data = self.logParse.parse(parse_data, line_data['line'])
 
-
-
                     except Exception as e:
                         self.client_queue.append(line)
                         traceback.print_exc()
@@ -358,22 +356,22 @@ class OutputCustomer(Base):
                     insertList.append(line_data)
 
             end_time = time.perf_counter()
-            print("\n customer -------pid: %s -- reg datas len: %s---- 耗时: %s \n" % (
+            print("\n customer -------pid: %s -- reg datas len: %s---- end 耗时: %s \n" % (
                 os.getpid(), len(insertList), round(end_time - start_time, 2)))
 
 
 
             if len(insertList):
                 start_time = time.perf_counter()
-                print("\n customer -------pid: %s -- insert into mongodb: %s---- %s \n" % (
-                    os.getpid(), len(insertList), start_time))
+                print("\n customer -------pid: %s -- insert into mongodb: %s---- start \n" % (
+                    os.getpid(), len(insertList)))
 
                 res = mongodb_client.insert_many(insertList, ordered=False)
 
                 insertList = []
 
                 end_time = time.perf_counter()
-                print("\n customer -------pid: %s -- insert into mongodb: %s---- 耗时: %s \n" % (os.getpid(), len(res.inserted_ids), round(end_time - start_time ,2) ))
+                print("\n customer -------pid: %s -- insert into mongodb: %s---- end 耗时: %s \n" % (os.getpid(), len(res.inserted_ids), round(end_time - start_time ,2) ))
 
 
 

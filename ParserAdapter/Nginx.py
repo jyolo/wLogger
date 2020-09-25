@@ -75,6 +75,7 @@ class Handler(Adapter):
         日志解析
     """
     def parse(self,log_format='',log_line=''):
+
         log_format_list = log_format[0]
         log_format_re = log_format[1]
 
