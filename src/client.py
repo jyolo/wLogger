@@ -320,7 +320,8 @@ class OutputCustomer(Base):
 
             start_time = time.perf_counter()
             print("\n customer -------pid: %s -- reg data len: %s---- %s \n" % (
-            os.getpid(), len(queue_list), start_time))
+                os.getpid(), len(queue_list), start_time))
+
 
             for i in queue_list:
                 if not i :
@@ -332,16 +333,21 @@ class OutputCustomer(Base):
                     line_data = json.loads(line)
                     server_conf = line_data['server_conf']
 
-                    parse_str = server_conf[line_data['log_format_name']]
-                    parse_str = self.logParse.getLogFormatByConfStr(parse_str)
+                    parse_data = self.logParse.getLogFormatByConfStr( server_conf[line_data['log_format_name']] )
+
                     try:
                         line_data['line'] = line_data['line'].strip()
-                        parse_data = self.logParse.parse(parse_str, line_data['line'])
+
+                        parse_data = self.logParse.parse(parse_data, line_data['line'])
+
+
 
                     except Exception as e:
                         self.client_queue.append(line)
                         traceback.print_exc()
+                        print(e.args)
                         exit()
+
 
 
                     del line_data['server_conf']
@@ -353,7 +359,8 @@ class OutputCustomer(Base):
 
             end_time = time.perf_counter()
             print("\n customer -------pid: %s -- reg datas len: %s---- 耗时: %s \n" % (
-            os.getpid(), len(insertList), round(end_time - start_time, 2)))
+                os.getpid(), len(insertList), round(end_time - start_time, 2)))
+
 
 
             if len(insertList):

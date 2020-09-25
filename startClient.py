@@ -42,7 +42,7 @@ def startReader():
 
 
 
-def worker():
+def customer():
     obj = OutputCustomer()
     getattr(obj, obj.call_engine)()
 
@@ -56,19 +56,18 @@ if __name__ == "__main__":
         if args[1] == 'client':
             startReader()
         elif args[1] == 'customer':
-            # runOutputCustomer()
-
-            p_list = []
-            for i in range( 4 ):
-            # for i in range( multiprocessing.cpu_count() ):
-                p = Process(target = worker)
-                p_list.append(p)
-
-            for i in p_list:
-                i.start()
-
-            for i in p_list:
-                i.join()
+            customer()
+            # p_list = []
+            # for i in range( 4 ):
+            # # for i in range( multiprocessing.cpu_count() ):
+            #     p = Process(target = worker)
+            #     p_list.append(p)
+            #
+            # for i in p_list:
+            #     i.start()
+            #
+            # for i in p_list:
+            #     i.join()
 
 
         else:

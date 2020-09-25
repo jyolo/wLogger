@@ -43,31 +43,31 @@ class Handler(Adapter):
 
     def getLogFormat(self):
         return {
-            '$remote_addr': {'desc': '客户端IP' , 'example':'127.0.0.1' },
-            '$remote_user': {'desc': '记录客户端用户名称' , 'example':'client_name' },
-            '$http_x_forwarded_for': {'desc': '客户端代理IP多个逗号分割' ,'example':'203.98.182.163, 203.98.182.169' },
-            '$request': {'desc': '请求信息' ,'example':'GET /api/server/?size=50&page=1 HTTP/1.1' },
-            '$request_method': {'desc': '请求方法' ,'example':'GET' },
-            '$scheme':{'desc': '请求协议' ,'example':'HTTP/1.1'  } ,
-            '$request_uri': {'desc': '请求链接' ,'example':'/api/server/?size=50&page=1' },
-            '$request_body': {'desc': 'post提交的数据' ,'example':'name=xxx&age=18'  },
-            '$request_length': {'desc': '请求的字节长度' ,'example':'988' ,'format':'d' },
-            '$request_time': {'desc': '请求花费的时间' ,'example':'0.018' ,'format':'g'},
-            '$msec': {'desc': '当前的Unix时间戳 (1.3.9, 1.2.6)' ,'example':'' ,'format':'g'},
-            '$upstream_response_time': {'desc': 'nginx交给后端cgi响应的时间(小于$request_time)' ,'example':'0.018' ,'format':'g'},
-            '$status': {'desc': '请求状态码' ,'example':'200','format':'d'},
-            '$bytes_sent':{'desc':'发送给客户端的总字节数(包括响应头)' ,'example':'113' ,'format':'d'} ,
-            '$body_bytes_sent':{'desc':'发送给客户端的总字节数(不包括响应头)' ,'example':'266' ,'format':'d'} ,
-            '$connection':{'desc':'连接到序列号' ,'example':'26' ,'format':'d'} ,
-            '$connection_requests':{'desc':'每个连接到序列号的请求次数' ,'example':'3' ,'format':'d'} ,
-            '$host':{'desc':'请求头里的host属性,如果没有就返回 server_name' ,'example':'www.baidu.com'} ,
-            '$http_host':{'desc':'请求头里的host属性' ,'example':'www.baidu.com'} ,
-            '$http_referer':{'desc':'请求的来源网址' ,'example':'www.baidu.com'} ,
-            '$http_user_agent':{'desc':'客户端的UA信息' ,'example':'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/73.0.3683.86 Safari/537.36'} ,
-            '$upstream_addr':{'desc':'后端接收请求的服务的ip或地址' ,'example':'unix:/tmp/php-cgi-71.sock'} ,
-            '$upstream_http_host':{'desc':'服务端响应的地址 ' ,'example':'unix:/tmp/php-cgi-71.sock'} ,
-            '$time_iso8601':{'desc':'iso8601时间格式' ,'example':'2020-09-11T15:20:43+08:00','format':'ti'} ,
-            '$time_local':{'desc':'本地时间格式' ,'example':'11/Sep/2020:15:20:43 +0800','format':'th'} ,
+            '$remote_addr': {'desc': '客户端IP' , 'example':'127.0.0.1','re':'\S+' },
+            '$remote_user': {'desc': '记录客户端用户名称' , 'example':'client_name','re': '[\s|\S]+' },
+            '$http_x_forwarded_for': {'desc': '客户端代理IP多个逗号分割' ,'example':'203.98.182.163, 203.98.182.169' ,'re': '[\s|\S]+' },
+            '$request': {'desc': '请求信息' ,'example':'GET /api/server/?size=50&page=1 HTTP/1.1' ,'re': '[\s|\S]+'},
+            '$request_method': {'desc': '请求方法' ,'example':'GET' ,'re': '\w+'},
+            '$scheme':{'desc': '请求协议' ,'example':'HTTP/1.1' ,'re': '\S+' } ,
+            '$request_uri': {'desc': '请求链接' ,'example':'/api/server/?size=50&page=1' ,'re': '\S+)'},
+            '$request_body': {'desc': 'post提交的数据' ,'example':'name=xxx&age=18' ,'re': '\S+' },
+            '$request_length': {'desc': '请求的字节长度' ,'example':'988' ,'format':'d' ,'re': '\d+'},
+            '$request_time': {'desc': '请求花费的时间' ,'example':'0.018' ,'format':'g' ,'re': '\d+'},
+            '$msec': {'desc': '当前的Unix时间戳 (1.3.9, 1.2.6)' ,'example':'' ,'format':'g' ,'re': '\d+'},
+            '$upstream_response_time': {'desc': 'nginx交给后端cgi响应的时间(小于$request_time)' ,'example':'0.018' ,'format':'g','re': '\d+'},
+            '$status': {'desc': '请求状态码' ,'example':'200','format':'d','re': '\d+'},
+            '$bytes_sent':{'desc':'发送给客户端的总字节数(包括响应头)' ,'example':'113' ,'format':'d' ,'re': '\d+' } ,
+            '$body_bytes_sent':{'desc':'发送给客户端的总字节数(不包括响应头)' ,'example':'266' ,'format':'d' ,'re': '\d+'} ,
+            '$connection':{'desc':'连接到序列号' ,'example':'26' ,'format':'d' ,'re': '\d+'} ,
+            '$connection_requests':{'desc':'每个连接到序列号的请求次数' ,'example':'3' ,'format':'d' ,'re': '\d+'} ,
+            '$host':{'desc':'请求头里的host属性,如果没有就返回 server_name' ,'example':'www.baidu.com' ,'re': '\S+'} ,
+            '$http_host':{'desc':'请求头里的host属性' ,'example':'www.baidu.com' ,'re': '\S+' } ,
+            '$http_referer':{'desc':'请求的来源网址' ,'example':'www.baidu.com','re': '\S+'} ,
+            '$http_user_agent':{'desc':'客户端的UA信息' ,'example':'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/73.0.3683.86 Safari/537.36' ,'re': '[\s|\S]+'} ,
+            '$upstream_addr':{'desc':'后端接收请求的服务的ip或地址' ,'example':'unix:/tmp/php-cgi-71.sock' ,'re': '[\s|\S]+'} ,
+            '$upstream_http_host':{'desc':'服务端响应的地址 ' ,'example':'unix:/tmp/php-cgi-71.sock' ,'re': '[\s|\S]+'} ,
+            '$time_iso8601':{'desc':'iso8601时间格式' ,'example':'2020-09-11T15:20:43+08:00','format':'ti' ,'re': '[\s|\S]+'} ,
+            '$time_local':{'desc':'本地时间格式' ,'example':'11/Sep/2020:15:20:43 +0800','format':'th' ,'re': '[\s|\S]+'} ,
         }
 
 
@@ -75,8 +75,53 @@ class Handler(Adapter):
         日志解析
     """
     def parse(self,log_format='',log_line=''):
+        log_format_list = log_format[0]
+        log_format_re = log_format[1]
+
+
         #  多个空格替换成一个空格
-        line = re.sub(r'\s+', ' ', log_line)
+        line = re.sub(r'\s+', ' ', log_line).strip()
+        log_format_re = log_format_re.strip()
+
+        try:
+
+            aa = re.match(r'%s' % log_format_re, log_line)
+            matched = list(aa.groups())
+            if len(matched) == len(log_format_list):
+                data = {}
+                for i in range(len(list(log_format_list))):
+                    data[log_format_list[i]] = matched[i]
+
+            return data
+        except Exception as e:
+            print(e.args)
+            exit()
+
+
+
+        start_time = time.perf_counter()
+        for i in range(500000):
+            ss = '[25/Sep/2020:10:58:18 +0800] local.test2.com 127.0.0.1 - "GET /index.html?test2=asdasdad HTTP/1.0" 200 1079 "-" "ApacheBench/2.3" "-"'
+            ff = r'\[([\s|\S]+)\] (\S+) (\S+) - "([\s|\S]+)" (\d+) (\d+) "([\s|\S]+)" "([\s|\S]+)" "([\s|\S]+)"'
+            # c = re.compile(ff)
+            aa = re.match(ff,ss)
+            if not aa:
+                print('unmatched')
+                exit()
+            # print(aa.groups())
+
+            # ss = '[25/Sep/2020:10:58:18 +0800] local.test2.com 127.0.0.1 - "GET /index.html?test2=asdasdad HTTP/1.0" 200 1079 "-" "ApacheBench/2.3" "-"'
+            # ff = '[{time_local:th}] {host} {remote_addr} - "{request}" {status:d} {body_bytes_sent:d} "{http_referer}" "{http_user_agent}" "{http_x_forwarded_for}"  '
+            # p = compile(ff.strip())
+            #
+            # res = p.parse(ss.strip())
+            # print(res.named)
+
+        end_time = time.perf_counter()
+        print('耗时:%s' % round(end_time - start_time ,2))
+
+        exit()
+
 
         p = compile(log_format.strip())
 
@@ -130,11 +175,37 @@ class Handler(Adapter):
         # 日志名称
         log_name = res[0][0]
         # 获取到匹配到的 日志格式
-        log_format_str = res[0][1].strip()
+        log_format_str = res[0][1].strip().replace('[', '\[').replace(']', '\]')
+        log_format_list = re.findall(r'(\w+)',log_format_str)
+
         format = re.sub(r'(\$\w+)+', self.__replaceLogVars, log_format_str)
 
-        # return (log_name ,format)
-        return format
+        return (log_format_list ,format)
+        # return format
+
+    """
+        找到匹配中的日志变量
+    """
+    def __replaceLogVars(self,matched):
+
+        try:
+            log_format = self.getLogFormat()
+            vars = log_format[matched.group()]
+        except KeyError :
+            raise ValueError('%s 日志变量 handle 里面不存在' % matched.group())
+
+        # if('format' in vars and len(vars['format'])):
+        #     s = matched.group().replace('$', '') +':'+ vars['format']
+        # else:
+        #     s = matched.group().replace('[','\[').replace(']','\]')
+
+
+
+        s = matched.group()
+        re_str = self.getLogFormat()[s]['re']
+
+
+        return '(%s)' % re_str
 
 
     def getLoggerFormatByServerConf(self,server_conf_path):
@@ -164,22 +235,8 @@ class Handler(Adapter):
 
         return format_list
 
-    """
-        找到匹配中的日志变量
-    """
-    def __replaceLogVars(self,matched):
 
-        try:
-            log_format = self.getLogFormat()
-            vars = log_format[matched.group()]
-        except KeyError :
-            raise ValueError('%s 日志变量 handle 里面不存在' % matched.group())
 
-        if('format' in vars and len(vars['format'])):
-            s = matched.group().replace('$', '') +':'+ vars['format']
-        else:
-            s = matched.group().replace('$','')
-        return '{%s}' % s
 
 
 
