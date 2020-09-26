@@ -43,31 +43,31 @@ class Handler(Adapter):
 
     def getLogFormat(self):
         return {
-            '$remote_addr': {'desc': '客户端IP' , 'example':'127.0.0.1','re':'\S+' },
-            '$remote_user': {'desc': '记录客户端用户名称' , 'example':'client_name','re': '[\s|\S]+' },
-            '$http_x_forwarded_for': {'desc': '客户端代理IP多个逗号分割' ,'example':'203.98.182.163, 203.98.182.169' ,'re': '[\s|\S]+' },
-            '$request': {'desc': '请求信息' ,'example':'GET /api/server/?size=50&page=1 HTTP/1.1' ,'re': '[\s|\S]+'},
-            '$request_method': {'desc': '请求方法' ,'example':'GET' ,'re': '\w+'},
-            '$scheme':{'desc': '请求协议' ,'example':'HTTP/1.1' ,'re': '\S+' } ,
-            '$request_uri': {'desc': '请求链接' ,'example':'/api/server/?size=50&page=1' ,'re': '\S+)'},
-            '$request_body': {'desc': 'post提交的数据' ,'example':'name=xxx&age=18' ,'re': '\S+' },
-            '$request_length': {'desc': '请求的字节长度' ,'example':'988' ,'format':'d' ,'re': '\d+'},
-            '$request_time': {'desc': '请求花费的时间' ,'example':'0.018' ,'format':'g' ,'re': '\d+'},
-            '$msec': {'desc': '当前的Unix时间戳 (1.3.9, 1.2.6)' ,'example':'' ,'format':'g' ,'re': '\d+'},
-            '$upstream_response_time': {'desc': 'nginx交给后端cgi响应的时间(小于$request_time)' ,'example':'0.018' ,'format':'g','re': '\d+'},
-            '$status': {'desc': '请求状态码' ,'example':'200','format':'d','re': '\d+'},
-            '$bytes_sent':{'desc':'发送给客户端的总字节数(包括响应头)' ,'example':'113' ,'format':'d' ,'re': '\d+' } ,
-            '$body_bytes_sent':{'desc':'发送给客户端的总字节数(不包括响应头)' ,'example':'266' ,'format':'d' ,'re': '\d+'} ,
-            '$connection':{'desc':'连接到序列号' ,'example':'26' ,'format':'d' ,'re': '\d+'} ,
-            '$connection_requests':{'desc':'每个连接到序列号的请求次数' ,'example':'3' ,'format':'d' ,'re': '\d+'} ,
-            '$host':{'desc':'请求头里的host属性,如果没有就返回 server_name' ,'example':'www.baidu.com' ,'re': '\S+'} ,
-            '$http_host':{'desc':'请求头里的host属性' ,'example':'www.baidu.com' ,'re': '\S+' } ,
-            '$http_referer':{'desc':'请求的来源网址' ,'example':'www.baidu.com','re': '\S+'} ,
-            '$http_user_agent':{'desc':'客户端的UA信息' ,'example':'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/73.0.3683.86 Safari/537.36' ,'re': '[\s|\S]+'} ,
-            '$upstream_addr':{'desc':'后端接收请求的服务的ip或地址' ,'example':'unix:/tmp/php-cgi-71.sock' ,'re': '[\s|\S]+'} ,
-            '$upstream_http_host':{'desc':'服务端响应的地址 ' ,'example':'unix:/tmp/php-cgi-71.sock' ,'re': '[\s|\S]+'} ,
-            '$time_iso8601':{'desc':'iso8601时间格式' ,'example':'2020-09-11T15:20:43+08:00','format':'ti' ,'re': '[\s|\S]+'} ,
-            '$time_local':{'desc':'本地时间格式' ,'example':'11/Sep/2020:15:20:43 +0800','format':'th' ,'re': '[\s|\S]+'} ,
+            '$remote_addr': {'desc': '客户端IP' , 'example':'127.0.0.1','re':'\S+?' },
+            '$remote_user': {'desc': '记录客户端用户名称' , 'example':'client_name','re': '[\s|\S]+?' },
+            '$http_x_forwarded_for': {'desc': '客户端代理IP多个逗号分割' ,'example':'203.98.182.163, 203.98.182.169' ,'re': '[\s|\S]+?' },
+            '$request': {'desc': '请求信息' ,'example':'GET /api/server/?size=50&page=1 HTTP/1.1' ,'re': '[\s|\S]+?'},
+            '$request_method': {'desc': '请求方法' ,'example':'GET' ,'re': '\w+?'},
+            '$scheme':{'desc': '请求协议' ,'example':'HTTP/1.1' ,'re': '\S+?' } ,
+            '$request_uri': {'desc': '请求链接' ,'example':'/api/server/?size=50&page=1' ,'re': '\S+?'},
+            '$request_body': {'desc': 'post提交的数据' ,'example':'name=xxx&age=18' ,'re': '\S+?' },
+            '$request_length': {'desc': '请求的字节长度' ,'example':'988' ,'re': '\S+?'},
+            '$request_time': {'desc': '请求花费的时间' ,'example':'0.018' ,'re': '\S+?'},
+            '$msec': {'desc': '当前的Unix时间戳 (1.3.9, 1.2.6)' ,'example':'' ,'re': '\S+?'},
+            '$upstream_response_time': {'desc': 'nginx交给后端cgi响应的时间(小于$request_time)' ,'example':'0.018' ,'re': '\S+?'},
+            '$status': {'desc': '请求状态码' ,'example':'200','re': '\d+?'},
+            '$bytes_sent':{'desc':'发送给客户端的总字节数(包括响应头)' ,'example':'113' ,'re': '\d+?' } ,
+            '$body_bytes_sent':{'desc':'发送给客户端的总字节数(不包括响应头)' ,'example':'266' ,'re': '\d+?'} ,
+            '$connection':{'desc':'连接到序列号' ,'example':'26' ,'re': '\d+?'} ,
+            '$connection_requests':{'desc':'每个连接到序列号的请求次数' ,'example':'3' ,'re': '\d+?'} ,
+            '$host':{'desc':'请求头里的host属性,如果没有就返回 server_name' ,'example':'www.baidu.com' ,'re': '\S+?'} ,
+            '$http_host':{'desc':'请求头里的host属性' ,'example':'www.baidu.com' ,'re': '\S+?' } ,
+            '$http_referer':{'desc':'请求的来源网址' ,'example':'www.baidu.com','re': '\S+?'} ,
+            '$http_user_agent':{'desc':'客户端的UA信息' ,'example':'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/73.0.3683.86 Safari/537.36' ,'re': '[\s|\S]+?'} ,
+            '$upstream_addr':{'desc':'后端接收请求的服务的ip或地址' ,'example':'unix:/tmp/php-cgi-71.sock' ,'re': '[\s|\S]+?'} ,
+            '$upstream_http_host':{'desc':'服务端响应的地址 ' ,'example':'unix:/tmp/php-cgi-71.sock' ,'re': '[\s|\S]+?'} ,
+            '$time_iso8601':{'desc':'iso8601时间格式' ,'example':'2020-09-11T15:20:43+08:00','re': '[\s|\S]+?'} ,
+            '$time_local':{'desc':'本地时间格式' ,'example':'11/Sep/2020:15:20:43 +0800','re': '[\s|\S]+?'} ,
         }
 
 
@@ -86,64 +86,68 @@ class Handler(Adapter):
 
         try:
 
-            aa = re.match(r'%s' % log_format_re, log_line)
-            matched = list(aa.groups())
+            res = re.match(r'%s' % log_format_re, log_line)
+            if res == None:
+                raise Exception('解析日志失败,请检查client 配置中 日志的 格式名称是否一致 log_format_name')
+
+            matched = list(res.groups())
             if len(matched) == len(log_format_list):
                 data = {}
                 for i in range(len(list(log_format_list))):
                     data[log_format_list[i]] = matched[i]
 
             return data
+
         except Exception as e:
             print(e.args)
             exit()
 
 
 
-        start_time = time.perf_counter()
-        for i in range(500000):
-            ss = '[25/Sep/2020:10:58:18 +0800] local.test2.com 127.0.0.1 - "GET /index.html?test2=asdasdad HTTP/1.0" 200 1079 "-" "ApacheBench/2.3" "-"'
-            ff = r'\[([\s|\S]+)\] (\S+) (\S+) - "([\s|\S]+)" (\d+) (\d+) "([\s|\S]+)" "([\s|\S]+)" "([\s|\S]+)"'
-            # c = re.compile(ff)
-            aa = re.match(ff,ss)
-            if not aa:
-                print('unmatched')
-                exit()
-            # print(aa.groups())
-
-            # ss = '[25/Sep/2020:10:58:18 +0800] local.test2.com 127.0.0.1 - "GET /index.html?test2=asdasdad HTTP/1.0" 200 1079 "-" "ApacheBench/2.3" "-"'
-            # ff = '[{time_local:th}] {host} {remote_addr} - "{request}" {status:d} {body_bytes_sent:d} "{http_referer}" "{http_user_agent}" "{http_x_forwarded_for}"  '
-            # p = compile(ff.strip())
-            #
-            # res = p.parse(ss.strip())
-            # print(res.named)
-
-        end_time = time.perf_counter()
-        print('耗时:%s' % round(end_time - start_time ,2))
-
-        exit()
-
-
-        p = compile(log_format.strip())
-
-        res = p.parse(line.strip())
-
-        # print(res.named)
-        # ss = '[25/Sep/2020:10:58:18 +0800] local.test2.com 127.0.0.1 - "GET /index.html?test2=asdasdad HTTP/1.0" 200 1079 "-" "ApacheBench/2.3" "-"'
-        # ff = '[{time_local:th}] {host} {remote_addr} - "{request}" {status:d} {body_bytes_sent:d} "{http_referer}" "{http_user_agent}" "{http_x_forwarded_for}"  '
-        # # print(parse(ff,ss))
+        # start_time = time.perf_counter()
+        # for i in range(500000):
+        #     ss = '[25/Sep/2020:10:58:18 +0800] local.test2.com 127.0.0.1 - "GET /index.html?test2=asdasdad HTTP/1.0" 200 1079 "-" "ApacheBench/2.3" "-"'
+        #     ff = r'\[([\s|\S]+)\] (\S+) (\S+) - "([\s|\S]+)" (\d+) (\d+) "([\s|\S]+)" "([\s|\S]+)" "([\s|\S]+)"'
+        #     # c = re.compile(ff)
+        #     aa = re.match(ff,ss)
+        #     if not aa:
+        #         print('unmatched')
+        #         exit()
+        #     # print(aa.groups())
+        #
+        #     # ss = '[25/Sep/2020:10:58:18 +0800] local.test2.com 127.0.0.1 - "GET /index.html?test2=asdasdad HTTP/1.0" 200 1079 "-" "ApacheBench/2.3" "-"'
+        #     # ff = '[{time_local:th}] {host} {remote_addr} - "{request}" {status:d} {body_bytes_sent:d} "{http_referer}" "{http_user_agent}" "{http_x_forwarded_for}"  '
+        #     # p = compile(ff.strip())
+        #     #
+        #     # res = p.parse(ss.strip())
+        #     # print(res.named)
+        #
+        # end_time = time.perf_counter()
+        # print('耗时:%s' % round(end_time - start_time ,2))
+        #
         # exit()
-        # 处理日志匹配 (耗时操作)
-
-        # res = search(log_format, line)
-        if (res is None):
-            raise ValueError('没有匹配到数据')
-
-        if 'time_local' in res.named:
-            res.named['time_local'] = str(res.named['time_local']).replace('+08:00','')
-
-
-        return res.named
+        #
+        #
+        # p = compile(log_format.strip())
+        #
+        # res = p.parse(line.strip())
+        #
+        # # print(res.named)
+        # # ss = '[25/Sep/2020:10:58:18 +0800] local.test2.com 127.0.0.1 - "GET /index.html?test2=asdasdad HTTP/1.0" 200 1079 "-" "ApacheBench/2.3" "-"'
+        # # ff = '[{time_local:th}] {host} {remote_addr} - "{request}" {status:d} {body_bytes_sent:d} "{http_referer}" "{http_user_agent}" "{http_x_forwarded_for}"  '
+        # # # print(parse(ff,ss))
+        # # exit()
+        # # 处理日志匹配 (耗时操作)
+        #
+        # # res = search(log_format, line)
+        # if (res is None):
+        #     raise ValueError('没有匹配到数据')
+        #
+        # if 'time_local' in res.named:
+        #     res.named['time_local'] = str(res.named['time_local']).replace('+08:00','')
+        #
+        #
+        # return res.named
 
 
     """
@@ -177,6 +181,7 @@ class Handler(Adapter):
         log_name = res[0][0]
         # 获取到匹配到的 日志格式
         log_format_str = res[0][1].strip().replace('[', '\[').replace(']', '\]')
+
         log_format_list = re.findall(r'(\w+)',log_format_str)
 
         format = re.sub(r'(\$\w+)+', self.__replaceLogVars, log_format_str)

@@ -154,7 +154,11 @@ class Reader(Base):
             file_suffix = time.strftime('%Y_%m_%d_%s', time.localtime())
             target_file = self.log_path + '_' + file_suffix
 
-            cmd = 'mv %s %s && kill -USR1 `cat /www/server/nginx/logs/nginx.pid`' % (self.log_path,target_file)
+            server_pid_path = self.conf['server']['nginx_pid_path']
+            if not os.path.exists(server_pid_path) :
+                raise FileNotFoundError('配置项 server nginx_pid_path 不存在')
+
+            cmd = 'mv %s %s && kill -USR1 `cat %s`' % (self.log_path,target_file,server_pid_path)
             res = os.popen(cmd)
             # print(res.readlines())
 

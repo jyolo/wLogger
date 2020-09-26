@@ -1,4 +1,4 @@
-from src.client import loggerParse,OutputCustomer,Reader,Base
+from src.client import OutputCustomer,Reader,Base
 from multiprocessing import Queue,Process
 from threading import Thread
 import multiprocessing,sys
@@ -25,42 +25,37 @@ def runReader(share_queue ,log_files_conf):
         i.join()
 
 
-def startReader():
-    queue = Queue()
-    base = Base()
-    logFiles = eval(base.conf['client.input']['log_files'].strip())
-    plist = []
-    for i in logFiles:
-        p = Process(target=runReader, args=(queue, i))
-        plist.append(p)
-
-    for i in plist:
-        i.start()
-
-    for i in plist:
-        i.join()
-
-
-
 def customer():
     obj = OutputCustomer()
     getattr(obj, obj.call_engine)()
 
 if __name__ == "__main__":
 
-    # startReader()
+    base = Base()
 
-    # runOutputCustomer()
     args = sys.argv[1:]
     if args[0] == '-run' :
         if args[1] == 'client':
-            startReader()
+
+            queue = Queue()
+
+            logFiles = eval(base.conf['client.input']['log_files'].strip())
+            plist = []
+            for i in logFiles:
+                p = Process(target=runReader, args=(queue, i))
+                plist.append(p)
+
+            for i in plist:
+                i.start()
+
+            for i in plist:
+                i.join()
+
         elif args[1] == 'customer':
 
 
             p_list = []
-            for i in range( 2 ):
-            # for i in range( multiprocessing.cpu_count() ):
+            for i in range( int(base.conf['custom']['worker_process_num']) ):
                 p = Process(target = customer)
                 p_list.append(p)
 
