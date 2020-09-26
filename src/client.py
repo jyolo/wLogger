@@ -129,6 +129,26 @@ class Reader(Base):
             self.event['stop'] = e.args
 
 
+    def __cutFileHandle(self):
+        start_time = time.perf_counter()
+        print("\n start_time -------cutting file start --- queue_len:%s---- %s \n" % (
+            self.share_queue.qsize(), start_time))
+
+        file_suffix = time.strftime('%Y_%m_%d_%s', time.localtime())
+        target_file = self.log_path + '_' + file_suffix
+
+        server_pid_path = self.conf['server_info']['nginx_pid_path']
+        if not os.path.exists(server_pid_path):
+            raise FileNotFoundError('配置项 server nginx_pid_path 不存在')
+
+        cmd = 'mv %s %s && kill -USR1 `cat %s`' % (self.log_path, target_file, server_pid_path)
+        res = os.popen(cmd)
+        # print(res.readlines())
+
+        end_time = time.perf_counter()
+        print(';;;;;;;;;;;;;;;;full_cut;;;;;;finnish truncate;;;;;;;;;;;;; mark at %s' % (
+            round(end_time - start_time, 2)))
+
     def cutFile(self):
 
         while True:
@@ -137,36 +157,47 @@ class Reader(Base):
                 print(self.event['stop'])
                 return
 
-            try:
-                # 文件大小 单位 M
-                file_size = round(os.path.getsize(self.log_path) / (1024 * 1024))
-                if file_size < 20:
-                    continue
-            except FileNotFoundError as e:
-                self.event['stop'] = e.args
-
-            start_time = time.perf_counter()
-            print("\n start_time -------cutting file start --- queue_len:%s---- %s \n" % (self.share_queue.qsize(), start_time))
-
-            # 清空文件
             self.lock.acquire(blocking=True)
 
-            file_suffix = time.strftime('%Y_%m_%d_%s', time.localtime())
-            target_file = self.log_path + '_' + file_suffix
+            if self.cut_file_type == 'filesize' :
 
-            server_pid_path = self.conf['server']['nginx_pid_path']
-            if not os.path.exists(server_pid_path) :
-                raise FileNotFoundError('配置项 server nginx_pid_path 不存在')
-
-            cmd = 'mv %s %s && kill -USR1 `cat %s`' % (self.log_path,target_file,server_pid_path)
-            res = os.popen(cmd)
-            # print(res.readlines())
-
-            end_time = time.perf_counter()
-            print(';;;;;;;;;;;;;;;;full_cut;;;;;;finnish truncate;;;;;;;;;;;;; mark at %s' % (round(end_time - start_time, 2)))
+                try:
+                    # 文件大小 单位 M
+                    file_size = round(os.path.getsize(self.log_path) / (1024 * 1024))
+                    if file_size < int(self.cut_file_point):
+                        continue
+                except FileNotFoundError as e:
+                    self.event['stop'] = e.args
 
 
-            self.event['cut_file'] = 1
+                self.__cutFileHandle()
+
+
+
+
+            elif self.cut_file_type == 'time':
+
+                now = time.strftime("%H:%M" , time.localtime(time.time()) )
+                print('%s ---pid: %s------- %s ---------%s' % (
+                now, threading.get_ident(), self.cut_file_point, self.cutting_file))
+                if now == self.cut_file_point and self.cutting_file == False:
+                    self.__cutFileHandle()
+                    self.cutting_file = True
+                    self.event['cut_file'] = 1
+                elif now == self.cut_file_point and self.cutting_file == True and  self.event['cut_file'] == 1:
+                    self.event['cut_file'] == 0
+                    print('1111111111111')
+
+                elif now != self.cut_file_point:
+                    self.cutting_file = False
+                    self.event['cut_file'] = 0
+
+            else:
+                raise ValueError('cut_file_type 只支持 filesize 文件大小 或者 time 指定每天的时间')
+
+
+
+
 
             self.lock.release()
 
@@ -179,7 +210,14 @@ class Reader(Base):
             return
 
         position = 0
-        self.fd.seek(position, 0)
+
+        if self.read_type == 'head':
+            self.fd.seek(position, 0)
+        elif self.read_type == 'tail':
+            self.fd.seek(position, 2)
+        else:
+            raise ValueError('read_type 只支持 head 从头开始 或者 tail 从末尾开始')
+
 
         redis = self._getQueue()
         pipe = redis.pipeline()
@@ -218,7 +256,9 @@ class Reader(Base):
             print("\n end_time -------pid: %s -- read file---queue_len :%s ----%s 耗时:%s \n"
                   % (os.getpid(),redis.llen(self.queue_key), end_time, round(end_time - start_time, 2)))
 
+
             if self.event['cut_file'] == 1 and self.event['stop'] == None:
+                print('--------------------reopen file--------------------')
                 self.fd.close()
                 self.fd = self.__getFileFd()
                 self.fd.seek(0)
