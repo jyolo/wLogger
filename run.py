@@ -1,15 +1,17 @@
 from src.client import OutputCustomer,Reader,Base
 from multiprocessing import Queue,Process
 from threading import Thread
-import multiprocessing,sys
+from server.start import start_server
+import multiprocessing,time,sys,os
 
 
 
 
 
-def runReader(share_queue ,log_files_conf):
+def runReader(log_files_conf):
 
-    r = Reader(log_file_conf=log_files_conf, share_queue=share_queue)
+
+    r = Reader(log_file_conf=log_files_conf)
 
     jobs = ['readLog', 'cutFile']
     t = []
@@ -29,6 +31,17 @@ def customer():
     obj = OutputCustomer()
     getattr(obj, obj.call_engine)()
 
+def getLogFilsDict(conf):
+    logFiles = []
+
+    for i in list(conf):
+        if 'client.log_file' in i:
+            item = dict(base.conf[i])
+            item['app_name'] = i.split('.')[-1]
+            logFiles.append(item)
+
+    return logFiles
+
 if __name__ == "__main__":
 
     base = Base()
@@ -37,13 +50,13 @@ if __name__ == "__main__":
     if args[0] == '-run' :
         if args[1] == 'client':
 
-            queue = Queue()
+            logFiles = getLogFilsDict(base.conf)
 
-            logFiles = eval(base.conf['client.input']['log_files'].strip())
             plist = []
             for i in logFiles:
-                p = Process(target=runReader, args=(queue, i))
+                p = Process(target=runReader, args=( i, ))
                 plist.append(p)
+
 
             for i in plist:
                 i.start()
@@ -53,11 +66,15 @@ if __name__ == "__main__":
 
         elif args[1] == 'customer':
 
+            web_conf = dict(base.conf['custom.web'])
+            web_p = Process(target = start_server ,args = (web_conf,))
 
             p_list = []
             for i in range( int(base.conf['custom']['worker_process_num']) ):
                 p = Process(target = customer)
                 p_list.append(p)
+
+            p_list.append(web_p)
 
             for i in p_list:
                 i.start()

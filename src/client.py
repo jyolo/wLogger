@@ -1,7 +1,7 @@
 # coding=UTF-8
 from multiprocessing import Queue,Process
 from redis import Redis,RedisError
-from configparser import RawConfigParser
+from configparser import ConfigParser
 from threading import Thread,RLock
 from pymongo import MongoClient
 import time,asyncio,json,aioredis,traceback,mmap,os,collections,platform,copy,importlib,sys,threading
@@ -25,21 +25,22 @@ class Base(object):
         if ( not os.path.exists(config_path) ):
             raise FileNotFoundError('config.ini not found in the project root path')
 
-        conf = RawConfigParser()
+        conf = ConfigParser()
         conf.read(config_path, encoding="utf-8")
 
         return conf
 
     def _getQueue(self):
 
+        client_queue_type = self.conf['client']['queue']
 
-        if self.conf['client.queue']['type'] == 'redis':
+        if client_queue_type == 'redis':
             try:
                 return Redis(
-                    host = self.conf['client.queue']['host'],
-                    port = int(self.conf['client.queue']['port']),
-                    password = str(self.conf['client.queue']['password']),
-                    db = self.conf['client.queue']['db']
+                    host = self.conf[client_queue_type]['host'],
+                    port = int(self.conf[client_queue_type]['port']),
+                    password = str(self.conf[client_queue_type]['password']),
+                    db = self.conf[client_queue_type]['db']
                 )
 
             except RedisError as e:
@@ -94,7 +95,7 @@ class Reader(Base):
         'stop' : None,
     }
 
-    def __init__(self,log_file_conf = None ,share_queue = None):
+    def __init__(self,log_file_conf = None ):
         super(Reader, self).__init__()
         self.log_path = log_file_conf['file_path']
         if len(log_file_conf['log_format_name']) == 0:
@@ -102,18 +103,18 @@ class Reader(Base):
         else:
             self.log_format_name = log_file_conf['log_format_name']
 
+        self.node_id = self.conf['client']['node_id']
         self.app_name = log_file_conf['app_name']
+        self.server_type = log_file_conf['server_type']
         self.read_type = log_file_conf['read_type']
         self.cut_file_type = log_file_conf['cut_file_type']
         self.cut_file_point = log_file_conf['cut_file_point']
 
 
-        self.queue_key = self.conf['client.queue']['prefix'] + 'logger'
-        self.server_conf = loggerParse(self.conf['server_info']['server_type'],self.conf['server_info']['server_conf']).logger_format
+        self.queue_key = self.conf['redis']['prefix'] + 'logger'
 
+        self.server_conf = loggerParse(log_file_conf['server_type'],self.conf[log_file_conf['server_type']]['server_conf']).logger_format
 
-
-        self.share_queue = share_queue
 
         self.fd = self.__getFileFd()
         # 文件切割中标志
@@ -122,81 +123,101 @@ class Reader(Base):
 
 
 
+
     def __getFileFd(self):
         try:
             return open(self.log_path, 'rb+')
         except FileNotFoundError as e:
-            self.event['stop'] = e.args
+            self.event['stop'] = self.log_path + ' 文件不存在'
+            return False
 
 
-    def __cutFileHandle(self):
+    def __cutFileHandle(self,server_pid_path,log_path ,target_path = './'):
         start_time = time.perf_counter()
-        print("\n start_time -------cutting file start --- queue_len:%s---- %s \n" % (
-            self.share_queue.qsize(), start_time))
+        print("\n start_time -------cutting file start ---  %s \n" % (
+             start_time))
 
         file_suffix = time.strftime('%Y_%m_%d_%s', time.localtime())
-        target_file = self.log_path + '_' + file_suffix
+        target_file = target_path +log_path + '_' + file_suffix
 
-        server_pid_path = self.conf['server_info']['nginx_pid_path']
-        if not os.path.exists(server_pid_path):
-            raise FileNotFoundError('配置项 server nginx_pid_path 不存在')
-
-        cmd = 'mv %s %s && kill -USR1 `cat %s`' % (self.log_path, target_file, server_pid_path)
+        cmd = 'mv %s %s && kill -USR1 `cat %s`' % (log_path, target_file, server_pid_path)
         res = os.popen(cmd)
-        # print(res.readlines())
+        print(res.readlines())
 
         end_time = time.perf_counter()
         print(';;;;;;;;;;;;;;;;full_cut;;;;;;finnish truncate;;;;;;;;;;;;; mark at %s' % (
             round(end_time - start_time, 2)))
+
 
     def cutFile(self):
 
         while True:
             time.sleep(1)
             if self.event['stop']:
-                print(self.event['stop'])
+                print(self.event['stop'] + ' ; cutFile threading stop')
                 return
 
-            self.lock.acquire(blocking=True)
+            try:
+                server_pid_path = self.conf[self.server_type]['pid_path']
+                if not os.path.exists(server_pid_path):
+                    self.event['stop'] = server_pid_path + '配置项 server nginx_pid_path 不存在'
+                    continue
+
+                if not os.path.exists(self.log_path):
+                    self.event['stop'] = self.log_path + ' 不存在'
+                    continue
+
+            except KeyError as e:
+                self.event['stop'] = self.server_type + '配置项缺失'
+                continue
+
+            if self.cut_file_type not in ['filesize', 'time']:
+                self.event['stop'] = 'cut_file_type 只支持 filesize 文件大小 或者 time 指定每天的时间'
+                continue
+
+
+            self.lock.acquire()
+
+
+
 
             if self.cut_file_type == 'filesize' :
 
                 try:
+                    # now = time.strftime("%H:%M", time.localtime(time.time()))
+                    # print('cut_file_type: filesize ;%s ---pid: %s----thread_id: %s--- %s ---------%s' % (
+                    #     now, os.getpid(), threading.get_ident(), self.cut_file_point, self.cutting_file))
+
                     # 文件大小 单位 M
                     file_size = round(os.path.getsize(self.log_path) / (1024 * 1024))
                     if file_size < int(self.cut_file_point):
+                        self.lock.release()
                         continue
+
                 except FileNotFoundError as e:
-                    self.event['stop'] = e.args
+                    self.event['stop'] = self.log_path + '文件不存在'
+                    continue
 
-
-                self.__cutFileHandle()
-
-
+                self.__cutFileHandle(server_pid_path , self.log_path)
 
 
             elif self.cut_file_type == 'time':
 
                 now = time.strftime("%H:%M" , time.localtime(time.time()) )
-                print('%s ---pid: %s------- %s ---------%s' % (
-                now, threading.get_ident(), self.cut_file_point, self.cutting_file))
+                # print('cut_file_type: time ;%s ---pid: %s----thread_id: %s--- %s ---------%s' % (
+                # now,os.getpid(), threading.get_ident(), self.cut_file_point, self.cutting_file))
+
                 if now == self.cut_file_point and self.cutting_file == False:
-                    self.__cutFileHandle()
+                    self.__cutFileHandle(server_pid_path, self.log_path)
                     self.cutting_file = True
                     self.event['cut_file'] = 1
                 elif now == self.cut_file_point and self.cutting_file == True and  self.event['cut_file'] == 1:
                     self.event['cut_file'] == 0
-                    print('1111111111111')
+
 
                 elif now != self.cut_file_point:
                     self.cutting_file = False
                     self.event['cut_file'] = 0
-
-            else:
-                raise ValueError('cut_file_type 只支持 filesize 文件大小 或者 time 指定每天的时间')
-
-
-
 
 
             self.lock.release()
@@ -205,54 +226,60 @@ class Reader(Base):
     def readLog(self):
 
 
-        if self.event['stop'] :
-            print(self.event['stop'])
-            return
-
         position = 0
 
-        if self.read_type == 'head':
-            self.fd.seek(position, 0)
-        elif self.read_type == 'tail':
-            self.fd.seek(position, 2)
-        else:
-            raise ValueError('read_type 只支持 head 从头开始 或者 tail 从末尾开始')
+        if self.read_type not in ['head','tail']:
+            self.event['stop'] = 'read_type 只支持 head 从头开始 或者 tail 从末尾开始'
+
+        try:
+            if self.read_type == 'head':
+                self.fd.seek(position, 0)
+            elif self.read_type == 'tail':
+                self.fd.seek(position, 2)
+        except Exception as e:
+            self.event['stop'] = self.log_path + ' 文件句柄 seek 错误'
 
 
-        redis = self._getQueue()
-        pipe = redis.pipeline()
+
+        try:
+            redis = self._getQueue()
+            pipe = redis.pipeline()
+        except RedisError as e:
+            self.event['stop'] = 'redis 链接失败:' +  e.args[1]
+
 
         while True:
             time.sleep(0.5)
 
             if self.event['stop']:
-                print(self.event['stop'])
+                print(self.event['stop'] + ' ; read threading stop')
                 return
 
             start_time = time.perf_counter()
-            # print("\n start_time -------read file---queue len: %s---- %s \n" % (len(list(self.reader_queue)) ,start_time) )
             print("\n start_time -------pid: %s -- read file---queue len: %s---- %s \n" % (os.getpid() ,redis.llen(self.queue_key), start_time))
 
+
             self.lock.acquire()
+
             for line in self.fd:
 
                 data = {}
-                data['node_id'] = self.conf['client.input']['node_id']
+                data['node_id'] = self.node_id
                 data['app_name'] = self.app_name
                 data['log_format_name'] = self.log_format_name
-                data['line'] = line.decode(encoding='utf-8')
-                data['server_conf'] = self.server_conf
+                data['line'] = line.decode(encoding='utf-8').strip()
+                data['log_format_str'] = self.server_conf[self.log_format_name].strip()
                 data = json.dumps(data)
 
                 pipe.lpush(self.queue_key,data)
-                # self.share_queue.put(line)
+
+
 
             pipe.execute()
+
             self.lock.release()
 
             end_time = time.perf_counter()
-            # print("\n end_time -------read file---queue_len :%s ----%s 耗时:%s \n"
-            #       % (len(list(self.reader_queue)),end_time, round(end_time - start_time, 2)))
             print("\n end_time -------pid: %s -- read file---queue_len :%s ----%s 耗时:%s \n"
                   % (os.getpid(),redis.llen(self.queue_key), end_time, round(end_time - start_time, 2)))
 
@@ -266,7 +293,7 @@ class Reader(Base):
 
 
     def runMethod(self,method_name):
-        print('%s ,%s' % (method_name  ,time.perf_counter()))
+        print('pid:%s , %s ,%s' % (os.getpid() ,method_name  ,time.perf_counter()))
         getattr(self,method_name)()
 
 
@@ -426,38 +453,6 @@ def startOutput(share_queue ):
 
 
 
-def startReader(log_path ,share_queue):
-    r = Reader(log_path=log_path, share_queue=share_queue)
-    r.output_process = Process(target=startOutput ,args=(queue,) )
-
-    jobs = ['readLog', 'cutFile', 'watcher']
-    t = []
-    for i in jobs:
-        th = Thread(target=r.runMethod, args=(i,))
-        th.setDaemon(True)
-        t.append(th)
-
-    for i in t:
-        i.start()
-
-    for i in t:
-        i.join()
-
-
-
-
 if __name__ == "__main__":
+    pass
 
-    log = '/www/wwwlogs/local.test.com.log'
-    # log = '/www/wwwlogs/local.test.com.log_2020_09_18'
-    queue = Queue()
-
-
-    # with open(log,'rb+') as fd:
-    #     for line in fd:
-    #         queue.put(line)
-
-    # startOutput(share_queue=queue)
-
-
-    startReader(log_path=log, share_queue=queue)

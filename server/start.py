@@ -1,5 +1,4 @@
 from flask import Flask
-from environs import Env
 import os,sys
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from server.admin.user import user
@@ -16,16 +15,13 @@ def start_server(conf_dict = {}):
     :param conf_dict:
     :return:
     """
-    if(not conf_dict and __name__ != '__main__'):
+    if(not conf_dict ):
         raise ValueError('miss flask config of args conf_dict')
-    else:
-        app.config.from_pyfile( os.path.dirname(os.path.abspath(__file__)) + '/config.py' )
+
 
     app.config.from_mapping(conf_dict)
     app.register_blueprint(home, url_prefix='/')
     app.register_blueprint(user, url_prefix='/user')
-
-
     app.run()
 
 
