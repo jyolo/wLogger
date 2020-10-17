@@ -4,7 +4,7 @@ from redis import Redis,RedisError
 from configparser import ConfigParser
 from threading import Thread,RLock
 from pymongo import MongoClient
-import time,asyncio,json,aioredis,traceback,mmap,os,collections,platform,copy,importlib,sys,threading
+import time,shutil,json,subprocess,traceback,mmap,os,collections,platform,copy,importlib,sys,threading
 
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))) )
@@ -51,6 +51,8 @@ class Base(object):
             except ValueError as e:
                 self.event['stop'] = e.args
 
+
+
 # 日志解析
 class loggerParse(object):
 
@@ -64,13 +66,13 @@ class loggerParse(object):
             self.logger_format = self.__handler.getLoggerFormatByServerConf(server_conf_path=server_conf)
 
 
-    def getLogFormatByConfStr(self,log_format_conf):
+    def getLogFormatByConfStr(self,log_format_conf,log_format_name):
 
-        return  self.__handler.getLogFormatByConfStr( log_format_conf,'string')
+        return  self.__handler.getLogFormatByConfStr( log_format_conf,log_format_name,'string')
 
 
-    def parse(self,log_format,log_line):
-        return  self.__handler.parse(log_format=log_format,log_line=log_line)
+    def parse(self,log_format_name,log_line):
+        return  self.__handler.parse(log_format_name=log_format_name,log_line=log_line)
 
 
 
@@ -109,6 +111,11 @@ class Reader(Base):
         self.read_type = log_file_conf['read_type']
         self.cut_file_type = log_file_conf['cut_file_type']
         self.cut_file_point = log_file_conf['cut_file_point']
+        try:
+            self.cut_file_save_dir = log_file_conf['cut_file_save_dir']
+        except KeyError as e:
+            self.cut_file_save_dir = None
+
 
 
         self.queue_key = self.conf['redis']['prefix'] + 'logger'
@@ -132,17 +139,49 @@ class Reader(Base):
             return False
 
 
-    def __cutFileHandle(self,server_pid_path,log_path ,target_path = './'):
+    def __cutFileHandle(self,server_pid_path,log_path ,target_path = None ):
         start_time = time.perf_counter()
         print("\n start_time -------cutting file start ---  %s \n" % (
              start_time))
 
-        file_suffix = time.strftime('%Y_%m_%d_%s', time.localtime())
-        target_file = target_path +log_path + '_' + file_suffix
+        file_suffix = time.strftime('%Y-%m-%d_%H-%M-%S', time.localtime())
 
-        cmd = 'mv %s %s && kill -USR1 `cat %s`' % (log_path, target_file, server_pid_path)
+        files_arr = log_path.split('/')
+        log_name = files_arr.pop().replace('.log', '')
+        log_path_dir = '/'.join(files_arr)
+
+
+        if target_path :
+            target_dir = target_path + '/' + log_name
+        else:
+            target_dir = log_path_dir + '/' + log_name
+
+
+
+        if not os.path.exists(target_dir):
+            try:
+                os.makedirs(target_dir)
+            except Exception as e:
+                self.event['stop'] = '日志切割存储目录创建失败'
+                return
+
+        target_file = target_dir + '/' + log_name + '_' + file_suffix
+
+
+        cmd = 'kill -USR1 `cat %s`' % ( server_pid_path )
+
+        try:
+            shutil.move(log_path, target_file)
+        except Exception as e:
+            self.event['stop'] = '切割日志失败 : ' + target_file + ' ;' + e.args[1]
+            return
+
         res = os.popen(cmd)
-        print(res.readlines())
+        if  len(res.readlines()) > 0:
+            print(res.readlines())
+            self.event['stop'] = 'reload 服务器进程失败'
+            return
+
 
         end_time = time.perf_counter()
         print(';;;;;;;;;;;;;;;;full_cut;;;;;;finnish truncate;;;;;;;;;;;;; mark at %s' % (
@@ -178,15 +217,12 @@ class Reader(Base):
 
             self.lock.acquire()
 
-
-
-
             if self.cut_file_type == 'filesize' :
 
                 try:
-                    # now = time.strftime("%H:%M", time.localtime(time.time()))
-                    # print('cut_file_type: filesize ;%s ---pid: %s----thread_id: %s--- %s ---------%s' % (
-                    #     now, os.getpid(), threading.get_ident(), self.cut_file_point, self.cutting_file))
+                    now = time.strftime("%H:%M", time.localtime(time.time()))
+                    print('cut_file_type: filesize ;%s ---pid: %s----thread_id: %s--- %s ---------%s' % (
+                        now, os.getpid(), threading.get_ident(), self.cut_file_point, self.cutting_file))
 
                     # 文件大小 单位 M
                     file_size = round(os.path.getsize(self.log_path) / (1024 * 1024))
@@ -198,7 +234,7 @@ class Reader(Base):
                     self.event['stop'] = self.log_path + '文件不存在'
                     continue
 
-                self.__cutFileHandle(server_pid_path , self.log_path)
+                self.__cutFileHandle(server_pid_path , self.log_path , target_path = self.cut_file_save_dir)
 
 
             elif self.cut_file_type == 'time':
@@ -208,7 +244,7 @@ class Reader(Base):
                 # now,os.getpid(), threading.get_ident(), self.cut_file_point, self.cutting_file))
 
                 if now == self.cut_file_point and self.cutting_file == False:
-                    self.__cutFileHandle(server_pid_path, self.log_path)
+                    self.__cutFileHandle(server_pid_path, self.log_path ,target_path = self.cut_file_save_dir)
                     self.cutting_file = True
                     self.event['cut_file'] = 1
                 elif now == self.cut_file_point and self.cutting_file == True and  self.event['cut_file'] == 1:
@@ -225,7 +261,6 @@ class Reader(Base):
 
     def readLog(self):
 
-
         position = 0
 
         if self.read_type not in ['head','tail']:
@@ -238,7 +273,6 @@ class Reader(Base):
                 self.fd.seek(position, 2)
         except Exception as e:
             self.event['stop'] = self.log_path + ' 文件句柄 seek 错误'
-
 
 
         try:
@@ -274,7 +308,6 @@ class Reader(Base):
                 pipe.lpush(self.queue_key,data)
 
 
-
             pipe.execute()
 
             self.lock.release()
@@ -305,28 +338,97 @@ class OutputCustomer(Base):
         super(OutputCustomer,self).__init__()
 
         self.client_queue = self._getQueue()
-        self.client_queue_key = self.conf['client.queue']['prefix'] + 'logger'
-        self.client_queue_prefix = self.conf['client.queue']['prefix']
+        self.client_queue_prefix = self.conf[ self.conf['custom']['queue'] ]['prefix']
+        self.client_queue_key = self.client_queue_prefix + 'logger'
 
 
-        self.save_engine = self.conf['custom.save_engine']['type'].lower().capitalize()
-        self.call_engine = 'saveTo%s' %  self.save_engine
-
-        self.logParse = loggerParse(self.conf['server_info']['server_type'] ,server_conf=None)
+        self.save_engine_conf = dict( self.conf[ self.conf['custom']['save_engine'] ])
+        self.save_engine_name = self.conf['custom']['save_engine'].lower().capitalize()
 
 
+        self.call_engine = 'saveTo%s' %  self.save_engine_name
+        self.server_type = self.conf['custom']['log_server_type']
+
+        self.logParse = loggerParse(self.conf['custom']['log_server_type'] ,server_conf=None)
 
         if not hasattr(self , self.call_engine ):
-            raise ValueError('Outputer 未定义 "%s" 该存储方法' %  self.save_engine)
+            raise ValueError('Outputer 未定义 "%s" 该存储方法' %  self.save_engine_name)
 
 
 
-    def getClientQueueKeys(self):
-        queue = self.client_queue
-        _list = queue.keys(self.client_queue_prefix + ':logger')
-        _list = list(map(lambda x:x.decode(encoding='utf-8'),_list))
-        return _list
+    def getQueueData(self):
 
+        betch_max_size = int(self.conf['custom']['batch_insert_queue_max_size'])
+
+        start_time = time.perf_counter()
+        # print("\n customer -------pid: %s -- take from queue len: %s---- start \n" % (
+        #     os.getpid(), self.client_queue.llen(self.client_queue_key)))
+
+        pipe = self.client_queue.pipeline()
+        for i in range(betch_max_size):
+            pipe.lpop(self.client_queue_key)
+        queue_list = pipe.execute()
+
+        end_time = time.perf_counter()
+        # print("\n customer -------pid: %s -- take from  queue len: %s----end 耗时: %s \n" % (
+        #     os.getpid(), len(queue_list), round(end_time - start_time, 2)))
+
+        return queue_list
+
+
+    def parse_time_str(self,data):
+        if self.server_type == 'nginx':
+            if 'time_iso8601' in data:
+                _strarr = data['time_iso8601'].split('+')
+                ts = time.strptime(_strarr[0],'%Y-%m-%dT%H:%M:%S')
+                del data['time_iso8601']
+
+            if 'time_local' in data:
+                _strarr = data['time_local'].split('+')
+                ts = time.strptime(_strarr[0].strip() ,'%d/%b/%Y:%H:%M:%S')
+                del data['time_local']
+
+            data['time_str'] = time.strftime('%Y-%m-%d %H:%M:%S',ts)
+            data['timestamp'] = int(time.mktime(ts))
+
+
+
+
+        if self.server_type == 'apache':
+            pass
+
+
+
+
+        return data
+
+    def parse_line_data(self,line):
+
+        line_data = json.loads(line)
+
+        # 预编译对应的正则
+        self.logParse.getLogFormatByConfStr(line_data['log_format_str'] ,line_data['log_format_name'])
+
+        try:
+            line_data['line'] = line_data['line'].strip()
+
+            # parse_data = self.logParse.parse(parse_data, line_data['line'])
+            parse_data = self.logParse.parse(line_data['log_format_name'], line_data['line'])
+
+        except Exception as e:
+            self.client_queue.append(line)
+            traceback.print_exc()
+            exit()
+
+        parse_data = self.parse_time_str(parse_data)
+
+        del line_data['log_format_name']
+        del line_data['log_format_str']
+        del line_data['line']
+
+        line_data.update(parse_data)
+
+        return line_data
 
 
     def saveToMongodb(self):
@@ -338,26 +440,26 @@ class OutputCustomer(Base):
             # Python 2.x
             from urllib import quote_plus
 
-        if len(self.conf['custom.save_engine']['user']) and len(self.conf['custom.save_engine']['password']):
+        if self.save_engine_conf['username'] and self.save_engine_conf['password']:
             mongo_url = 'mongodb://%s:%s@%s:%s/?authSource=%s' % \
                 (
-                    quote_plus(self.conf['custom.save_engine']['user']),
-                    quote_plus(self.conf['custom.save_engine']['password']),
-                    self.conf['custom.save_engine']['host'],
-                    int(self.conf['custom.save_engine']['port']),
-                    quote_plus(self.conf['custom.save_engine']['db'])
+                    self.save_engine_conf['username'],
+                    quote_plus(self.save_engine_conf['password']),
+                    self.save_engine_conf['host'],
+                    int(self.save_engine_conf['port']),
+                    self.save_engine_conf['db']
                 )
         else:
             mongo_url = 'mongodb://%s:%s/?authSource=%s' % \
                         (
-                            self.conf['custom.save_engine']['host'],
-                            int(self.conf['custom.save_engine']['port']),
-                            quote_plus(self.conf['custom.save_engine']['db'])
+                            self.save_engine_conf['host'],
+                            int(self.save_engine_conf['port']),
+                            self.save_engine_conf['db']
                         )
 
 
         mongodb = MongoClient( mongo_url)
-        mongodb_client = mongodb[ self.conf['custom.save_engine']['db'] ][ self.conf['custom.save_engine']['collection'] ]
+        mongodb_client = mongodb[ self.save_engine_conf['db'] ][ self.save_engine_conf['collection'] ]
 
 
         while True:
@@ -368,21 +470,10 @@ class OutputCustomer(Base):
                 print('pid: %s wait for data' % os.getpid())
                 continue
 
-            betch_max_size = int(self.conf['custom']['batch_insert_queue_max_size'])
             insertList = []
 
-            start_time = time.perf_counter()
-            print("\n customer -------pid: %s -- take from queue len: %s---- start \n" % (os.getpid(), self.client_queue.llen(self.client_queue_key)))
 
-            pipe = self.client_queue.pipeline()
-            for i in range(betch_max_size):
-                pipe.lpop(self.client_queue_key)
-            queue_list = pipe.execute()
-
-
-            end_time = time.perf_counter()
-            print("\n customer -------pid: %s -- take from  queue len: %s----end 耗时: %s \n" % (
-            os.getpid(), len(queue_list), round(end_time - start_time, 2)))
+            queue_list = self.getQueueData()
 
 
             if len(queue_list) == 0:
@@ -399,50 +490,25 @@ class OutputCustomer(Base):
                     continue
 
                 line = i.decode(encoding='utf-8')
-
-                if line:
-                    line_data = json.loads(line)
-                    server_conf = line_data['server_conf']
-
-                    parse_data = self.logParse.getLogFormatByConfStr( server_conf[line_data['log_format_name']] )
-
-                    try:
-                        line_data['line'] = line_data['line'].strip()
-
-                        parse_data = self.logParse.parse(parse_data, line_data['line'])
-
-                    except Exception as e:
-                        self.client_queue.append(line)
-                        traceback.print_exc()
-                        print(e.args)
-                        exit()
-
-
-
-                    del line_data['server_conf']
-                    del line_data['line']
-
-                    line_data.update(parse_data)
-
-                    insertList.append(line_data)
+                line_data = self.parse_line_data(line)
+                insertList.append(line_data)
 
             end_time = time.perf_counter()
             print("\n customer -------pid: %s -- reg datas len: %s---- end 耗时: %s \n" % (
                 os.getpid(), len(insertList), round(end_time - start_time, 2)))
 
 
-
             if len(insertList):
                 start_time = time.perf_counter()
-                print("\n customer -------pid: %s -- insert into mongodb: %s---- start \n" % (
-                    os.getpid(), len(insertList)))
+                # print("\n customer -------pid: %s -- insert into mongodb: %s---- start \n" % (
+                #     os.getpid(), len(insertList)))
 
                 res = mongodb_client.insert_many(insertList, ordered=False)
 
                 insertList = []
 
                 end_time = time.perf_counter()
-                print("\n customer -------pid: %s -- insert into mongodb: %s---- end 耗时: %s \n" % (os.getpid(), len(res.inserted_ids), round(end_time - start_time ,2) ))
+                # print("\n customer -------pid: %s -- insert into mongodb: %s---- end 耗时: %s \n" % (os.getpid(), len(res.inserted_ids), round(end_time - start_time ,2) ))
 
 
 

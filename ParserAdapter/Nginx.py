@@ -37,6 +37,7 @@ $upstream_http_host  服务端响应的地址
 class Handler(Adapter):
 
 
+    log_line_pattern_dict = {}
 
     def __init__(self,*args ,**kwargs):pass
 
@@ -74,19 +75,16 @@ class Handler(Adapter):
     """
         日志解析
     """
-    def parse(self,log_format='',log_line=''):
-
-        log_format_list = log_format[0]
-        log_format_re = log_format[1]
+    def parse(self,log_format_name='',log_line=''):
 
 
-        #  多个空格替换成一个空格
-        line = re.sub(r'\s+', ' ', log_line).strip()
-        log_format_re = log_format_re.strip()
+        log_format_list = self.log_line_pattern_dict[log_format_name]['log_format_list']
+        log_format_recompile = self.log_line_pattern_dict[log_format_name]['log_format_recompile']
 
         try:
 
-            res = re.match(r'%s' % log_format_re, log_line)
+            res = log_format_recompile.match( log_line)
+
             if res == None:
                 raise Exception('解析日志失败,请检查client 配置中 日志的 格式名称是否一致 log_format_name')
 
@@ -104,89 +102,49 @@ class Handler(Adapter):
 
 
 
-        # start_time = time.perf_counter()
-        # for i in range(500000):
-        #     ss = '[25/Sep/2020:10:58:18 +0800] local.test2.com 127.0.0.1 - "GET /index.html?test2=asdasdad HTTP/1.0" 200 1079 "-" "ApacheBench/2.3" "-"'
-        #     ff = r'\[([\s|\S]+)\] (\S+) (\S+) - "([\s|\S]+)" (\d+) (\d+) "([\s|\S]+)" "([\s|\S]+)" "([\s|\S]+)"'
-        #     # c = re.compile(ff)
-        #     aa = re.match(ff,ss)
-        #     if not aa:
-        #         print('unmatched')
-        #         exit()
-        #     # print(aa.groups())
-        #
-        #     # ss = '[25/Sep/2020:10:58:18 +0800] local.test2.com 127.0.0.1 - "GET /index.html?test2=asdasdad HTTP/1.0" 200 1079 "-" "ApacheBench/2.3" "-"'
-        #     # ff = '[{time_local:th}] {host} {remote_addr} - "{request}" {status:d} {body_bytes_sent:d} "{http_referer}" "{http_user_agent}" "{http_x_forwarded_for}"  '
-        #     # p = compile(ff.strip())
-        #     #
-        #     # res = p.parse(ss.strip())
-        #     # print(res.named)
-        #
-        # end_time = time.perf_counter()
-        # print('耗时:%s' % round(end_time - start_time ,2))
-        #
-        # exit()
-        #
-        #
-        # p = compile(log_format.strip())
-        #
-        # res = p.parse(line.strip())
-        #
-        # # print(res.named)
-        # # ss = '[25/Sep/2020:10:58:18 +0800] local.test2.com 127.0.0.1 - "GET /index.html?test2=asdasdad HTTP/1.0" 200 1079 "-" "ApacheBench/2.3" "-"'
-        # # ff = '[{time_local:th}] {host} {remote_addr} - "{request}" {status:d} {body_bytes_sent:d} "{http_referer}" "{http_user_agent}" "{http_x_forwarded_for}"  '
-        # # # print(parse(ff,ss))
-        # # exit()
-        # # 处理日志匹配 (耗时操作)
-        #
-        # # res = search(log_format, line)
-        # if (res is None):
-        #     raise ValueError('没有匹配到数据')
-        #
-        # if 'time_local' in res.named:
-        #     res.named['time_local'] = str(res.named['time_local']).replace('+08:00','')
-        #
-        #
-        # return res.named
-
 
     """
         根据录入的格式化字符串 返回 parse 所需 log_format 配置
     """
-    def getLogFormatByConfStr(self ,log_format_conf ,log_type):
+    def getLogFormatByConfStr(self ,log_format_conf ,log_format_name ,log_type):
         if log_type not in ['string','json']:
             raise ValueError('_type 参数类型错误')
 
+        if log_format_name not in self.log_line_pattern_dict:
 
-        # 去掉换行
-        str = log_format_conf.replace("\n", '')
+            # 去掉换行
+            str = log_format_conf.replace("\n", '')
 
-        # 处理换行后的 引号
-        str = re.sub(r'\'\s+\'', '', str)
+            # 处理换行后的 引号
+            str = re.sub(r'\'\s+\'', '', str)
 
 
-        if (log_type == 'string'):
-            # 获取日志名字后面的 日志格式
-            res = re.findall(r'\s?log_format\s+(\w+)\s+\'([\s|\S]?\$\w+[\s|\S]+)+\'', str)
+            if (log_type == 'string'):
+                # 获取日志名字后面的 日志格式
+                res = re.findall(r'\s?log_format\s+(\w+)\s+\'([\s|\S]?\$\w+[\s|\S]+)+\'', str)
 
-        elif (log_type == 'json'):
-            # 获取日志名字后面的 日志格式
-            res = re.findall(r'\s?log_format\s+(\w+)\s+\'\{([\'|\"](\w+)[\'|\"]\:[\'|\"](\S+)[\'|\"])+\}\'', str)
+            elif (log_type == 'json'):
+                # 获取日志名字后面的 日志格式
+                res = re.findall(r'\s?log_format\s+(\w+)\s+\'\{([\'|\"](\w+)[\'|\"]\:[\'|\"](\S+)[\'|\"])+\}\'', str)
 
-        if not res:
-            raise ValueError('获取格式化字符串失败')
-            return
+            if not res:
+                raise ValueError('获取格式化字符串失败')
+                return
 
-        # 日志名称
-        log_name = res[0][0]
-        # 获取到匹配到的 日志格式
-        log_format_str = res[0][1].strip().replace('[', '\[').replace(']', '\]')
+            # 日志名称
+            log_name = res[0][0]
+            # 获取到匹配到的 日志格式
+            log_format_str = res[0][1].strip().replace('[', '\[').replace(']', '\]')
 
-        log_format_list = re.findall(r'(\w+)',log_format_str)
+            log_format_list = re.findall(r'(\w+)',log_format_str)
 
-        format = re.sub(r'(\$\w+)+', self.__replaceLogVars, log_format_str)
+            format = re.sub(r'(\$\w+)+', self.__replaceLogVars, log_format_str).strip()
 
-        return (log_format_list ,format)
+            self.log_line_pattern_dict[log_format_name] = {'log_format_list':log_format_list ,'log_format_recompile':re.compile(format ,re.I)}
+
+
+
+        # return (log_format_list ,format)
         # return format
 
     """
@@ -233,7 +191,7 @@ class Handler(Adapter):
                 format_list[res[0]] = i
 
 
-        format_list['defualt'] = """ 
+        format_list['defualt'] = """
             log_format  main '$remote_addr - $remote_user [$time_local] "$request" $status $body_bytes_sent "$http_referer" "$http_user_agent"  ';
         """
 

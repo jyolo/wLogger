@@ -66,15 +66,17 @@ if __name__ == "__main__":
 
         elif args[1] == 'customer':
 
-            web_conf = dict(base.conf['custom.web'])
-            web_p = Process(target = start_server ,args = (web_conf,))
+
 
             p_list = []
             for i in range( int(base.conf['custom']['worker_process_num']) ):
                 p = Process(target = customer)
                 p_list.append(p)
 
-            p_list.append(web_p)
+
+            # web_conf = dict(base.conf['web'])
+            # web_p = Process(target=start_server, args=(web_conf,))
+            # p_list.append(web_p)
 
             for i in p_list:
                 i.start()
