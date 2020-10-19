@@ -193,7 +193,7 @@ class Reader(Base):
         while True:
             time.sleep(1)
             if self.event['stop']:
-                print(self.event['stop'] + ' ; cutFile threading stop')
+                print( '%s ; cutFile threading stop pid: %s' % (self.event['stop'] , os.getpid()))
                 return
 
             try:
@@ -286,7 +286,7 @@ class Reader(Base):
             time.sleep(0.5)
 
             if self.event['stop']:
-                print(self.event['stop'] + ' ; read threading stop')
+                print( '%s ; read threading stop pid: %s' % (self.event['stop'] ,os.getpid()))
                 return
 
             start_time = time.perf_counter()
@@ -302,10 +302,16 @@ class Reader(Base):
                 data['app_name'] = self.app_name
                 data['log_format_name'] = self.log_format_name
                 data['line'] = line.decode(encoding='utf-8').strip()
-                data['log_format_str'] = self.server_conf[self.log_format_name].strip()
-                data = json.dumps(data)
+                try:
+                    data['log_format_str'] = self.server_conf[self.log_format_name].strip()
+                    data = json.dumps(data)
+                    pipe.lpush(self.queue_key, data)
 
-                pipe.lpush(self.queue_key,data)
+                except KeyError as e:
+                    self.event['stop'] = self.log_format_name + '日志格式不存'
+                    break
+
+
 
 
             pipe.execute()

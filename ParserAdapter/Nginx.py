@@ -179,21 +179,25 @@ class Handler(Adapter):
         with open(server_conf_path,'rb') as fd:
             content = fd.read().decode(encoding="utf-8")
 
+        format_list = {}
+        format_list['defualt'] = """
+                    log_format  main '$remote_addr - $remote_user [$time_local] "$request" $status $body_bytes_sent "$http_referer" "$http_user_agent"  ';
+                """
 
         res = re.findall(r'log_format\s+\w+\s+\'[\s\S]*\S?\'\S?\;' ,content)
 
-        conf_list = res[0].strip().strip(';').split(';')
+        if len(res) == 0:
+            return format_list
 
-        format_list = {}
+
+        conf_list = res[0].strip().strip(';').split(';')
         for i in conf_list:
             res = re.findall(r'log_format\s+(\w+)\s+',i)
             if len(res):
                 format_list[res[0]] = i
 
 
-        format_list['defualt'] = """
-            log_format  main '$remote_addr - $remote_user [$time_local] "$request" $status $body_bytes_sent "$http_referer" "$http_user_agent"  ';
-        """
+
 
         del content
 
