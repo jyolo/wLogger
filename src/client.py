@@ -37,19 +37,15 @@ class Base(object):
         if client_queue_type == 'redis':
             try:
 
-                redis =  Redis(
+                return  Redis(
                     host = self.conf[client_queue_type]['host'],
                     port = int(self.conf[client_queue_type]['port']),
                     password = str(self.conf[client_queue_type]['password']),
                     db = self.conf[client_queue_type]['db'],
-                    socket_connect_timeout=3
                 )
 
-                return redis
-
-
             except redis_exceptions.RedisError as e:
-                self.event['stop'] = e.args
+                self.event['stop'] = e.args[0]
 
 
         else:
