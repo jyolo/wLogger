@@ -36,15 +36,22 @@ class Base(object):
 
         if client_queue_type == 'redis':
             try:
-                return Redis(
+
+                redis =  Redis(
                     host = self.conf[client_queue_type]['host'],
                     port = int(self.conf[client_queue_type]['port']),
                     password = str(self.conf[client_queue_type]['password']),
-                    db = self.conf[client_queue_type]['db']
+                    db = self.conf[client_queue_type]['db'],
+                    socket_connect_timeout=3
                 )
+
+                return redis
+
 
             except redis_exceptions.RedisError as e:
                 self.event['stop'] = e.args
+
+
         else:
             try:
                 raise ValueError('当前只支持 redis 输出')
@@ -289,10 +296,11 @@ class Reader(Base):
 
 
         try:
+
             redis = self._getQueue()
             pipe = redis.pipeline()
         except redis_exceptions.RedisError  as e:
-            self.event['stop'] = 'redis 链接失败:' +  e.args[1]
+            self.event['stop'] = 'redis 链接失败'
 
 
         while True:
@@ -301,52 +309,50 @@ class Reader(Base):
             if self.event['stop']:
                 print( '%s ; read threading stop pid: %s' % (self.event['stop'] ,os.getpid()))
                 return
-
-            start_time = time.perf_counter()
-            print("\n start_time -------pid: %s -- read file---queue len: %s---- %s \n" % (os.getpid() ,redis.llen(self.queue_key), start_time))
-
-
-            self.lock.acquire()
-
-            for line in self.fd:
-
-                data = {}
-                data['node_id'] = self.node_id
-                data['app_name'] = self.app_name
-                data['log_format_name'] = self.log_format_name
-                data['line'] = line.decode(encoding='utf-8').strip()
-                try:
-                    data['log_format_str'] = self.server_conf[self.log_format_name].strip()
-                    data = json.dumps(data)
-                    pipe.lpush(self.queue_key, data)
-
-                except KeyError as e:
-                    self.event['stop'] = self.log_format_name + '日志格式不存'
-                    break
-
-
-
             try:
-                pipe.execute()
-            except redis_exceptions.RedisError as e:
-                self.event['stop'] = 'redis 链接错误 :%s' % e.args[1]
+
+                start_time = time.perf_counter()
+                print("\n start_time -------pid: %s -- read file---queue len: %s---- %s \n" % (os.getpid() ,redis.llen(self.queue_key), start_time))
+
+                self.lock.acquire()
+
+                for line in self.fd:
+
+                    data = {}
+                    data['node_id'] = self.node_id
+                    data['app_name'] = self.app_name
+                    data['log_format_name'] = self.log_format_name
+                    data['line'] = line.decode(encoding='utf-8').strip()
+                    try:
+                        data['log_format_str'] = self.server_conf[self.log_format_name].strip()
+                        data = json.dumps(data)
+                        pipe.lpush(self.queue_key, data)
+
+                    except KeyError as e:
+                        self.event['stop'] = self.log_format_name + '日志格式不存'
+                        break
+
+
+                    pipe.execute()
+
+
                 self.lock.release()
+
+                end_time = time.perf_counter()
+                print("\n end_time -------pid: %s -- read file---queue_len :%s ----%s 耗时:%s \n"
+                      % (os.getpid(),redis.llen(self.queue_key), end_time, round(end_time - start_time, 2)))
+
+
+                if self.event['cut_file'] == 1 and self.event['stop'] == None:
+                    print('--------------------reopen file--------------------')
+                    self.fd.close()
+                    self.fd = self.__getFileFd()
+                    self.fd.seek(0)
+                    self.event['cut_file'] = 0
+
+            except redis_exceptions.RedisError as e:
+                self.event['stop'] = 'redis 错误 :%s' % e.args[0]
                 continue
-
-
-            self.lock.release()
-
-            end_time = time.perf_counter()
-            print("\n end_time -------pid: %s -- read file---queue_len :%s ----%s 耗时:%s \n"
-                  % (os.getpid(),redis.llen(self.queue_key), end_time, round(end_time - start_time, 2)))
-
-
-            if self.event['cut_file'] == 1 and self.event['stop'] == None:
-                print('--------------------reopen file--------------------')
-                self.fd.close()
-                self.fd = self.__getFileFd()
-                self.fd.seek(0)
-                self.event['cut_file'] = 0
 
 
     def runMethod(self,method_name):

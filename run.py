@@ -66,15 +66,10 @@ if __name__ == "__main__":
 
         elif args[1] == 'customer':
 
-
-
             p_list = []
             for i in range( int(base.conf['custom']['worker_process_num']) ):
                 p = Process(target = customer)
                 p_list.append(p)
-
-
-
 
             for i in p_list:
                 i.start()
