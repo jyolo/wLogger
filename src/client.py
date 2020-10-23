@@ -201,7 +201,6 @@ class Reader(Base):
 
 
         end_time = time.perf_counter()
-        self.fd = self.__getFileFd()
         print(';;;;;;;;;;;;;;;;full_cut;;;;;;finnish truncate;;;;;;;;;;;;; mark at %s' % (
             round(end_time - start_time, 2)))
 
@@ -253,7 +252,7 @@ class Reader(Base):
                     continue
 
                 self.__cutFileHandle(server_pid_path , self.log_path , target_path = self.cut_file_save_dir)
-
+                self.event['cut_file'] = 1
 
             elif self.cut_file_type == 'time':
 
