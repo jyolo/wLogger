@@ -1,6 +1,6 @@
 # coding=UTF-8
 from multiprocessing import Queue,Process
-from redis import Redis,RedisError
+from redis import Redis,exceptions
 from configparser import ConfigParser
 from threading import Thread,RLock
 from pymongo import MongoClient
@@ -43,7 +43,7 @@ class Base(object):
                     db = self.conf[client_queue_type]['db']
                 )
 
-            except RedisError as e:
+            except exceptions.RedisError as e:
                 self.event['stop'] = e.args
         else:
             try:
@@ -291,7 +291,7 @@ class Reader(Base):
         try:
             redis = self._getQueue()
             pipe = redis.pipeline()
-        except RedisError as e:
+        except exceptions.RedisError  as e:
             self.event['stop'] = 'redis 链接失败:' +  e.args[1]
 
 
