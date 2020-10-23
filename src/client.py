@@ -138,7 +138,8 @@ class Reader(Base):
 
         self.server_conf = loggerParse(log_file_conf['server_type'],self.conf[log_file_conf['server_type']]['server_conf']).logger_format
 
-
+        # 关闭句柄从新打开文件
+        self.fd.close()
         self.fd = self.__getFileFd()
         # 文件切割中标志
         self.cutting_file = False
@@ -200,6 +201,7 @@ class Reader(Base):
 
 
         end_time = time.perf_counter()
+        self.fd = self.__getFileFd()
         print(';;;;;;;;;;;;;;;;full_cut;;;;;;finnish truncate;;;;;;;;;;;;; mark at %s' % (
             round(end_time - start_time, 2)))
 
