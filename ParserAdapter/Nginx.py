@@ -48,7 +48,7 @@ class Handler(Adapter):
             '$remote_user': {'desc': '记录客户端用户名称' , 'example':'client_name','re': '[\s|\S]+?' },
             '$http_x_forwarded_for': {'desc': '客户端代理IP多个逗号分割' ,'example':'203.98.182.163, 203.98.182.169' ,'re': '[\s|\S]+?' },
             '$request': {'desc': '请求信息' ,'example':'GET /api/server/?size=50&page=1 HTTP/1.1' ,'re': '[\s|\S]+?'},
-            '$request_method': {'desc': '请求方法' ,'example':'GET' ,'re': '\w+?'},
+            '$request_method': {'desc': '请求方法' ,'example':'GET' ,'re': '[\s|\S]+?'},
             '$scheme':{'desc': '请求协议' ,'example':'HTTP/1.1' ,'re': '\S+?' } ,
             '$request_uri': {'desc': '请求链接' ,'example':'/api/server/?size=50&page=1' ,'re': '\S+?'},
             '$request_body': {'desc': 'post提交的数据' ,'example':'name=xxx&age=18' ,'re': '[\S|\s]*?' },
@@ -141,7 +141,7 @@ class Handler(Adapter):
 
             format = re.sub(r'(\$\w+)+', self.__replaceLogVars, log_format_str).strip()
 
-
+            print(format)
 
             self.log_line_pattern_dict[log_format_name] = {'log_format_list':log_format_list ,'log_format_recompile':re.compile(format ,re.I)}
 
