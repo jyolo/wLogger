@@ -1,7 +1,7 @@
 from src.client import OutputCustomer,Reader,Base
 from multiprocessing import Queue,Process
 from threading import Thread
-from server.start import start_server
+from server.start import start_web
 import multiprocessing,time,sys,os
 
 
@@ -74,15 +74,21 @@ if __name__ == "__main__":
                 p_list.append(p)
 
 
-            # web_conf = dict(base.conf['web'])
-            # web_p = Process(target=start_server, args=(web_conf,))
-            # p_list.append(web_p)
+
 
             for i in p_list:
                 i.start()
 
             for i in p_list:
                 i.join()
+
+        elif args[1] == 'web':
+            web_conf = dict(base.conf['web'])
+            # web_p = Process(target=start_web, args=(web_conf,))
+            # web_p.start()
+            # web_p.join()
+
+            start_web(web_conf)
 
 
         else:

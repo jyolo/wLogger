@@ -9,7 +9,7 @@ from server.admin.home import home
 app = Flask(__name__)
 
 # start this server from the main.py
-def start_server(conf_dict = {}):
+def start_web(conf_dict = {}):
     """
     when run in subprocess need conf_dict of the flask config
     :param conf_dict:
@@ -18,7 +18,8 @@ def start_server(conf_dict = {}):
     if(not conf_dict ):
         raise ValueError('miss flask config of args conf_dict')
 
-
+    app.debug = conf_dict['debug']
+    app.env = conf_dict['env']
     app.config.from_mapping(conf_dict)
     app.register_blueprint(home, url_prefix='/')
     app.register_blueprint(user, url_prefix='/user')
@@ -28,6 +29,6 @@ def start_server(conf_dict = {}):
 
 if __name__ == "__main__":
 
-    start_server()
+    start_web()
 
     # app.run()

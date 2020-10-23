@@ -11,13 +11,21 @@ def index():
         return render_template('home/index.html')
 
     if(request.method == 'POST'):
-        var1 = request.form['var1']
-        var2 = request.form['var2']
+        var1 = request.form['username']
+        var2 = request.form['password']
         print(request.args )
         return {
-            'var1':var1,
-            'var2':var2
+            'username':var1,
+            'password':var2,
+            'asd':'asd',
+            'sdfsdf':'asdfsdfsdsd'
+
         }
+
+@home.route('/get_ip_info' , methods=['GET'])
+def get_ip_info():
+
+    return {'id':'asd'}
 
 
 if __name__ == "__main__":
