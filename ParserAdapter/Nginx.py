@@ -51,8 +51,8 @@ class Handler(Adapter):
             '$request_method': {'desc': '请求方法' ,'example':'GET' ,'re': '\w+?'},
             '$scheme':{'desc': '请求协议' ,'example':'HTTP/1.1' ,'re': '\S+?' } ,
             '$request_uri': {'desc': '请求链接' ,'example':'/api/server/?size=50&page=1' ,'re': '\S+?'},
-            '$request_body': {'desc': 'post提交的数据' ,'example':'name=xxx&age=18' ,'re': '\S+?' },
-            '$request_length': {'desc': '请求的字节长度' ,'example':'988' ,'re': '\S+?'},
+            '$request_body': {'desc': 'post提交的数据' ,'example':'name=xxx&age=18' ,'re': '[\S|\s]*?' },
+            '$request_length': {'desc': '请求的字节长度' ,'example':'988' ,'re': '\d+?'},
             '$request_time': {'desc': '请求花费的时间' ,'example':'0.018' ,'re': '\S+?'},
             '$msec': {'desc': '当前的Unix时间戳 (1.3.9, 1.2.6)' ,'example':'' ,'re': '\S+?'},
             '$upstream_response_time': {'desc': 'nginx交给后端cgi响应的时间(小于$request_time)' ,'example':'0.018' ,'re': '\S+?'},
@@ -82,10 +82,11 @@ class Handler(Adapter):
         log_format_recompile = self.log_line_pattern_dict[log_format_name]['log_format_recompile']
 
         try:
-
-            res = log_format_recompile.match( log_line)
+            res = log_format_recompile.match( log_line )
 
             if res == None:
+                print(res)
+                print(log_line)
                 raise Exception('解析日志失败,请检查client 配置中 日志的 格式名称是否一致 log_format_name')
 
             matched = list(res.groups())
@@ -139,6 +140,8 @@ class Handler(Adapter):
             log_format_list = re.findall(r'(\w+)',log_format_str)
 
             format = re.sub(r'(\$\w+)+', self.__replaceLogVars, log_format_str).strip()
+
+
 
             self.log_line_pattern_dict[log_format_name] = {'log_format_list':log_format_list ,'log_format_recompile':re.compile(format ,re.I)}
 
