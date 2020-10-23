@@ -323,13 +323,16 @@ class Reader(Base):
                 except KeyError as e:
                     self.event['stop'] = self.log_format_name + '日志格式不存'
                     break
-                except redis_exceptions.RedisError as e:
-                    self.event['stop'] = 'redis 链接错误 :%s' % e.args[1]
-                    break
 
 
 
-            pipe.execute()
+            try:
+                pipe.execute()
+            except redis_exceptions.RedisError as e:
+                self.event['stop'] = 'redis 链接错误 :%s' % e.args[1]
+                self.lock.release()
+                continue
+
 
             self.lock.release()
 
