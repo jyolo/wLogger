@@ -51,7 +51,7 @@ class Handler(Adapter):
             '$request_method': {'desc': '请求方法' ,'example':'GET' ,'re': '[\s|\S]+?'},
             '$scheme':{'desc': '请求协议' ,'example':'HTTP/1.1' ,'re': '\S+?' } ,
             '$request_uri': {'desc': '请求链接' ,'example':'/api/server/?size=50&page=1' ,'re': '\S+?'},
-            '$request_body': {'desc': 'post提交的数据' ,'example':'name=xxx&age=18' ,'re': '[\S|\s]*?' },
+            '$request_body': {'desc': 'post提交的数据' ,'example':'name=xxx&age=18' ,'re': '[\s|\S]*?' },
             '$request_length': {'desc': '请求的字节长度' ,'example':'988' ,'re': '\d+?'},
             '$request_time': {'desc': '请求花费的时间' ,'example':'0.018' ,'re': '\S+?'},
             '$msec': {'desc': '当前的Unix时间戳 (1.3.9, 1.2.6)' ,'example':'' ,'re': '\S+?'},
