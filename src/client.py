@@ -347,6 +347,7 @@ class Reader(Base):
                     try:
                         self.fd.seek(0)
                     except AttributeError as e:
+                        time.sleep(1)
                         retry_open_file_time = retry_open_file_time + 1
                         if retry_open_file_time >= max_retry_open_file_time:
                             self.event['stop'] = '重新打开文件超过最大次数 %s ' % max_retry_open_file_time
