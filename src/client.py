@@ -172,8 +172,6 @@ class Reader(Base):
         else:
             target_dir = log_path_dir + '/' + log_name
 
-
-
         if not os.path.exists(target_dir):
             try:
                 os.makedirs(target_dir)
@@ -248,6 +246,7 @@ class Reader(Base):
 
                 except FileNotFoundError as e:
                     self.event['stop'] = self.log_path + '文件不存在'
+                    self.lock.release()
                     continue
 
                 self.__cutFileHandle(server_pid_path , self.log_path , target_path = self.cut_file_save_dir)
@@ -298,7 +297,8 @@ class Reader(Base):
         except redis_exceptions.RedisError  as e:
             self.event['stop'] = 'redis 链接失败'
 
-
+        max_retry_open_file_time = 3
+        retry_open_file_time = 0
         while True:
             time.sleep(0.5)
 
@@ -341,9 +341,17 @@ class Reader(Base):
 
                 if self.event['cut_file'] == 1 and self.event['stop'] == None:
                     print('--------------------reopen file--------------------')
+
                     self.fd.close()
                     self.fd = self.__getFileFd()
-                    self.fd.seek(0)
+                    try:
+                        self.fd.seek(0)
+                    except AttributeError as e:
+                        retry_open_file_time = retry_open_file_time + 1
+                        if retry_open_file_time >= max_retry_open_file_time:
+                            self.event['stop'] = '重新打开文件超过最大次数 %s ' % max_retry_open_file_time
+                        continue
+
                     self.event['cut_file'] = 0
 
             except redis_exceptions.RedisError as e:
