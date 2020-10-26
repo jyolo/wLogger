@@ -79,6 +79,8 @@ if __name__ == "__main__":
 
         elif args[1] == 'web':
             web_conf = dict(base.conf['web'])
+            web_conf[ web_conf['data_engine'] ] = dict(base.conf[ web_conf['data_engine'] ])
+
             # web_p = Process(target=start_web, args=(web_conf,))
             # web_p.start()
             # web_p.join()
