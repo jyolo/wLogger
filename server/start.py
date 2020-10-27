@@ -1,14 +1,13 @@
 from flask import Flask
-from flask_pymongo import PyMongo,MongoClient
+from flask_pymongo import PyMongo
 import os,sys
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from server.admin.user import user
 from server.admin.home import home
 
 
-
-
 app = Flask(__name__)
+
 
 # start this server from the main.py
 def start_web(conf_dict = {}):
@@ -26,28 +25,29 @@ def start_web(conf_dict = {}):
     app.register_blueprint(home, url_prefix='/')
     app.register_blueprint(user, url_prefix='/user')
 
-    setAppDataEngine(app,conf_dict)
+    setAppDataEngine(conf_dict)
 
     app.run()
 
-def setAppDataEngine(app ,conf_dict):
-    if conf_dict['data_engine'] == 'mongodb' :
-        args = conf_dict[ conf_dict['data_engine'] ]
-        if args['username'] and args['password'] :
-            mongourl = 'mongodb://%s:%s@%s:%s/%s' % ( args['username'] ,args['password'],args['host'] ,args['port'] ,args['db'] )
+
+def setAppDataEngine(conf_dict):
+
+    if conf_dict['data_engine'] == 'mongodb':
+        args = conf_dict[conf_dict['data_engine']]
+        if args['username'] and args['password']:
+            mongourl = 'mongodb://%s:%s@%s:%s/%s' % (
+            args['username'], args['password'], args['host'], args['port'], args['db'])
         else:
-            mongourl = 'mongodb://%s:%s/%s' % ( args['host'] ,args['port'] ,args['db'] )
+            mongourl = 'mongodb://%s:%s/%s' % (args['host'], args['port'], args['db'])
 
-        app.mongodb = PyMongo(app, mongourl).db[args['collection']]
+        app.mongo = PyMongo(app,mongourl)
 
-        return
-
-
-
+    if conf_dict['data_engine'] == 'mysql':
+        pass
 
 
 if __name__ == "__main__":
 
-    start_web()
+    pass
 
     # app.run()

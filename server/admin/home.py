@@ -1,6 +1,9 @@
 from flask.blueprints import Blueprint
+from flask_pymongo import PyMongo
 from flask import render_template ,request,flash,session,current_app
-import json
+import sys,time,os
+
+
 
 home = Blueprint('home',__name__)
 
@@ -25,32 +28,31 @@ def index():
 
 @home.route('/get_ip_info' , methods=['GET'])
 def get_ip_info():
-    # print(current_app.mongodb.find().count())
-    #
-    #
-    res = current_app.mongodb.aggregate([
-        {'$group': {
-                '_id': '$remote_addr' ,
-                'total_num':{'$sum':1}
-            }
-        },
+
+    res = current_app.mongo.db.logger.aggregate([
+        {'$group': {'_id': '$remote_addr' ,'total_num':{'$sum':1} } },
         {'$project':{'ip':'$_id' ,'total_request_num': '$total_num' ,'_id':0} },
         {'$sort': {'total_request_num': -1}},
         {'$limit':10}
-
     ])
 
-
-    # with res as course:
-    #     data = []
-    #     for item in course:
-    #         data.append(item)
 
     data = list(res)
 
 
     return { 'data': data}
 
+@home.route('/get_request_num_by_secends' , methods=['POST'])
+def get_request_num_by_secends():
+
+    res = current_app.mongo.db.logger.aggregate([
+        {'$group': {'_id': '$timestamp', 'total_num': {'$sum': 1}}},
+        # {'$project': {'timestamp': '$_id', 'total_request_num': '$total_num', '_id': 0}},
+        {'$sort': {'_id': -1}},
+        {'$limit': 10}
+    ])
+
+    return {'data': list(res)}
 
 if __name__ == "__main__":
     pass

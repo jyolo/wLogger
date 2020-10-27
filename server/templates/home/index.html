@@ -4,101 +4,53 @@
     <meta charset="UTF-8">
     <title>Title</title>
 </head>
+<script src="http://cdn.highcharts.com.cn/highcharts/highcharts.js"></script>
+
 <body>
-        参考
-        https://help.aliyun.com/document_detail/56728.html
-        <h1>请求最多的IP</h1>
-        <form action="/get_ip_info" method="get">
-             开始时间: <input name="username" value="">
-             截止时间: <input name="password" value="">
-            <input type="submit" value="请求最多的IP">
-        </form>
+    <div class="main-content">
 
-        <h1>请求最多的url</h1>
-        <form action="/get_ip_info" method="get">
-             开始时间: <input name="username" value="">
-             截止时间: <input name="password" value="">
-            <input type="submit" value="请求最多的url">
-        </form>
+        <div style="height: 300px;width: 300px;border: 1px solid black; " id="ip_map"></div>
 
 
-        <h1>某个ip在某个时间请求的信息</h1>
-        <form action="/get_ip_info" method="get">
-             ip: <input name="username" value="">
-             开始时间: <input name="username" value="">
-             截止时间: <input name="password" value="">
-            <input type="submit" value="某个ip在某个时间请求的信息">
-        </form>
+    </div>
 
+    <script>
+          // 图表配置
+        var options = {
+            chart: {
+                type: 'spline'                          //指定图表的类型，默认是折线图（line）
+            },
+            credits: {
+                enabled: false//不显示LOGO
+            },
+            title: {
+		            text: '请求量实时统计'
+	        },
+            xAxis: {
+                type: 'datetime',
+                tickPixelInterval: 150
+            },
+            yAxis: {
+                title: {
+                    text: '请求量'
+                }
+            },
+            series: [{                              // 数据列
+                name: '小明',                        // 数据列名
+                data: [1, 0, 4]                     // 数据
+            }],
+            tooltip: {
+                formatter: function () {
+                    console.log(this.series.name)
+                   // return '<b>' + this.series.name + '</b><br/>' +
+                   //     Highcharts.dateFormat('%Y-%m-%d %H:%M:%S', this.x) + '<br/>' +
+                   //     Highcharts.numberFormat(this.y, 2);
+                }
+            },
 
-        <h1>某个url在某个时间被请求的信息</h1>
-        <form action="/get_ip_info" method="get">
-             url: <input name="username" value="">
-             开始时间: <input name="username" value="">
-             截止时间: <input name="password" value="">
-            <input type="submit" value="某个url在某个时间被请求的信息">
-        </form>
-
-        <h1>UA统计</h1>
-        <form action="/get_ip_info" method="get">
-             url: <input name="username" value="">
-             开始时间: <input name="username" value="">
-             截止时间: <input name="password" value="">
-            <input type="submit" value="在某个时间 浏览器agent信息">
-        </form>
-
-        <h1>流量统计</h1>
-        <h2>um(body_bytes_sent) as net_out, sum(request_length) as net_in</h2>
-        <form action="/get_ip_info" method="get">
-             url: <input name="username" value="">
-             开始时间: <input name="username" value="">
-             截止时间: <input name="password" value="">
-            <input type="submit" value="在某个时间 浏览器agent信息">
-        </form>
-
-
-        <h1>来源统计</h1>
-        <form action="/get_ip_info" method="get">
-             url: <input name="username" value="">
-             开始时间: <input name="username" value="">
-             截止时间: <input name="password" value="">
-            <input type="submit" value="在某个时间 浏览器agent信息">
-        </form>
-
-
-        <h1>请求状态统计</h1>
-        <form action="/get_ip_info" method="get">
-             url: <input name="username" value="">
-             开始时间: <input name="username" value="">
-             截止时间: <input name="password" value="">
-            <input type="submit" value="在某个时间 浏览器agent信息">
-        </form>
-
-        <h1>请求方法统计</h1>
-        <form action="/get_ip_info" method="get">
-             url: <input name="username" value="">
-             开始时间: <input name="username" value="">
-             截止时间: <input name="password" value="">
-            <input type="submit" value="在某个时间 浏览器agent信息">
-        </form>
-
-
-        <h1>请求时间统计</h1>
-        <form action="/get_ip_info" method="get">
-             url: <input name="username" value="">
-             开始时间: <input name="username" value="">
-             截止时间: <input name="password" value="">
-            <input type="submit" value="在某个时间 浏览器agent信息">
-        </form>
-
-
-        <h1>ip地域统计</h1>
-        <form action="/get_ip_info" method="get">
-             url: <input name="username" value="">
-             开始时间: <input name="username" value="">
-             截止时间: <input name="password" value="">
-            <input type="submit" value="在某个时间 浏览器agent信息">
-        </form>
-
+        };
+        // 图表初始化函数
+        var chart = Highcharts.chart('ip_map', options);
+    </script>
 </body>
 </html>
