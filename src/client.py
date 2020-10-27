@@ -3,7 +3,7 @@ from multiprocessing import Queue,Process
 from redis import Redis,exceptions as redis_exceptions
 from configparser import ConfigParser
 from threading import Thread,RLock
-from pymongo import MongoClient
+from pymongo import MongoClient,errors as pyerrors
 import time,shutil,json,subprocess,traceback,mmap,os,collections,platform,copy,importlib,sys,threading,pwd
 
 
@@ -289,7 +289,6 @@ class Reader(Base):
         except Exception as e:
             self.event['stop'] = self.log_path + ' 文件句柄 seek 错误'
 
-
         try:
 
             redis = self._getQueue()
@@ -307,13 +306,13 @@ class Reader(Base):
                 return
             try:
 
+
                 start_time = time.perf_counter()
-                print("\n start_time -------pid: %s -- read file---queue len: %s---- %s \n" % (os.getpid() ,redis.llen(self.queue_key), start_time))
+                print("\n start_time -------pid: %s -- read file---queue len: %s---- %s \n" % (os.getpid() ,redis.llen(self.queue_key), round(start_time ,2)))
 
                 self.lock.acquire()
 
                 for line in self.fd:
-
                     data = {}
                     data['node_id'] = self.node_id
                     data['app_name'] = self.app_name
@@ -329,7 +328,7 @@ class Reader(Base):
                         break
 
 
-                    pipe.execute()
+                pipe.execute()
 
 
                 self.lock.release()
@@ -441,10 +440,10 @@ class OutputCustomer(Base):
 
         line_data = json.loads(line)
 
-        # 预编译对应的正则
-        self.logParse.getLogFormatByConfStr(line_data['log_format_str'] ,line_data['log_format_name'])
-
         try:
+
+            # 预编译对应的正则
+            self.logParse.getLogFormatByConfStr(line_data['log_format_str'], line_data['log_format_name'])
             line_data['line'] = line_data['line'].strip()
 
             # parse_data = self.logParse.parse(parse_data, line_data['line'])
@@ -496,55 +495,77 @@ class OutputCustomer(Base):
         mongodb = MongoClient( mongo_url)
         mongodb_client = mongodb[ self.save_engine_conf['db'] ][ self.save_engine_conf['collection'] ]
 
+        max_retry_reconnect_time = int(self.save_engine_conf['max_retry_reconnect_time'])
+        retry_reconnect_time = 0
 
         while True:
             time.sleep(1)
-            num = self.client_queue.llen(self.client_queue_key)
+            # 重试链接的时候 不再 从队列中取数据
+            if retry_reconnect_time == 0:
+                num = self.client_queue.llen(self.client_queue_key)
 
-            if num == 0:
-                print('pid: %s wait for data' % os.getpid())
-                continue
-
-            insertList = []
-
-
-            queue_list = self.getQueueData()
-
-
-            if len(queue_list) == 0:
-                print('pid: %s wait for data' % os.getpid())
-                continue
-
-            start_time = time.perf_counter()
-            print("\n customer -------pid: %s -- reg data len: %s---- start \n" % (
-                os.getpid(), len(queue_list)))
-
-
-            for i in queue_list:
-                if not i :
+                if num == 0:
+                    print('pid: %s wait for data' % os.getpid())
                     continue
-
-                line = i.decode(encoding='utf-8')
-                line_data = self.parse_line_data(line)
-                insertList.append(line_data)
-
-            end_time = time.perf_counter()
-            print("\n customer -------pid: %s -- reg datas len: %s---- end 耗时: %s \n" % (
-                os.getpid(), len(insertList), round(end_time - start_time, 2)))
-
-
-            if len(insertList):
-                start_time = time.perf_counter()
-                # print("\n customer -------pid: %s -- insert into mongodb: %s---- start \n" % (
-                #     os.getpid(), len(insertList)))
-
-                res = mongodb_client.insert_many(insertList, ordered=False)
 
                 insertList = []
 
-                end_time = time.perf_counter()
-                # print("\n customer -------pid: %s -- insert into mongodb: %s---- end 耗时: %s \n" % (os.getpid(), len(res.inserted_ids), round(end_time - start_time ,2) ))
+                queue_list = self.getQueueData()
 
+                if len(queue_list) == 0:
+                    print('pid: %s wait for data' % os.getpid())
+                    continue
+
+                start_time = time.perf_counter()
+                print("\n customer -------pid: %s -- reg data len: %s---- start \n" % (
+                    os.getpid(), len(queue_list)))
+
+                for i in queue_list:
+                    if not i:
+                        continue
+
+                    line = i.decode(encoding='utf-8')
+                    line_data = self.parse_line_data(line)
+                    insertList.append(line_data)
+
+                end_time = time.perf_counter()
+                print("\n customer -------pid: %s -- reg datas len: %s---- end 耗时: %s \n" % (
+                    os.getpid(), len(insertList), round(end_time - start_time, 2)))
+
+
+            if len(insertList):
+                try:
+                    start_time = time.perf_counter()
+                    print("\n customer -------pid: %s -- insert into mongodb: %s---- start \n" % (
+                        os.getpid(), len(insertList)))
+
+                    res = mongodb_client.insert_many(insertList, ordered=False)
+
+                    insertList = []
+                    retry_reconnect_time = 0
+
+                    end_time = time.perf_counter()
+                    print("\n customer -------pid: %s -- insert into mongodb: %s---- end 耗时: %s \n" % (
+                    os.getpid(), len(res.inserted_ids), round(end_time - start_time, 2)))
+
+
+                except pyerrors.PyMongoError as e:
+                    time.sleep(1)
+                    retry_reconnect_time = retry_reconnect_time + 1
+                    if retry_reconnect_time >= max_retry_reconnect_time:
+                        self.push_back_to_queue(insertList)
+                        insertList = []
+                        exit('重试重新链接 mongodb 超出最大次数 %s' % max_retry_reconnect_time)
+                    else:
+                        print("\n customer -------pid: %s -- retry_reconnect_mongodb at: %s time---- \n" % (os.getpid() ,retry_reconnect_time) )
+                        continue
+
+    #退回队列
+    def push_back_to_queue(self,data_list):
+        for item in data_list:
+            del item['_id']
+            line = json.dumps(item)
+            self.client_queue.lpush(self.client_queue_key , line)
 
 
 
