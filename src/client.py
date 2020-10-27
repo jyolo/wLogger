@@ -495,7 +495,11 @@ class OutputCustomer(Base):
         mongodb = MongoClient( mongo_url)
         mongodb_client = mongodb[ self.save_engine_conf['db'] ][ self.save_engine_conf['collection'] ]
 
-        max_retry_reconnect_time = int(self.save_engine_conf['max_retry_reconnect_time'])
+        if 'max_retry_reconnect_time' in  self.save_engine_conf:
+            max_retry_reconnect_time = int(self.save_engine_conf['max_retry_reconnect_time'])
+        else:
+            max_retry_reconnect_time = 3
+
         retry_reconnect_time = 0
 
         while True:
@@ -508,8 +512,6 @@ class OutputCustomer(Base):
                     print('pid: %s wait for data' % os.getpid())
                     continue
 
-                insertList = []
-
                 queue_list = self.getQueueData()
 
                 if len(queue_list) == 0:
@@ -520,11 +522,15 @@ class OutputCustomer(Base):
                 print("\n customer -------pid: %s -- reg data len: %s---- start \n" % (
                     os.getpid(), len(queue_list)))
 
+                backup_for_push_back_linedata = []
+                insertList = []
                 for i in queue_list:
                     if not i:
                         continue
 
                     line = i.decode(encoding='utf-8')
+                    backup_for_push_back_linedata.append(line)
+
                     line_data = self.parse_line_data(line)
                     insertList.append(line_data)
 
@@ -541,31 +547,29 @@ class OutputCustomer(Base):
 
                     res = mongodb_client.insert_many(insertList, ordered=False)
 
-                    insertList = []
+
                     retry_reconnect_time = 0
 
                     end_time = time.perf_counter()
                     print("\n customer -------pid: %s -- insert into mongodb: %s---- end 耗时: %s \n" % (
                     os.getpid(), len(res.inserted_ids), round(end_time - start_time, 2)))
 
-
                 except pyerrors.PyMongoError as e:
                     time.sleep(1)
                     retry_reconnect_time = retry_reconnect_time + 1
                     if retry_reconnect_time >= max_retry_reconnect_time:
-                        self.push_back_to_queue(insertList)
-                        insertList = []
+                        self.push_back_to_queue(backup_for_push_back_linedata)
                         exit('重试重新链接 mongodb 超出最大次数 %s' % max_retry_reconnect_time)
                     else:
                         print("\n customer -------pid: %s -- retry_reconnect_mongodb at: %s time---- \n" % (os.getpid() ,retry_reconnect_time) )
                         continue
 
+
+
     #退回队列
     def push_back_to_queue(self,data_list):
         for item in data_list:
-            del item['_id']
-            line = json.dumps(item)
-            self.client_queue.lpush(self.client_queue_key , line)
+            self.client_queue.lpush(self.client_queue_key , item)
 
 
 
