@@ -4,53 +4,135 @@
     <meta charset="UTF-8">
     <title>Title</title>
 </head>
-<script src="http://cdn.highcharts.com.cn/highcharts/highcharts.js"></script>
 
 <body>
     <div class="main-content">
 
-        <div style="height: 300px;width: 300px;border: 1px solid black; " id="ip_map"></div>
+        <div style="height: 400px;width: 800px;border: 1px solid black; " id="ip_map"></div>
 
 
     </div>
 
-    <script>
-          // 图表配置
-        var options = {
-            chart: {
-                type: 'spline'                          //指定图表的类型，默认是折线图（line）
-            },
-            credits: {
-                enabled: false//不显示LOGO
-            },
-            title: {
-		            text: '请求量实时统计'
-	        },
-            xAxis: {
-                type: 'datetime',
-                tickPixelInterval: 150
-            },
-            yAxis: {
-                title: {
-                    text: '请求量'
-                }
-            },
-            series: [{                              // 数据列
-                name: '小明',                        // 数据列名
-                data: [1, 0, 4]                     // 数据
-            }],
-            tooltip: {
-                formatter: function () {
-                    console.log(this.series.name)
-                   // return '<b>' + this.series.name + '</b><br/>' +
-                   //     Highcharts.dateFormat('%Y-%m-%d %H:%M:%S', this.x) + '<br/>' +
-                   //     Highcharts.numberFormat(this.y, 2);
-                }
-            },
 
-        };
-        // 图表初始化函数
-        var chart = Highcharts.chart('ip_map', options);
-    </script>
+
+<script src="http://cdn.highcharts.com.cn/highstock/highstock.js"></script>
+<script src="https://cdn.bootcdn.net/ajax/libs/jquery/1.10.0/jquery.js"></script>
+<script>
+    var host = 'http://127.0.0.1:5000'
+    Highcharts.setOptions({
+        global: {
+            useUTC: false
+        }
+    });
+    function time_request_num(){
+        var init_request_url = '/get_request_num_by_secends?type=init'
+        var secend_request_url = '/get_request_num_by_secends'
+
+        function filter_msg_data(d){
+            _data = []
+
+            $.each(d,function (k,v) {
+                item = []
+                item[0] = v.timestamp
+                item[1] = v.total_request_num
+                _data.push(item)
+            })
+            return _data
+        }
+
+
+        $.getJSON(host + init_request_url,function (msg) {
+
+            init_data = filter_msg_data(msg.data)
+
+            // 图表配置
+            var options = {
+                chart: {
+                    type: 'spline',
+                    events:{
+                        load:function(){
+
+
+                            var series = this.series[0];
+                            setInterval(function () {
+
+                                $.getJSON(host + secend_request_url,function (msg) {
+                                    subdata = filter_msg_data(msg.data)
+                                    console.log(subdata)
+                                    $.each(subdata,function (k,v) {
+                                        series.addPoint([ v[0], v[1] ], true, true);
+                                    })
+
+                                })
+
+                            }, 5000);
+                        }
+                    }
+                },
+                credits: {
+                    enabled: false//不显示LOGO
+                },
+                title: {
+                        text: '请求量实时统计'
+                },
+                rangeSelector: {
+                    buttons: [
+                        {
+                            count: 1,
+                            type: 'minute',
+                            text: '1分钟'
+                        },
+                        {
+                            count: 5,
+                            type: 'minute',
+                            text: '5分钟'
+                        },
+                        {
+                            count: 10,
+                            type: 'minute',
+                            text: '10分钟'
+                        },
+                        {
+                            type: 'all',
+                            text: '所有'
+                        }
+                    ],
+                    inputEnabled: false,
+                    selected: 0
+                },
+                yAxis: {
+                    allowDecimals: false,
+                    title: {
+                        text: '请求量'
+                    }
+                },
+                tooltip: {
+                    //保留小数点后两位
+                    valueDecimals: 0,
+                    formatter: function () {
+                        return '<b>请求量 : ' + this.y +'</b> <br/> <b>时间 : ' + Highcharts.dateFormat('%Y-%m-%d %H:%M:%S',this.x) + '</b>';
+
+                    }
+
+                },
+                series: [{                              // 数据列
+                    name: '请求量',                        // 数据列名
+                    data: init_data      // 数据
+                }],
+
+
+            };
+            // 图表初始化函数
+            var chart = Highcharts.stockChart('ip_map', options);
+        })
+
+    }
+    time_request_num()
+
+
+
+
+
+</script>
 </body>
 </html>

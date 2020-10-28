@@ -29,7 +29,6 @@ def start_web(conf_dict = {}):
 
     app.run()
 
-
 def setAppDataEngine(conf_dict):
 
     if conf_dict['data_engine'] == 'mongodb':
@@ -44,6 +43,10 @@ def setAppDataEngine(conf_dict):
 
     if conf_dict['data_engine'] == 'mysql':
         pass
+
+
+def CustomerResponse(data):
+    return '123'
 
 
 if __name__ == "__main__":
