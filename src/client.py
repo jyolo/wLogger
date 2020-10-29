@@ -487,12 +487,13 @@ class OutputCustomer(Base):
 
         if self.server_type == 'nginx':
             if 'remote_addr' in data:
-                res = self.ip_parser.memorySearch(data['remote_addr'])
 
-                _arg = res['region'].decode('utf-8').split('|')
-                # _城市Id|国家|区域|省份|城市|ISP_
 
                 try:
+                    res = self.ip_parser.memorySearch(data['remote_addr'])
+                    _arg = res['region'].decode('utf-8').split('|')
+                    
+                    # _城市Id|国家|区域|省份|城市|ISP_
                     data['isp'] = _arg[-1]
                     data['city'] = _arg[-2]
                     data['city_id'] = int(res['city_id'])
