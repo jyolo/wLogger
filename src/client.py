@@ -447,24 +447,30 @@ class OutputCustomer(Base):
 
     def parse_request_url(self,data):
         if self.server_type == 'nginx':
-            if 'request' in data:
-                _strarr = data['request'].split(' ')
+            try:
+                if 'request' in data:
+                    _strarr = data['request'].split(' ')
 
-                data['request_method'] = _strarr[0]
-                _url = _strarr[1].split('?')
-                data['request_url'] = _url[0]
-                data['args'] = _url[1]
-                data['server_protocol'] = _strarr[2]
+                    data['request_method'] = _strarr[0]
+                    _url = _strarr[1].split('?')
+                    data['request_url'] = _url[0]
+                    data['args'] = _url[1]
+                    data['server_protocol'] = _strarr[2]
 
-                del data['request']
+                    del data['request']
 
-            if 'request_uri' in data:
-                _strarr = data['request_uri'].split('?')
+                if 'request_uri' in data:
+                    _strarr = data['request_uri'].split('?')
 
-                data['request_url'] = _url[0]
-                data['args'] = _url[1]
+                    data['request_url'] = _url[0]
+                    data['args'] = _url[1]
 
-                del data['request_uri']
+                    del data['request_uri']
+            except IndexError as e:
+                print(data)
+                print(_strarr)
+                exit()
+
 
 
         if self.server_type == 'apache':
