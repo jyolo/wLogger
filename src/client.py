@@ -453,7 +453,7 @@ class OutputCustomer(Base):
 
                     data['request_method'] = _strarr[0]
                     _url = _strarr[1].split('?')
-                    
+
                     if len(_url) > 1:
                         data['request_url'] = _url[0]
                         data['args'] = _url[1]
