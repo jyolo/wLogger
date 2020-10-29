@@ -492,14 +492,14 @@ class OutputCustomer(Base):
                 try:
                     res = self.ip_parser.memorySearch(data['remote_addr'])
                     _arg = res['region'].decode('utf-8').split('|')
-                    
+
                     # _城市Id|国家|区域|省份|城市|ISP_
                     data['isp'] = _arg[-1]
                     data['city'] = _arg[-2]
                     data['city_id'] = int(res['city_id'])
                     data['province'] = _arg[-3]
                     data['country'] = _arg[0]
-                except IndexError as e:
+                except Exception as e:
                     data['isp'] = -1
                     data['city'] = -1
                     data['city_id'] = -1
