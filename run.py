@@ -10,14 +10,12 @@ import multiprocessing,time,sys,os
 
 def runReader(log_files_conf):
 
-
     r = Reader(log_file_conf=log_files_conf)
 
     jobs = ['readLog', 'cutFile']
     t = []
     for i in jobs:
         th = Thread(target=r.runMethod, args=(i,))
-        th.setDaemon(True)
         t.append(th)
 
     for i in t:
@@ -90,5 +88,38 @@ if __name__ == "__main__":
 
         else:
             raise ValueError('example: python3 startClient.py -run [client | customer]')
+
+    elif args[0] == '-stop':
+        if args[1] not in ['client' ,'customer']:
+            raise ValueError('-stop only support [client | customer]')
+
+
+        res = os.popen('ps -ax | grep "run.py -run %s"' % args[1])
+        pids = []
+        print('|============================================================')
+        for i in res.readlines():
+            if i.find('grep') != -1:
+                continue
+            print('| %s ' % i.strip())
+            pids.append(i.strip().split(' ')[0])
+
+
+        if len(pids) == 0:
+            print('| %s is not running ' % args[1])
+            print('|============================================================')
+            exit('nothing happened . bye bye !')
+
+
+        print('|============================================================')
+
+        confirm = input('confirm: please enter [ yes | y ] or [ no | n ]  : ')
+
+        if confirm in ['yes','y'] and len(pids) > 0:
+
+            os.popen('kill %s' % ' '.join(pids))
+            exit('pid: %s was killed and %s is stoped. bye bye !' % (' '.join(pids) ,args[1]) )
+        else:
+            exit('nothing happened . bye bye !')
+
     else:
-        raise ValueError('example: python3 startClient.py -run [client | customer]')
+        raise ValueError('example: python3 run.py -run [client | customer]')
