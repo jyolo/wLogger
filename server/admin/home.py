@@ -62,8 +62,6 @@ def get_request_num_by_secends():
     else:
         limit = 5
 
-
-
     today = time.strftime('%Y-%m-%d', time.localtime(time.time()))
 
     res = current_app.mongo.db.logger.aggregate([
