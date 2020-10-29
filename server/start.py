@@ -21,9 +21,12 @@ def start_web(conf_dict = {}):
 
     app.debug = conf_dict['debug']
     app.env = conf_dict['env']
+    app.secret_key = conf_dict['secret_key']
+
     app.config.from_mapping(conf_dict)
     app.register_blueprint(home, url_prefix='/')
     app.register_blueprint(user, url_prefix='/user')
+
 
     setAppDataEngine(conf_dict)
 

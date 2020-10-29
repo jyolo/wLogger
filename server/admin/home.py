@@ -30,18 +30,28 @@ def index():
 
 @home.route('/get_request_num_by_ip' , methods=['GET'])
 def get_request_num_by_ip():
+    if request.args.get('type') == 'init':
+        # 　一分钟 * 10 10分钟
+        limit = 60 * 10
+    else:
+        limit = 5
 
-    now = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(time.time()))
+    session['now_timestamp'] = int(time.time())
+
+
+    today = time.strftime('%Y-%m-%d', time.localtime(time.time()))
 
     res = current_app.mongo.db.logger.aggregate([
-        {'$match':{'time_str':{'$regex':now} } },
-        {'$group': {'_id': '$remote_addr' ,'total_num':{'$sum':1} } },
-        {'$project':{'ip':'$_id' ,'total_request_num': '$total_num' ,'_id':0} },
+        {'$match':{'time_str':{'$regex':'^%s' % today} } },
+        {'$group': {'_id': '$remote_addr' ,'total_num':{'$sum':1}} },
+        {'$project':{'ip':'$_id','total_request_num': '$total_num' ,'_id':0} },
         {'$sort': {'total_request_num': -1}},
-        # {'$limit':1000}
+        {'$limit':20}
     ])
 
-    return  ApiCorsResponse.response(list(res))
+    data = list(res)
+    data.reverse()
+    return  ApiCorsResponse.response(data)
 
 
 @home.route('/get_request_num_by_secends' , methods=['GET'])
@@ -53,7 +63,11 @@ def get_request_num_by_secends():
         limit = 5
 
 
+
+    today = time.strftime('%Y-%m-%d', time.localtime(time.time()))
+
     res = current_app.mongo.db.logger.aggregate([
+        {'$match': {'time_str': {'$regex': '^%s' % today}}},
         {'$group': {'_id': '$timestamp', 'total_num': {'$sum': 1}}},
         {'$project': {'timestamp': '$_id', 'total_request_num': '$total_num', '_id': 0}},
         {'$sort': {'timestamp': -1}},

@@ -8,9 +8,9 @@
 <body>
     <div class="main-content">
 
-        <div style="height: 400px;width: 800px;border: 1px solid black; " id="ip_map"></div>
+        <div style="" id="get_request_num_by_secends"></div>
 
-
+        <div style="" id="get_request_num_by_ip"></div>
     </div>
 
 
@@ -24,7 +24,8 @@
             useUTC: false
         }
     });
-    function time_request_num(){
+    //10 分钟内的 请求量
+    function get_request_num_by_secends(){
         var init_request_url = '/get_request_num_by_secends?type=init'
         var secend_request_url = '/get_request_num_by_secends'
 
@@ -58,7 +59,7 @@
 
                                 $.getJSON(host + secend_request_url,function (msg) {
                                     subdata = filter_msg_data(msg.data)
-                                    console.log(subdata)
+
                                     $.each(subdata,function (k,v) {
                                         series.addPoint([ v[0], v[1] ], true, true);
                                     })
@@ -73,7 +74,7 @@
                     enabled: false//不显示LOGO
                 },
                 title: {
-                        text: '请求量实时统计'
+                        text: '今日请求量实时统计'
                 },
                 rangeSelector: {
                     buttons: [
@@ -123,12 +124,91 @@
 
             };
             // 图表初始化函数
-            var chart = Highcharts.stockChart('ip_map', options);
+            var chart = Highcharts.stockChart('get_request_num_by_secends', options);
         })
 
     }
-    time_request_num()
+    get_request_num_by_secends()
 
+    // 10 分钟内的 请求IP
+    function get_request_num_by_ip() {
+        var init_request_url = '/get_request_num_by_ip?type=init'
+        var secend_request_url = '/get_request_num_by_ip'
+        function filter_msg_data(data) {
+            var _data = {}
+            _data.x = []
+            _data.y = []
+            $.each(data,function (k,v) {
+
+                _data.x.push(v.ip)
+                _data.y.push(v.total_request_num)
+
+            })
+            return _data
+        }
+
+        $.getJSON(host + init_request_url ,function (msg) {
+
+            var data = filter_msg_data(msg.data)
+
+            var options = {
+                chart: {
+                    type: 'column',
+                    events:{
+                        load:function(){
+                            var _this = this
+                            var series = _this.series[0];
+
+                            setInterval(function () {
+
+                                $.getJSON(host + secend_request_url,function (msg) {
+
+                                    //subdata = filter_msg_data(msg.data)
+                                    //_this.xAxis[0].setCategories(subdata.x)
+                                    _arg = []
+                                    $.each(msg.data,function (k,v) {
+                                        _arg.push([ v.ip, v.total_request_num ])
+                                    })
+
+                                    series.setData(_arg)
+
+                                })
+
+
+                            }, 5000);
+                        }
+                    }
+                },
+                title: {
+                    text: '今日ip前100请求量'
+                },
+                subtitle: {
+                    text: '数据来源: WorldClimate.com'
+                },
+                xAxis: {
+                    categories: data.x,
+                    crosshair: true
+                },
+                yAxis: {
+                    min: 0,
+                    title: {
+                        text: '请求量'
+                    }
+                },
+                plotOptions: {
+                    column: {
+                        borderWidth: 0
+                    }
+                },
+                series: [{
+                    name: '请求量',
+                    data: data.y
+                }]
+            }
+            Highcharts.chart('get_request_num_by_ip',options);
+        })
+    }
+    get_request_num_by_ip()
 
 
 

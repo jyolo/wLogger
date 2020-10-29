@@ -50,6 +50,7 @@ class Handler(Adapter):
             '$request': {'desc': '请求信息' ,'example':'GET /api/server/?size=50&page=1 HTTP/1.1' ,'re': '[\s|\S]+?'},
             '$request_method': {'desc': '请求方法' ,'example':'GET' ,'re': '[\s|\S]+?'},
             '$scheme':{'desc': '请求协议' ,'example':'HTTP/1.1' ,'re': '\S+?' } ,
+            '$server_protocol':{'desc': '服务器的HTTP版本, 通常为 “HTTP/1.0” 或 “HTTP/1.1”' ,'example':'HTTP/1.1' ,'re': '\S+?' } ,
             '$request_uri': {'desc': '请求链接' ,'example':'/api/server/?size=50&page=1' ,'re': '\S+?'},
             '$request_body': {'desc': 'post提交的数据' ,'example':'name=xxx&age=18' ,'re': '[\s|\S]*?' },
             '$request_length': {'desc': '请求的字节长度' ,'example':'988' ,'re': '\d+?'},

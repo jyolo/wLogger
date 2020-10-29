@@ -4,6 +4,7 @@ from redis import Redis,exceptions as redis_exceptions
 from configparser import ConfigParser
 from threading import Thread,RLock
 from pymongo import MongoClient,errors as pyerrors
+from src.ip2Region import Ip2Region
 import time,shutil,json,subprocess,traceback,mmap,os,collections,platform,copy,importlib,sys,threading,pwd
 
 
@@ -131,6 +132,7 @@ class Reader(Base):
                 os.chown(log_prev_path, www_uid, www_uid)
             except PermissionError as e:
                 exit('权限不足 : 修改目录: %s 所属用户和用户组 为 www 失败 ' % (log_prev_path))
+
 
 
 
@@ -385,6 +387,13 @@ class OutputCustomer(Base):
 
         self.logParse = loggerParse(self.conf['custom']['log_server_type'] ,server_conf=None)
 
+        ip_data_path = os.path.dirname(__file__) + '/ip2region.db'
+        if not os.path.exists(ip_data_path):
+            raise FileNotFoundError('ip2region.db 数据库不存在')
+
+        self.ip_parser = Ip2Region(ip_data_path)
+
+
         if not hasattr(self , self.call_engine ):
             raise ValueError('Outputer 未定义 "%s" 该存储方法' %  self.save_engine_name)
 
@@ -436,6 +445,62 @@ class OutputCustomer(Base):
 
         return data
 
+    def parse_request_url(self,data):
+        if self.server_type == 'nginx':
+            if 'request' in data:
+                _strarr = data['request'].split(' ')
+
+                data['request_method'] = _strarr[0]
+                _url = _strarr[1].split('?')
+                data['request_url'] = _url[0]
+                data['args'] = _url[1]
+                data['server_protocol'] = _strarr[2]
+
+                del data['request']
+
+            if 'request_uri' in data:
+                _strarr = data['request_uri'].split('?')
+
+                data['request_url'] = _url[0]
+                data['args'] = _url[1]
+
+                del data['request_uri']
+
+
+        if self.server_type == 'apache':
+            pass
+
+        return data
+
+    def parse_ip_to_area(self,data):
+
+        if self.server_type == 'nginx':
+            if 'remote_addr' in data:
+                res = self.ip_parser.memorySearch(data['remote_addr'])
+
+                _arg = res['region'].decode('utf-8').split('|')
+                # _城市Id|国家|区域|省份|城市|ISP_
+
+                try:
+                    data['isp'] = _arg[-1]
+                    data['city'] = _arg[-2]
+                    data['city_id'] = int(res['city_id'])
+                    data['province'] = _arg[-3]
+                    data['country'] = _arg[0]
+                except IndexError as e:
+                    data['isp'] = -1
+                    data['city'] = -1
+                    data['city_id'] = -1
+                    data['province'] = -1
+                    data['country'] = -1
+
+        if self.server_type == 'apache':
+            pass
+
+        return data
+
+
+
     def parse_line_data(self,line):
 
         line_data = json.loads(line)
@@ -454,13 +519,19 @@ class OutputCustomer(Base):
             traceback.print_exc()
             exit()
 
+        # 解析时间
         parse_data = self.parse_time_str(parse_data)
+        # 解析url
+        parse_data = self.parse_request_url(parse_data)
+        # 解析IP 成地域
+        parse_data = self.parse_ip_to_area(parse_data)
 
         del line_data['log_format_name']
         del line_data['log_format_str']
         del line_data['line']
 
         line_data.update(parse_data)
+
 
         return line_data
 
