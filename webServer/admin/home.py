@@ -28,6 +28,39 @@ def index():
 
         }
 
+@home.route('/get_request_num_by_url' , methods=['GET'])
+def get_request_num_by_url():
+    if request.args.get('type') == 'init':
+        # 　一分钟 * 10 10分钟
+        limit = 60 * 10
+    else:
+        limit = 5
+
+    session['now_timestamp'] = int(time.time())
+
+
+    today = time.strftime('%Y-%m-%d', time.localtime(time.time()))
+    total =  current_app.mongo.db.logger.find({'time_str':{'$regex':'^%s' % today} }).count()
+
+    res = current_app.mongo.db.logger.aggregate([
+        {'$match':{'time_str':{'$regex':'^%s' % today} } },
+        {'$group': {'_id': '$request_url' ,'total_num':{'$sum':1}} },
+        {'$project':{
+            'ip':'$_id',
+            'total_num': 1 ,
+            '_id':0,
+            'percent':{ '$toDouble': {'$substr':[  {'$multiply':[ {'$divide':['$total_num' , total]} ,100] }  ,0,4  ] }   }
+            }
+        },
+        {'$sort': {'total_num': -1}},
+        {'$limit':50}
+    ])
+
+
+    data = list(res)
+    data.reverse()
+    return  ApiCorsResponse.response(data)
+
 @home.route('/get_request_num_by_ip' , methods=['GET'])
 def get_request_num_by_ip():
     if request.args.get('type') == 'init':
@@ -40,14 +73,24 @@ def get_request_num_by_ip():
 
 
     today = time.strftime('%Y-%m-%d', time.localtime(time.time()))
+    total =  current_app.mongo.db.logger.find({'time_str':{'$regex':'^%s' % today} }).count()
 
     res = current_app.mongo.db.logger.aggregate([
         {'$match':{'time_str':{'$regex':'^%s' % today} } },
         {'$group': {'_id': '$remote_addr' ,'total_num':{'$sum':1}} },
-        {'$project':{'ip':'$_id','total_request_num': '$total_num' ,'_id':0} },
-        {'$sort': {'total_request_num': -1}},
-        {'$limit':20}
+        {'$project':{
+            'ip':'$_id',
+            'total_num': 1 ,
+            '_id':0,
+            'percent':{ '$toDouble': {'$substr':[  {'$multiply':[ {'$divide':['$total_num' , total]} ,100] }  ,0,4  ] }   }
+            }
+        },
+        {'$sort': {'total_num': -1}},
+        {'$limit':50}
     ])
+
+
+    # print(list(res))
 
     data = list(res)
     data.reverse()

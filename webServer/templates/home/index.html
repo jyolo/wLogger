@@ -1,30 +1,85 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-    <meta charset="UTF-8">
-    <title>Title</title>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+  <title>统计</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/layui-src@2.5.5/dist/css/layui.css">
 </head>
-
 <body>
-    <div class="main-content">
 
-        <div style="" id="get_request_num_by_secends"></div>
+    <!-- 你的HTML代码 -->
 
-        <div style="" id="get_request_num_by_ip"></div>
+    <div class="layui-container">
+        <div class="layui-row">
+            <div class="layui-col-md12">
+                <div style="" id="get_request_num_by_secends"></div>
+            </div>
+        </div>
+        <div class="layui-row">
+            <div class="layui-col-md12">
+                <div style="" id="get_request_num_by_citys"></div>
+            </div>
+        </div>
+
+        <div class="layui-row">
+            <div class="layui-col-md6">
+
+              <div style="" id="get_request_num_by_ip"></div>
+
+            </div>
+            <div class="layui-col-md6">
+
+              <div style="" id="get_request_num_by_url"></div>
+
+            </div>
+        </div>
+
+        移动设备、平板、桌面端的不同表现：
+        <div class="layui-row">
+            <div class="layui-col-xs6 layui-col-sm6 layui-col-md4">
+              移动：6/12 | 平板：6/12 | 桌面：4/12
+            </div>
+            <div class="layui-col-xs6 layui-col-sm6 layui-col-md4">
+              移动：6/12 | 平板：6/12 | 桌面：4/12
+            </div>
+            <div class="layui-col-xs4 layui-col-sm12 layui-col-md4">
+              移动：4/12 | 平板：12/12 | 桌面：4/12
+            </div>
+            <div class="layui-col-xs4 layui-col-sm7 layui-col-md8">
+              移动：4/12 | 平板：7/12 | 桌面：8/12
+            </div>
+            <div class="layui-col-xs4 layui-col-sm5 layui-col-md4">
+              移动：4/12 | 平板：5/12 | 桌面：4/12
+            </div>
+        </div>
     </div>
 
 
 
-<script src="http://cdn.highcharts.com.cn/highstock/highstock.js"></script>
 <script src="https://cdn.bootcdn.net/ajax/libs/jquery/1.10.0/jquery.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/layui-src@2.5.5/dist/layui.js"></script>
+<script src="http://cdn.highcharts.com.cn/highstock/highstock.js"></script>
+
+
+
 <script>
+    //一般直接写在一个js文件中
+    layui.use(['layer', 'form'], function(){
+      var layer = layui.layer
+      ,form = layui.form;
+
+
+    });
+
     var host = 'http://127.0.0.1:5000'
     Highcharts.setOptions({
         global: {
-            useUTC: false
+            useUTC: false,
+
         }
     });
-    //10 分钟内的 请求量
+    //实时每秒的请求量
     function get_request_num_by_secends(){
         var init_request_url = '/get_request_num_by_secends?type=init'
         var secend_request_url = '/get_request_num_by_secends'
@@ -130,19 +185,18 @@
     }
     get_request_num_by_secends()
 
-    // 10 分钟内的 请求IP
+    // 请求量前50IP占比
     function get_request_num_by_ip() {
         var init_request_url = '/get_request_num_by_ip?type=init'
         var secend_request_url = '/get_request_num_by_ip'
         function filter_msg_data(data) {
-            var _data = {}
-            _data.x = []
-            _data.y = []
+            var _data = []
+
             $.each(data,function (k,v) {
-
-                _data.x.push(v.ip)
-                _data.y.push(v.total_request_num)
-
+                var item = {}
+                item.name = v.ip
+                item.y = v.percent
+                _data.push(item)
             })
             return _data
         }
@@ -152,66 +206,185 @@
             var data = filter_msg_data(msg.data)
 
             var options = {
-                chart: {
-                    type: 'column',
-                    events:{
-                        load:function(){
-                            var _this = this
-                            var series = _this.series[0];
+                    chart: {
+                        plotBackgroundColor: null,
+                        plotBorderWidth: null,
+                        plotShadow: false,
+                        type: 'pie',
+                        events: {
+                            load:function(){
 
-                            setInterval(function () {
-
-                                $.getJSON(host + secend_request_url,function (msg) {
-
-                                    //subdata = filter_msg_data(msg.data)
-                                    //_this.xAxis[0].setCategories(subdata.x)
-                                    _arg = []
-                                    $.each(msg.data,function (k,v) {
-                                        _arg.push([ v.ip, v.total_request_num ])
+                                var series = this.series[0];
+                                setInterval(function () {
+                                    $.getJSON(host + init_request_url,function (msg) {
+                                        subdata = filter_msg_data(msg.data)
+                                        series.setData(subdata)
                                     })
 
-                                    series.setData(_arg)
-
-                                })
-
-
-                            }, 5000);
+                                }, 5000);
+                            }
                         }
-                    }
-                },
-                title: {
-                    text: '今日ip前100请求量'
-                },
-                subtitle: {
-                    text: '数据来源: WorldClimate.com'
-                },
-                xAxis: {
-                    categories: data.x,
-                    crosshair: true
-                },
-                yAxis: {
-                    min: 0,
+                    },
+                    credits: {
+                        enabled: false//不显示LOGO
+                    },
                     title: {
-                        text: '请求量'
-                    }
-                },
-                plotOptions: {
-                    column: {
-                        borderWidth: 0
-                    }
-                },
-                series: [{
-                    name: '请求量',
-                    data: data.y
-                }]
-            }
+                        text: '今日请求量前50IP占比'
+                    },
+                    tooltip: {
+                        pointFormat: '{series.name} : <b>{point.percentage:.1f}%</b>'
+                    },
+                    plotOptions: {
+                        pie: {
+                            allowPointSelect: true,
+                            cursor: 'pointer',
+                            dataLabels: {
+                                enabled: true,
+                                format: '<b>{point.name}</b>: {point.percentage:.1f} %',
+                                style: {
+                                    color: (Highcharts.theme && Highcharts.theme.contrastTextColor) || 'black'
+                                }
+                            }
+                        }
+                    },
+                    series: [{
+                        name: '请求占比',
+                        colorByPoint: true,
+                        data: data
+                    }]
+                }
             Highcharts.chart('get_request_num_by_ip',options);
         })
     }
     get_request_num_by_ip()
 
+    // 被请求的url前50IP占比
+    function get_request_num_by_url() {
+        var init_request_url = '/get_request_num_by_url?type=init'
+        var secend_request_url = '/get_request_num_by_url'
+        function filter_msg_data(data) {
+            var _data = []
 
+            $.each(data,function (k,v) {
+                var item = {}
+                item.name = v.ip
+                item.y = v.percent
+                _data.push(item)
+            })
+            return _data
+        }
 
+        $.getJSON(host + init_request_url ,function (msg) {
+
+            var data = filter_msg_data(msg.data)
+
+            var options = {
+                    chart: {
+                        plotBackgroundColor: null,
+                        plotBorderWidth: null,
+                        plotShadow: false,
+                        type: 'pie',
+                        events: {
+                            load:function(){
+
+                                var series = this.series[0];
+                                setInterval(function () {
+                                    $.getJSON(host + init_request_url,function (msg) {
+                                        subdata = filter_msg_data(msg.data)
+                                        series.setData(subdata)
+                                    })
+
+                                }, 5000);
+                            }
+                        }
+                    },
+                    credits: {
+                        enabled: false//不显示LOGO
+                    },
+                    title: {
+                        text: '今日页面请求量前50IP占比'
+                    },
+                    tooltip: {
+                        pointFormat: '{series.name} : <b>{point.percentage:.1f}%</b>'
+                    },
+                    plotOptions: {
+                        pie: {
+                            allowPointSelect: true,
+                            cursor: 'pointer',
+                            dataLabels: {
+                                enabled: true,
+                                format: '<b>{point.name}</b>: {point.percentage:.1f} %',
+                                style: {
+                                    color: (Highcharts.theme && Highcharts.theme.contrastTextColor) || 'black'
+                                }
+                            }
+                        }
+                    },
+                    series: [{
+                        name: '请求占比',
+                        colorByPoint: true,
+                        data: data
+                    }]
+                }
+            Highcharts.chart('get_request_num_by_url',options);
+        })
+    }
+    get_request_num_by_url()
+
+    // 请求来源地域
+    function get_request_num_by_citys() {
+        $.getJSON('https://data.jianshukeji.com/jsonp?filename=geochina/china.json&callback=?', function(mapdata) {
+            console.log(mapdata)
+            var data = [{
+                name: '北京',
+                value: 5000
+            },{
+                name: '上海',
+                value: 2000
+            },{
+                name: '广东',
+                value: 2200
+            },{
+                name: '浙江',
+                value: 1800
+            },{
+                name: '福建',
+                value: 1000
+            }];
+            var options = {
+                title: {
+                    text: '中国地图'
+                },
+                mapNavigation: {
+                    enabled: true,
+                    buttonOptions: {
+                        verticalAlign: 'bottom'
+                    }
+                },
+                colorAxis: {
+                    min: 0,
+                    minColor: '#fff',
+                    maxColor: '#006cee',
+                    labels:{
+                        style:{
+                            "color":"red","fontWeight":"bold"
+                        }
+                    }
+                },
+                series: [{
+                    data: data,
+                    mapData: mapdata,
+                    joinBy: 'name',
+                    name: '中国地图'
+                }]
+            }
+            console.log(Highcharts.mapChart)
+            console.log(Highcharts.map)
+            //console.log(Highcharts.ma)
+            //var map =  Highcharts.mapChart('get_request_num_by_citys', options);
+        });
+    }
+    get_request_num_by_citys()
 
 </script>
 </body>
