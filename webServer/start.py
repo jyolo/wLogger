@@ -2,8 +2,8 @@ from flask import Flask
 from flask_pymongo import PyMongo
 import os,sys
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from server.admin.user import user
-from server.admin.home import home
+from webServer.admin.user import user
+from webServer.admin.home import home
 
 
 app = Flask(__name__)

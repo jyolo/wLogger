@@ -5,7 +5,7 @@ from configparser import ConfigParser
 from threading import Thread,RLock
 from pymongo import MongoClient,errors as pyerrors
 from src.ip2Region import Ip2Region
-import time,shutil,json,subprocess,traceback,mmap,os,collections,platform,copy,importlib,sys,threading,pwd
+import time,shutil,json,traceback,os,platform,importlib,sys,threading
 
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))) )
@@ -122,16 +122,19 @@ class Reader(Base):
 
 
         log_prev_path = os.path.dirname(log_file_conf['file_path'])
-        """
-            这里需要将 nginx 日志的所属 目录修改为 www 否则在切割日志的时候 kill -USR1 pid 之后 日志文件会被重新打开但是因权限问题不会继续写入文件中
-        """
-        # 检查日志目录所属用户 ; 不是 www 则修改成 www
-        if pwd.getpwuid(os.stat(log_prev_path).st_uid).pw_name != 'www' and platform.system() == 'Linux':
-            try:
-                www_uid = pwd.getpwnam('www').pw_uid
-                os.chown(log_prev_path, www_uid, www_uid)
-            except PermissionError as e:
-                exit('权限不足 : 修改目录: %s 所属用户和用户组 为 www 失败 ' % (log_prev_path))
+
+        if platform.system() == 'Linux':
+            import pwd
+            """
+                这里需要将 nginx 日志的所属 目录修改为 www 否则在切割日志的时候 kill -USR1 pid 之后 日志文件会被重新打开但是因权限问题不会继续写入文件中
+            """
+            # 检查日志目录所属用户 ; 不是 www 则修改成 www
+            if pwd.getpwuid(os.stat(log_prev_path).st_uid).pw_name != 'www' and platform.system() == 'Linux':
+                try:
+                    www_uid = pwd.getpwnam('www').pw_uid
+                    os.chown(log_prev_path, www_uid, www_uid)
+                except PermissionError as e:
+                    exit('权限不足 : 修改目录: %s 所属用户和用户组 为 www 失败 ' % (log_prev_path))
 
 
 
@@ -151,7 +154,13 @@ class Reader(Base):
 
     def __getFileFd(self):
         try:
-            return open(self.log_path, 'rb+')
+            if sys.platform == 'linux':
+                newline_char = '\n'
+            elif platform.system() == 'Windows':
+                newline_char = '\r\n'
+
+            return open(self.log_path, mode='r+' ,newline=newline_char)
+
         except FileNotFoundError as e:
             self.event['stop'] = self.log_path + ' 文件不存在'
             return False
@@ -319,7 +328,8 @@ class Reader(Base):
                     data['node_id'] = self.node_id
                     data['app_name'] = self.app_name
                     data['log_format_name'] = self.log_format_name
-                    data['line'] = line.decode(encoding='utf-8').strip()
+                    # data['line'] = line.decode(encoding='utf-8').strip()
+                    data['line'] = line.strip()
                     try:
                         data['log_format_str'] = self.server_conf[self.log_format_name].strip()
                         data = json.dumps(data)
@@ -419,7 +429,7 @@ class OutputCustomer(Base):
         return queue_list
 
 
-    def parse_time_str(self,data):
+    def __parse_time_str(self,data):
         if self.server_type == 'nginx':
             if 'time_iso8601' in data:
                 _strarr = data['time_iso8601'].split('+')
@@ -445,7 +455,7 @@ class OutputCustomer(Base):
 
         return data
 
-    def parse_request_url(self,data):
+    def __parse_request_url(self,data):
         if self.server_type == 'nginx':
             try:
                 if 'request' in data:
@@ -483,7 +493,7 @@ class OutputCustomer(Base):
 
         return data
 
-    def parse_ip_to_area(self,data):
+    def __parse_ip_to_area(self,data):
 
         if self.server_type == 'nginx':
             if 'remote_addr' in data:
@@ -520,22 +530,22 @@ class OutputCustomer(Base):
 
             # 预编译对应的正则
             self.logParse.getLogFormatByConfStr(line_data['log_format_str'], line_data['log_format_name'])
+
             line_data['line'] = line_data['line'].strip()
 
             # parse_data = self.logParse.parse(parse_data, line_data['line'])
             parse_data = self.logParse.parse(line_data['log_format_name'], line_data['line'])
 
         except Exception as e:
-            self.client_queue.append(line)
             traceback.print_exc()
             exit()
 
         # 解析时间
-        parse_data = self.parse_time_str(parse_data)
+        parse_data = self.__parse_time_str(parse_data)
         # 解析url
-        parse_data = self.parse_request_url(parse_data)
+        parse_data = self.__parse_request_url(parse_data)
         # 解析IP 成地域
-        parse_data = self.parse_ip_to_area(parse_data)
+        parse_data = self.__parse_ip_to_area(parse_data)
 
         del line_data['log_format_name']
         del line_data['log_format_str']
@@ -604,14 +614,14 @@ class OutputCustomer(Base):
                 print("\n customer -------pid: %s -- reg data len: %s---- start \n" % (
                     os.getpid(), len(queue_list)))
 
-                backup_for_push_back_linedata = []
+                backup_for_push_back_queue = []
                 insertList = []
                 for i in queue_list:
                     if not i:
                         continue
 
                     line = i.decode(encoding='utf-8')
-                    backup_for_push_back_linedata.append(line)
+                    backup_for_push_back_queue.append(line)
 
                     line_data = self.parse_line_data(line)
                     insertList.append(line_data)
@@ -640,13 +650,14 @@ class OutputCustomer(Base):
                     time.sleep(1)
                     retry_reconnect_time = retry_reconnect_time + 1
                     if retry_reconnect_time >= max_retry_reconnect_time:
-                        self.push_back_to_queue(backup_for_push_back_linedata)
+                        self.push_back_to_queue(backup_for_push_back_queue)
                         exit('重试重新链接 mongodb 超出最大次数 %s' % max_retry_reconnect_time)
                     else:
                         print("\n customer -------pid: %s -- retry_reconnect_mongodb at: %s time---- \n" % (os.getpid() ,retry_reconnect_time) )
                         continue
 
-
+    def saveToMysql(self):
+        pass
 
     #退回队列
     def push_back_to_queue(self,data_list):
@@ -654,10 +665,6 @@ class OutputCustomer(Base):
             self.client_queue.lpush(self.client_queue_key , item)
 
 
-
-def startOutput(share_queue ):
-    obj = OutputCustomer(share_queue=share_queue)
-    getattr(obj,obj.call_engine)()
 
 
 

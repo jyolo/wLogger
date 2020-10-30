@@ -1,7 +1,7 @@
 from flask.blueprints import Blueprint
 from flask_pymongo import PyMongo
 from flask import render_template,request,flash,session,current_app
-from server.customer import ApiCorsResponse
+from webServer.customer import ApiCorsResponse
 import time
 
 
