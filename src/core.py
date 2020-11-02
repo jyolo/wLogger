@@ -3,6 +3,7 @@ from multiprocessing import Queue,Process
 from redis import Redis,exceptions as redis_exceptions
 from configparser import ConfigParser
 from threading import Thread,RLock
+from collections import deque
 from pymongo import MongoClient,errors as pyerrors
 from src.ip2Region import Ip2Region
 import time,shutil,json,traceback,os,platform,importlib,sys,threading
@@ -33,16 +34,16 @@ class Base(object):
 
     def _getQueue(self):
 
-        client_queue_type = self.conf['client']['queue']
+        inputer_queue_type = self.conf['inputer']['queue']
 
-        if client_queue_type == 'redis':
+        if inputer_queue_type == 'redis':
             try:
 
                 return  Redis(
-                    host = self.conf[client_queue_type]['host'],
-                    port = int(self.conf[client_queue_type]['port']),
-                    password = str(self.conf[client_queue_type]['password']),
-                    db = self.conf[client_queue_type]['db'],
+                    host = self.conf[inputer_queue_type]['host'],
+                    port = int(self.conf[inputer_queue_type]['port']),
+                    password = str(self.conf[inputer_queue_type]['password']),
+                    db = self.conf[inputer_queue_type]['db'],
                 )
 
             except redis_exceptions.RedisError as e:
@@ -103,13 +104,29 @@ class Reader(Base):
 
     def __init__(self,log_file_conf = None ):
         super(Reader, self).__init__()
+
         self.log_path = log_file_conf['file_path']
         if len(log_file_conf['log_format_name']) == 0:
             self.log_format_name = 'defualt'
         else:
             self.log_format_name = log_file_conf['log_format_name']
 
-        self.node_id = self.conf['client']['node_id']
+        self.node_id = self.conf['inputer']['node_id']
+
+        # 最大重试打开文件次数
+        if 'max_retry_open_file_time' in self.conf['inputer']:
+            self.max_retry_open_file_time = int(self.conf['inputer']['max_retry_open_file_time'])
+        else:
+            self.max_retry_open_file_time = 10
+
+
+        # 最大重试链接 queue的次数
+        if 'max_retry_reconnect_time' in self.conf['inputer']:
+            self.max_retry_reconnect_time = int(self.conf['inputer']['max_retry_reconnect_time'])
+        else:
+            self.max_retry_reconnect_time = 20
+
+
         self.app_name = log_file_conf['app_name']
         self.server_type = log_file_conf['server_type']
         self.read_type = log_file_conf['read_type']
@@ -142,6 +159,7 @@ class Reader(Base):
         elif platform.system() == 'Windows':
             self.newline_char = '\r\n'
 
+        self.dqueue = deque()
 
         self.queue_key = self.conf['redis']['prefix'] + 'logger'
 
@@ -156,10 +174,9 @@ class Reader(Base):
 
 
 
+
     def __getFileFd(self):
         try:
-
-
             return open(self.log_path, mode='r+' ,newline=self.newline_char)
 
         except FileNotFoundError as e:
@@ -247,8 +264,7 @@ class Reader(Base):
 
                 try:
                     now = time.strftime("%H:%M", time.localtime(time.time()))
-                    print('cut_file_type: filesize ;%s ---pid: %s----thread_id: %s--- %s ---------%s' % (
-                        now, os.getpid(), threading.get_ident(), self.cut_file_point, self.cutting_file))
+                    # print('cut_file_type: filesize ;%s ---pid: %s----thread_id: %s--- %s ---------%s' % (  now, os.getpid(), threading.get_ident(), self.cut_file_point, self.cutting_file))
 
                     # 文件大小 单位 M
                     file_size = round(os.path.getsize(self.log_path) / (1024 * 1024))
@@ -285,6 +301,76 @@ class Reader(Base):
 
             self.lock.release()
 
+    def pushQueue(self):
+        try:
+
+            redis = self._getQueue()
+            pipe = redis.pipeline()
+        except redis_exceptions.RedisError  as e:
+            self.event['stop'] = 'redis 链接失败'
+
+        retry_reconnect_time = 0
+
+        while True:
+            time.sleep(1)
+            if self.event['stop']:
+                print( '%s ; pushQueue threading stop pid: %s ---- tid: %s ' % (self.event['stop'] ,os.getpid() ,threading.get_ident() ))
+                return
+
+            try:
+
+                # 重试连接queue的时候; 不再从 dqueue 中拿数据
+                if retry_reconnect_time == 0:
+
+                    start_time = time.perf_counter()
+                    # print("\n pushQueue -------pid: %s -tid: %s-  started \n" % ( os.getpid(), threading.get_ident()))
+
+                    for i in range(int(self.conf['inputer']['batch_push_queue_max_size'])):
+                        try:
+                            line = self.dqueue.pop()
+                        except IndexError as e:
+                            # print("\n pushQueue -------pid: %s -tid: %s- wait for data ;queue len: %s---- start \n" % ( os.getpid(), threading.get_ident(), len(list(self.dqueue))))
+                            break
+
+                        data = {}
+                        data['node_id'] = self.node_id
+                        data['app_name'] = self.app_name
+                        data['log_format_name'] = self.log_format_name
+
+                        data['line'] = line.strip()
+
+                        try:
+                            data['log_format_str'] = self.server_conf[self.log_format_name].strip()
+                        except KeyError as e:
+                            self.event['stop'] = self.log_format_name + '日志格式不存在'
+                            break
+
+                        data = json.dumps(data)
+                        pipe.lpush(self.queue_key, data)
+
+
+                res = pipe.execute()
+                if len(res):
+                    retry_reconnect_time = 0
+                    end_time = time.perf_counter()
+                    print("\n pushQueue -------pid: %s -tid: %s- push data to queue_len :%s ----耗时:%s \n"
+                          % (os.getpid(), threading.get_ident(), len(res), round(end_time - start_time, 2)))
+
+
+            except redis_exceptions.RedisError as e:
+
+
+                retry_reconnect_time = retry_reconnect_time + 1
+
+                if retry_reconnect_time >= self.max_retry_reconnect_time :
+                    self.event['stop'] = 'pushQueue 重试连接 queue 超出最大次数'
+                else:
+                    time.sleep(2)
+                    print('pushQueue -------pid: %s -tid: %s-  push data fail; reconnect Queue %s times' % (os.getpid() , threading.get_ident() , retry_reconnect_time))
+
+                continue
+
+
 
     def readLog(self):
 
@@ -301,12 +387,6 @@ class Reader(Base):
         except Exception as e:
             self.event['stop'] = self.log_path + ' 文件句柄 seek 错误'
 
-        try:
-
-            redis = self._getQueue()
-            pipe = redis.pipeline()
-        except redis_exceptions.RedisError  as e:
-            self.event['stop'] = 'redis 链接失败'
 
         max_retry_open_file_time = 3
         retry_open_file_time = 0
@@ -316,66 +396,41 @@ class Reader(Base):
             if self.event['stop']:
                 print( '%s ; read threading stop pid: %s' % (self.event['stop'] ,os.getpid()))
                 return
-            try:
 
+            start_time = time.perf_counter()
+            # print("\n start_time -------pid: %s -- read file---queue len: %s---- %s \n" % ( os.getpid(), len(list(self.dqueue)), round(start_time, 2)))
 
-                start_time = time.perf_counter()
-                print("\n start_time -------pid: %s -- read file---queue len: %s---- %s \n" % (os.getpid() ,redis.llen(self.queue_key), round(start_time ,2)))
+            # self.lock.acquire()
 
-                self.lock.acquire()
+            for line in self.fd:
+                # 不是完整的一行继续read
+                if line.find(self.newline_char) == -1:
+                    continue
 
-                for line in self.fd:
+                self.dqueue.append(line)
 
-                    # 不是完整的一行继续read
-                    if line.find(self.newline_char) == -1:
-                        continue
+            # self.lock.release()
 
+            end_time = time.perf_counter()
+            print("\n end_time -------pid: %s -- read file---queue_len :%s --- 耗时:%s \n" % (os.getpid(), len(list(self.dqueue)), round(end_time - start_time, 2)))
 
-                    data = {}
-                    data['node_id'] = self.node_id
-                    data['app_name'] = self.app_name
-                    data['log_format_name'] = self.log_format_name
-                    # data['line'] = line.decode(encoding='utf-8').strip()
-                    data['line'] = line.strip()
-                    try:
-                        data['log_format_str'] = self.server_conf[self.log_format_name].strip()
-                        data = json.dumps(data)
-                        pipe.lpush(self.queue_key, data)
+            if self.event['cut_file'] == 1 and self.event['stop'] == None:
+                print('--------------------reopen file--------------------')
+                # 防止 重启进程服务后 新的日志文件并没有那么快重新打开
+                time.sleep(1)
+                self.fd.close()
+                self.fd = self.__getFileFd()
+                try:
+                    self.fd.seek(0)
+                except AttributeError as e:
+                    time.sleep(1)
+                    retry_open_file_time = retry_open_file_time + 1
+                    if retry_open_file_time >= max_retry_open_file_time:
+                        self.event['stop'] = '重新打开文件超过最大次数 %s ' % max_retry_open_file_time
+                    continue
 
-                    except KeyError as e:
-                        self.event['stop'] = self.log_format_name + '日志格式不存'
-                        break
+                self.event['cut_file'] = 0
 
-
-                pipe.execute()
-
-
-                self.lock.release()
-
-                end_time = time.perf_counter()
-                print("\n end_time -------pid: %s -- read file---queue_len :%s ----%s 耗时:%s \n"
-                      % (os.getpid(),redis.llen(self.queue_key), end_time, round(end_time - start_time, 2)))
-
-
-                if self.event['cut_file'] == 1 and self.event['stop'] == None:
-                    print('--------------------reopen file--------------------')
-
-                    self.fd.close()
-                    self.fd = self.__getFileFd()
-                    try:
-                        self.fd.seek(0)
-                    except AttributeError as e:
-                        time.sleep(1)
-                        retry_open_file_time = retry_open_file_time + 1
-                        if retry_open_file_time >= max_retry_open_file_time:
-                            self.event['stop'] = '重新打开文件超过最大次数 %s ' % max_retry_open_file_time
-                        continue
-
-                    self.event['cut_file'] = 0
-
-            except redis_exceptions.RedisError as e:
-                self.event['stop'] = 'redis 错误 :%s' % e.args[0]
-                continue
 
 
     def runMethod(self,method_name):
@@ -390,19 +445,19 @@ class OutputCustomer(Base):
     def __init__(self ):
         super(OutputCustomer,self).__init__()
 
-        self.client_queue = self._getQueue()
-        self.client_queue_prefix = self.conf[ self.conf['custom']['queue'] ]['prefix']
-        self.client_queue_key = self.client_queue_prefix + 'logger'
+        self.inputer_queue = self._getQueue()
+        self.inputer_queue_prefix = self.conf[ self.conf['outputer']['queue'] ]['prefix']
+        self.inputer_queue_key = self.inputer_queue_prefix + 'logger'
 
 
-        self.save_engine_conf = dict( self.conf[ self.conf['custom']['save_engine'] ])
-        self.save_engine_name = self.conf['custom']['save_engine'].lower().capitalize()
+        self.save_engine_conf = dict( self.conf[ self.conf['outputer']['save_engine'] ])
+        self.save_engine_name = self.conf['outputer']['save_engine'].lower().capitalize()
 
 
         self.call_engine = 'saveTo%s' %  self.save_engine_name
-        self.server_type = self.conf['custom']['log_server_type']
+        self.server_type = self.conf['outputer']['log_server_type']
 
-        self.logParse = loggerParse(self.conf['custom']['log_server_type'] ,server_conf=None)
+        self.logParse = loggerParse(self.conf['outputer']['log_server_type'] ,server_conf=None)
 
         ip_data_path = os.path.dirname(__file__) + '/ip2region.db'
         if not os.path.exists(ip_data_path):
@@ -418,19 +473,20 @@ class OutputCustomer(Base):
 
     def getQueueData(self):
 
-        betch_max_size = int(self.conf['custom']['batch_insert_queue_max_size'])
+        betch_max_size = int(self.conf['outputer']['batch_insert_queue_max_size'])
 
         start_time = time.perf_counter()
-        # print("\n customer -------pid: %s -- take from queue len: %s---- start \n" % (
-        #     os.getpid(), self.client_queue.llen(self.client_queue_key)))
+        # print("\n outputerer -------pid: %s -- take from queue len: %s---- start \n" % (
+        #     os.getpid(), self.inputer_queue.llen(self.inputer_queue_key)))
 
-        pipe = self.client_queue.pipeline()
+        pipe = self.inputer_queue.pipeline()
         for i in range(betch_max_size):
-            pipe.lpop(self.client_queue_key)
+            pipe.lpop(self.inputer_queue_key)
+
         queue_list = pipe.execute()
 
         end_time = time.perf_counter()
-        # print("\n customer -------pid: %s -- take from  queue len: %s----end 耗时: %s \n" % (
+        # print("\n outputerer -------pid: %s -- take from  queue len: %s----end 耗时: %s \n" % (
         #     os.getpid(), len(queue_list), round(end_time - start_time, 2)))
 
         return queue_list
@@ -595,8 +651,8 @@ class OutputCustomer(Base):
         mongodb = MongoClient( mongo_url)
         mongodb_client = mongodb[ self.save_engine_conf['db'] ][ self.save_engine_conf['collection'] ]
 
-        if 'max_retry_reconnect_time' in  self.save_engine_conf:
-            max_retry_reconnect_time = int(self.save_engine_conf['max_retry_reconnect_time'])
+        if 'max_retry_reconnect_time' in  self.conf['outputer']:
+            max_retry_reconnect_time = int(self.conf['outputer']['max_retry_reconnect_time'])
         else:
             max_retry_reconnect_time = 3
 
@@ -606,7 +662,7 @@ class OutputCustomer(Base):
             time.sleep(1)
             # 重试链接的时候 不再 从队列中取数据
             if retry_reconnect_time == 0:
-                num = self.client_queue.llen(self.client_queue_key)
+                num = self.inputer_queue.llen(self.inputer_queue_key)
 
                 if num == 0:
                     print('pid: %s wait for data' % os.getpid())
@@ -619,7 +675,7 @@ class OutputCustomer(Base):
                     continue
 
                 start_time = time.perf_counter()
-                print("\n customer -------pid: %s -- reg data len: %s---- start \n" % (
+                print("\n outputerer -------pid: %s -- reg data len: %s---- start \n" % (
                     os.getpid(), len(queue_list)))
 
                 backup_for_push_back_queue = []
@@ -635,14 +691,14 @@ class OutputCustomer(Base):
                     insertList.append(line_data)
 
                 end_time = time.perf_counter()
-                print("\n customer -------pid: %s -- reg datas len: %s---- end 耗时: %s \n" % (
+                print("\n outputerer -------pid: %s -- reg datas len: %s---- end 耗时: %s \n" % (
                     os.getpid(), len(insertList), round(end_time - start_time, 2)))
 
 
             if len(insertList):
                 try:
                     start_time = time.perf_counter()
-                    print("\n customer -------pid: %s -- insert into mongodb: %s---- start \n" % (
+                    print("\n outputerer -------pid: %s -- insert into mongodb: %s---- start \n" % (
                         os.getpid(), len(insertList)))
 
                     res = mongodb_client.insert_many(insertList, ordered=False)
@@ -651,7 +707,7 @@ class OutputCustomer(Base):
                     retry_reconnect_time = 0
 
                     end_time = time.perf_counter()
-                    print("\n customer -------pid: %s -- insert into mongodb: %s---- end 耗时: %s \n" % (
+                    print("\n outputerer -------pid: %s -- insert into mongodb: %s---- end 耗时: %s \n" % (
                     os.getpid(), len(res.inserted_ids), round(end_time - start_time, 2)))
 
                 except pyerrors.PyMongoError as e:
@@ -661,7 +717,7 @@ class OutputCustomer(Base):
                         self.push_back_to_queue(backup_for_push_back_queue)
                         exit('重试重新链接 mongodb 超出最大次数 %s' % max_retry_reconnect_time)
                     else:
-                        print("\n customer -------pid: %s -- retry_reconnect_mongodb at: %s time---- \n" % (os.getpid() ,retry_reconnect_time) )
+                        print("\n outputerer -------pid: %s -- retry_reconnect_mongodb at: %s time---- \n" % (os.getpid() ,retry_reconnect_time) )
                         continue
 
     def saveToMysql(self):
@@ -670,7 +726,7 @@ class OutputCustomer(Base):
     #退回队列
     def push_back_to_queue(self,data_list):
         for item in data_list:
-            self.client_queue.lpush(self.client_queue_key , item)
+            self.inputer_queue.lpush(self.inputer_queue_key , item)
 
 
 

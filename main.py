@@ -9,8 +9,11 @@ import multiprocessing,time,sys,os
 def runReader(log_files_conf):
 
     r = Reader(log_file_conf=log_files_conf)
+    pushQueue = ['pushQueue'] * multiprocessing.cpu_count()
 
-    jobs = ['readLog', 'cutFile']
+    jobs = ['readLog','cutFile'] + pushQueue
+    # jobs = ['readLog'] + pushQueue
+
     t = []
     for i in jobs:
         th = Thread(target=r.runMethod, args=(i,))
@@ -30,7 +33,7 @@ def getLogFilsDict(conf):
     logFiles = []
 
     for i in list(conf):
-        if 'client.log_file' in i:
+        if 'inputer.log_file' in i:
             item = dict(base.conf[i])
             item['app_name'] = i.split('.')[-1]
             logFiles.append(item)
@@ -64,7 +67,7 @@ if __name__ == "__main__":
         elif args[1] == 'outputer':
 
             p_list = []
-            for i in range( int(base.conf['custom']['worker_process_num']) ):
+            for i in range( int(base.conf['outputer']['worker_process_num']) ):
                 p = Process(target = customer)
                 p_list.append(p)
 
@@ -82,7 +85,7 @@ if __name__ == "__main__":
 
 
         else:
-            raise ValueError('example: python3 startClient.py -run [inputer | outputer]')
+            raise ValueError('example: python3 main.py -run [inputer | outputer]')
 
     elif args[0] == '-stop':
         if args[1] not in ['inputer' ,'outputer']:

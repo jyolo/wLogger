@@ -14,80 +14,78 @@ password =
 db = 1
 prefix = logger_watch:
 
-;[redis]
-;host = 120.78.248.191
-;port = 35535
-;password = xiaofeibao@DEVE#redis%PASSWD*2018^
-;db = 1
-;prefix = logger_watch:
 
-[mongodb]
-host = 127.0.0.1
-;host = 192.168.0.188
-port = 27017
-username =
-password =
-db = logger_watch
-collection = logger
-
-
-[client]
-node_id = server_80
-queue = redis
-
-
-[client.log_file.web1]
-server_type = nginx
-file_path = /www/wwwlogs/local.test.com.log
-log_format_name =
-read_type = head
-cut_file_type = filesize
-cut_file_point = 100
-cut_file_save_dir = /test/
-
-
-[client.log_file.web2]
-server_type = nginx
-file_path = /www/wwwlogs/local.test2.com.log
-log_format_name = custom
-read_type = tail
-cut_file_type = time
-cut_file_point = 16:59
-
-
-
-
-[custom]
-save_engine = mongodb
-queue = redis
-log_server_type = nginx
-worker_process_num = 2
-batch_insert_queue_max_size = 50000
-
-;[custom.save_engine]
-;type = mongodb
+;[mongodb]
 ;host = 127.0.0.1
-;;host = 192.168.0.188
 ;port = 27017
-;user =
+;username =
 ;password =
 ;db = logger_watch
 ;collection = logger
+;max_retry_reconnect_time = 1
 
+;[redis]
+;host = 47.112.167.32
+;port = 6666
+;password = 4*Mn0eXYm^z!_2020
+;db = 1
+;prefix = logger_watch:
+
+;[mongodb]
+;host = 120.78.248.191
+;port = 7002
+;username = logger_watcher
+;password = q7758414
+;db = logger_watcher
+;collection = logger
+;max_retry_open_file_time = 1
+
+[mongodb]
+host = 127.0.0.1
+port = 27017
+username =
+password =
+db = logger_watcher
+collection = logger
+
+
+
+[inputer]
+node_id = server_80
+queue = redis
+batch_push_queue_max_size = 10000
+max_retry_open_file_time = 10
+max_retry_reconnect_time = 20
+
+
+[inputer.log_file.web1]
+server_type = nginx
+file_path = /www/wwwlogs/local.test.com.log
+log_format_name = online
+read_type = head
+cut_file_type = filesize
+cut_file_point = 10
+cut_file_save_dir = /www/wwwlogs/cut_file/
+
+
+
+[outputer]
+save_engine = mongodb
+queue = redis
+log_server_type = nginx
+worker_process_num = 8
+batch_insert_queue_max_size = 5000
+max_retry_reconnect_time = 1
 
 
 [web]
 # development | production
-env = production
-debug = False
+env = development
+debug = True
 secret_key = asdasdasdsadasd
 server_name = 127.0.0.1:5500
+data_engine = mongodb
 
-;[custom.web]
-;# development | production
-;env = production
-;debug = False
-;secret_key = asdasdasdsadasd
-;server_name = 127.0.0.1:5500
+
 
 
