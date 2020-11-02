@@ -124,6 +124,7 @@ class Reader(Base):
         log_prev_path = os.path.dirname(log_file_conf['file_path'])
 
         if platform.system() == 'Linux':
+            self.newline_char = '\n'
             import pwd
             """
                 这里需要将 nginx 日志的所属 目录修改为 www 否则在切割日志的时候 kill -USR1 pid 之后 日志文件会被重新打开但是因权限问题不会继续写入文件中
@@ -137,6 +138,9 @@ class Reader(Base):
                     exit('权限不足 : 修改目录: %s 所属用户和用户组 为 www 失败 ' % (log_prev_path))
 
 
+
+        elif platform.system() == 'Windows':
+            self.newline_char = '\r\n'
 
 
         self.queue_key = self.conf['redis']['prefix'] + 'logger'
@@ -154,12 +158,9 @@ class Reader(Base):
 
     def __getFileFd(self):
         try:
-            if sys.platform == 'linux':
-                newline_char = '\n'
-            elif platform.system() == 'Windows':
-                newline_char = '\r\n'
 
-            return open(self.log_path, mode='r+' ,newline=newline_char)
+
+            return open(self.log_path, mode='r+' ,newline=self.newline_char)
 
         except FileNotFoundError as e:
             self.event['stop'] = self.log_path + ' 文件不存在'
@@ -324,6 +325,12 @@ class Reader(Base):
                 self.lock.acquire()
 
                 for line in self.fd:
+
+                    # 不是完整的一行继续read
+                    if line.find(self.newline_char) == -1:
+                        continue
+
+
                     data = {}
                     data['node_id'] = self.node_id
                     data['app_name'] = self.app_name
