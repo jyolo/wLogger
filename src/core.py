@@ -682,7 +682,7 @@ class OutputCustomer(Base):
                 num = self.inputer_queue.llen(self.inputer_queue_key)
 
                 if num == 0:
-                    print('pid: %s wait for data' % os.getpid())
+                    # print('pid: %s wait for data' % os.getpid())
                     continue
 
                 queue_list = self.getQueueData()
