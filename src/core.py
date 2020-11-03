@@ -406,7 +406,6 @@ class Reader(Base):
             start_time = time.perf_counter()
             # print("\n start_time -------pid: %s -- read file---queue len: %s---- %s \n" % ( os.getpid(), len(list(self.dqueue)), round(start_time, 2)))
 
-            # self.lock.acquire()
 
             for line in self.fd:
                 # 不是完整的一行继续read
@@ -415,7 +414,6 @@ class Reader(Base):
 
                 self.dqueue.append(line)
 
-            # self.lock.release()
 
             end_time = time.perf_counter()
             print("\n end_time -------pid: %s -- read file---line len :%s --- 耗时:%s \n" % (os.getpid(), len(list(self.dqueue)), round(end_time - start_time, 2)))
