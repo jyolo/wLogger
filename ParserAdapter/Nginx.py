@@ -142,7 +142,6 @@ class Handler(Adapter):
 
             format = re.sub(r'(\$\w+)+', self.__replaceLogVars, log_format_str).strip()
 
-            print(format)
 
             self.log_line_pattern_dict[log_format_name] = {'log_format_list':log_format_list ,'log_format_recompile':re.compile(format ,re.I)}
 

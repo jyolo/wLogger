@@ -227,8 +227,7 @@ class Reader(Base):
 
 
         end_time = time.perf_counter()
-        print(';;;;;;;;;;;;;;;;full_cut;;;;;;finnish truncate;;;;;;;;;;;;; mark at %s' % (
-            round(end_time - start_time, 2)))
+        print(';;;;;;;;;;;;;;;;full_cut;;;;;;finnish truncate;;;;;;;;;;;;; mark at %s' % (time.time()))
 
 
     def cutFile(self):
@@ -353,8 +352,8 @@ class Reader(Base):
                 if len(res):
                     retry_reconnect_time = 0
                     end_time = time.perf_counter()
-                    print("\n pushQueue -------pid: %s -tid: %s- push data to queue_len :%s ----耗时:%s \n"
-                          % (os.getpid(), threading.get_ident(), len(res), round(end_time - start_time, 2)))
+                    print("\n pushQueue -------pid: %s -tid: %s- push data to queue :%s ; queue_len : %s----耗时:%s \n"
+                          % (os.getpid(), threading.get_ident(), len(res),redis.llen(self.queue_key), round(end_time - start_time, 2)))
 
 
             except redis_exceptions.RedisError as e:
@@ -412,12 +411,13 @@ class Reader(Base):
             # self.lock.release()
 
             end_time = time.perf_counter()
-            print("\n end_time -------pid: %s -- read file---queue_len :%s --- 耗时:%s \n" % (os.getpid(), len(list(self.dqueue)), round(end_time - start_time, 2)))
+            print("\n end_time -------pid: %s -- read file---line len :%s --- 耗时:%s \n" % (os.getpid(), len(list(self.dqueue)), round(end_time - start_time, 2)))
 
             if self.event['cut_file'] == 1 and self.event['stop'] == None:
-                print('--------------------reopen file--------------------')
                 # 防止 重启进程服务后 新的日志文件并没有那么快重新打开
-                time.sleep(1)
+                time.sleep(1.5)
+                print('--------------------reopen file--------------------at: %s' % time.time())
+
                 self.fd.close()
                 self.fd = self.__getFileFd()
                 try:
@@ -443,6 +443,7 @@ class Reader(Base):
 class OutputCustomer(Base):
 
     def __init__(self ):
+
         super(OutputCustomer,self).__init__()
 
         self.inputer_queue = self._getQueue()
@@ -480,14 +481,30 @@ class OutputCustomer(Base):
         #     os.getpid(), self.inputer_queue.llen(self.inputer_queue_key)))
 
         pipe = self.inputer_queue.pipeline()
-        for i in range(betch_max_size):
-            pipe.lpop(self.inputer_queue_key)
+
+        queue_len = self.inputer_queue.llen(self.inputer_queue_key)
+        if queue_len >= betch_max_size:
+            num = betch_max_size
+        else:
+            num = queue_len
+
+
+        for i in range(num):
+            res = pipe.lpop(self.inputer_queue_key)
+
+
 
         queue_list = pipe.execute()
 
+        # 过滤掉None
+        if queue_list.count(None) :
+            queue_list = list(filter(None,queue_list))
+
+
         end_time = time.perf_counter()
-        # print("\n outputerer -------pid: %s -- take from  queue len: %s----end 耗时: %s \n" % (
-        #     os.getpid(), len(queue_list), round(end_time - start_time, 2)))
+        if len(queue_list):
+            print("\n outputerer -------pid: %s -- take len: %s ; queue len : %s----end 耗时: %s \n" % ( os.getpid(), len(queue_list),self.inputer_queue.llen(self.inputer_queue_key), round(end_time - start_time, 2)))
+
 
         return queue_list
 
@@ -633,7 +650,7 @@ class OutputCustomer(Base):
         if self.save_engine_conf['username'] and self.save_engine_conf['password']:
             mongo_url = 'mongodb://%s:%s@%s:%s/?authSource=%s' % \
                 (
-                    self.save_engine_conf['username'],
+                    quote_plus(self.save_engine_conf['username']),
                     quote_plus(self.save_engine_conf['password']),
                     self.save_engine_conf['host'],
                     int(self.save_engine_conf['port']),
@@ -659,7 +676,7 @@ class OutputCustomer(Base):
         retry_reconnect_time = 0
 
         while True:
-            time.sleep(1)
+            time.sleep(0.1)
             # 重试链接的时候 不再 从队列中取数据
             if retry_reconnect_time == 0:
                 num = self.inputer_queue.llen(self.inputer_queue_key)
@@ -669,6 +686,7 @@ class OutputCustomer(Base):
                     continue
 
                 queue_list = self.getQueueData()
+
 
                 if len(queue_list) == 0:
                     print('pid: %s wait for data' % os.getpid())
@@ -698,8 +716,7 @@ class OutputCustomer(Base):
             if len(insertList):
                 try:
                     start_time = time.perf_counter()
-                    print("\n outputerer -------pid: %s -- insert into mongodb: %s---- start \n" % (
-                        os.getpid(), len(insertList)))
+                    print("\n outputerer -------pid: %s -- insert into mongodb: %s---- start \n" % (os.getpid(), len(insertList)))
 
                     res = mongodb_client.insert_many(insertList, ordered=False)
 
@@ -707,8 +724,7 @@ class OutputCustomer(Base):
                     retry_reconnect_time = 0
 
                     end_time = time.perf_counter()
-                    print("\n outputerer -------pid: %s -- insert into mongodb: %s---- end 耗时: %s \n" % (
-                    os.getpid(), len(res.inserted_ids), round(end_time - start_time, 2)))
+                    print("\n outputerer -------pid: %s -- insert into mongodb: %s---- end 耗时: %s \n" % (os.getpid(), len(res.inserted_ids), round(end_time - start_time, 2)))
 
                 except pyerrors.PyMongoError as e:
                     time.sleep(1)
