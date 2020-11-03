@@ -113,18 +113,25 @@ class Reader(Base):
 
         self.node_id = self.conf['inputer']['node_id']
 
+        # 最大写入队列的数据量
+        if 'max_batch_push_queue_size' in self.conf['inputer']:
+            self.max_batch_push_queue_size = int(self.conf['inputer']['max_batch_push_queue_size'])
+        else:
+            self.max_batch_push_queue_size = 5000
+
         # 最大重试打开文件次数
         if 'max_retry_open_file_time' in self.conf['inputer']:
             self.max_retry_open_file_time = int(self.conf['inputer']['max_retry_open_file_time'])
         else:
             self.max_retry_open_file_time = 10
 
-
         # 最大重试链接 queue的次数
         if 'max_retry_reconnect_time' in self.conf['inputer']:
             self.max_retry_reconnect_time = int(self.conf['inputer']['max_retry_reconnect_time'])
         else:
             self.max_retry_reconnect_time = 20
+
+
 
 
         self.app_name = log_file_conf['app_name']
@@ -324,7 +331,7 @@ class Reader(Base):
                     start_time = time.perf_counter()
                     # print("\n pushQueue -------pid: %s -tid: %s-  started \n" % ( os.getpid(), threading.get_ident()))
 
-                    for i in range(int(self.conf['inputer']['batch_push_queue_max_size'])):
+                    for i in range(self.max_batch_push_queue_size):
                         try:
                             line = self.dqueue.pop()
                         except IndexError as e:
@@ -466,6 +473,10 @@ class OutputCustomer(Base):
 
         self.ip_parser = Ip2Region(ip_data_path)
 
+        if 'max_batch_insert_db_size' in self.conf['outputer']:
+            self.max_batch_insert_db_size = int(self.conf['outputer']['max_batch_insert_db_size'])
+        else:
+            self.max_batch_insert_db_size = 500
 
         if not hasattr(self , self.call_engine ):
             raise ValueError('Outputer 未定义 "%s" 该存储方法' %  self.save_engine_name)
@@ -474,7 +485,6 @@ class OutputCustomer(Base):
 
     def getQueueData(self):
 
-        betch_max_size = int(self.conf['outputer']['batch_insert_queue_max_size'])
 
         start_time = time.perf_counter()
         # print("\n outputerer -------pid: %s -- take from queue len: %s---- start \n" % (
@@ -483,8 +493,8 @@ class OutputCustomer(Base):
         pipe = self.inputer_queue.pipeline()
 
         queue_len = self.inputer_queue.llen(self.inputer_queue_key)
-        if queue_len >= betch_max_size:
-            num = betch_max_size
+        if queue_len >= self.max_batch_insert_db_size:
+            num = self.max_batch_insert_db_size
         else:
             num = queue_len
 

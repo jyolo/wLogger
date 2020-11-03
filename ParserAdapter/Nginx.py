@@ -112,6 +112,7 @@ class Handler(Adapter):
         if log_type not in ['string','json']:
             raise ValueError('_type 参数类型错误')
 
+        # 日志格式不存在 则 预编译
         if log_format_name not in self.log_line_pattern_dict:
 
             # 去掉换行
@@ -143,12 +144,13 @@ class Handler(Adapter):
             format = re.sub(r'(\$\w+)+', self.__replaceLogVars, log_format_str).strip()
 
 
-            self.log_line_pattern_dict[log_format_name] = {'log_format_list':log_format_list ,'log_format_recompile':re.compile(format ,re.I)}
+            self.log_line_pattern_dict[log_format_name] = {
+                'log_format_list':log_format_list ,
+                'log_format_recompile':re.compile(format ,re.I)
+            }
 
 
 
-        # return (log_format_list ,format)
-        # return format
 
     """
         找到匹配中的日志变量
