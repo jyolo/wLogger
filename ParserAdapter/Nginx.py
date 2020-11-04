@@ -61,15 +61,15 @@ class Handler(Adapter):
             '$bytes_sent':{'desc':'发送给客户端的总字节数(包括响应头)' ,'example':'113' ,'re': '\d+?' } ,
             '$body_bytes_sent':{'desc':'发送给客户端的总字节数(不包括响应头)' ,'example':'266' ,'re': '\d+?'} ,
             '$connection':{'desc':'连接到序列号' ,'example':'26' ,'re': '\d+?'} ,
-            '$connection_requests':{'desc':'每个连接到序列号的请求次数' ,'example':'3' ,'re': '\d+?'} ,
-            '$host':{'desc':'请求头里的host属性,如果没有就返回 server_name' ,'example':'www.baidu.com' ,'re': '\S+?'} ,
-            '$http_host':{'desc':'请求头里的host属性' ,'example':'www.baidu.com' ,'re': '\S+?' } ,
-            '$http_referer':{'desc':'请求的来源网址' ,'example':'www.baidu.com','re': '\S+?'} ,
-            '$http_user_agent':{'desc':'客户端的UA信息' ,'example':'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/73.0.3683.86 Safari/537.36' ,'re': '[\s|\S]+?'} ,
-            '$upstream_addr':{'desc':'后端接收请求的服务的ip或地址' ,'example':'unix:/tmp/php-cgi-71.sock' ,'re': '[\s|\S]+?'} ,
-            '$upstream_http_host':{'desc':'服务端响应的地址 ' ,'example':'unix:/tmp/php-cgi-71.sock' ,'re': '[\s|\S]+?'} ,
-            '$time_iso8601':{'desc':'iso8601时间格式' ,'example':'2020-09-11T15:20:43+08:00','re': '[\s|\S]+?'} ,
-            '$time_local':{'desc':'本地时间格式' ,'example':'11/Sep/2020:15:20:43 +0800','re': '[\s|\S]+?'} ,
+            '$connection_requests':{'desc':'每个连接到序列号的请求次数' ,'example':'3' ,'re': '\d*?'} ,
+            '$host':{'desc':'请求头里的host属性,如果没有就返回 server_name' ,'example':'www.baidu.com' ,'re': '\S*?'} ,
+            '$http_host':{'desc':'请求头里的host属性' ,'example':'www.baidu.com' ,'re': '\S*?' } ,
+            '$http_referer':{'desc':'请求的来源网址' ,'example':'www.baidu.com','re': '\S*?'} ,
+            '$http_user_agent':{'desc':'客户端的UA信息' ,'example':'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/73.0.3683.86 Safari/537.36' ,'re': '[\s|\S]*?'} ,
+            '$upstream_addr':{'desc':'后端接收请求的服务的ip或地址' ,'example':'unix:/tmp/php-cgi-71.sock' ,'re': '[\s|\S]*?'} ,
+            '$upstream_http_host':{'desc':'服务端响应的地址 ' ,'example':'unix:/tmp/php-cgi-71.sock' ,'re': '[\s|\S]*?'} ,
+            '$time_iso8601':{'desc':'iso8601时间格式' ,'example':'2020-09-11T15:20:43+08:00','re': '[\s|\S]*?'} ,
+            '$time_local':{'desc':'本地时间格式' ,'example':'11/Sep/2020:15:20:43 +0800','re': '[\s|\S]*?'} ,
         }
 
 
@@ -143,6 +143,7 @@ class Handler(Adapter):
 
             format = re.sub(r'(\$\w+)+', self.__replaceLogVars, log_format_str).strip()
 
+            print(format)
 
             self.log_line_pattern_dict[log_format_name] = {
                 'log_format_list':log_format_list ,
