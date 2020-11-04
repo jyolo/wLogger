@@ -10,7 +10,7 @@ class ApiCorsResponse():
         if success :
             re_data = {'msg':'ok','data':data}
         else:
-            re_data = {'msg': 'fail', 'data': data}
+            re_data = {'msg': 'fail', 'error_info': data}
 
         rep = Response(
             response=json.dumps(re_data) + "\n" ,
