@@ -9,7 +9,14 @@ import multiprocessing,time,sys,os
 def runReader(log_files_conf):
 
     r = Reader(log_file_conf=log_files_conf)
-    pushQueue = ['pushQueue'] * multiprocessing.cpu_count()
+    queue_type = r.conf['inputer']['queue']
+    method = 'pushQueueTo%s' % queue_type.capitalize()
+    if not hasattr(r,method):
+        raise AttributeError('Reader "%s" 方法不存在' % method )
+
+    pushQueue = [method] * multiprocessing.cpu_count()
+    # pushQueue = [method]
+
 
     jobs = ['readLog','cutFile'] + pushQueue
     # jobs = ['readLog'] + pushQueue
