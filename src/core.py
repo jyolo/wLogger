@@ -439,12 +439,10 @@ class Reader(Base):
                             self.event['stop'] = self.log_format_name + '日志格式不存在'
                             break
 
-                        data = json.dumps(data)
-                        _queuedata.append({
-                            'line_data' : data,
-                            'out_queue' : 0,
-                            'add_time': time.time()
-                        })
+                        data['out_queue'] = 0
+                        data['add_time'] = time.time()
+
+                        _queuedata.append(data)
 
                         # data['out_queue'] = 0
                         # _queuedata.append(data)
@@ -554,10 +552,12 @@ class OutputCustomer(Base):
 
         super(OutputCustomer,self).__init__()
 
+        self.inputer_queue_type = self.conf['outputer']['queue']
         self.inputer_queue = self._getQueue()
-        self.inputer_queue_prefix = self.conf[ self.conf['outputer']['queue'] ]['prefix']
-        self.inputer_queue_key = self.inputer_queue_prefix + 'logger'
+        self.inputer_queue_key = self.conf['outputer']['queue_name']
 
+        print('123')
+        exit()
 
         self.save_engine_conf = dict( self.conf[ self.conf['outputer']['save_engine'] ])
         self.save_engine_name = self.conf['outputer']['save_engine'].lower().capitalize()
