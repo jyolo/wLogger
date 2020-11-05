@@ -16,11 +16,7 @@
                 <div style="" id="get_request_num_by_secends"></div>
             </div>
         </div>
-        <div class="layui-row">
-            <div class="layui-col-md12">
-                <div style="" id="get_request_num_by_citys"></div>
-            </div>
-        </div>
+
 
         <div class="layui-row">
             <div class="layui-col-md12">
@@ -40,6 +36,12 @@
             </div>
         </div>
 
+        <div class="layui-row">
+            <div class="layui-col-md12">
+                <div style="" id="get_request_num_by_citys"></div>
+            </div>
+        </div>
+        <!--
         移动设备、平板、桌面端的不同表现：
         <div class="layui-row">
             <div class="layui-col-xs6 layui-col-sm6 layui-col-md4">
@@ -58,6 +60,9 @@
               移动：4/12 | 平板：5/12 | 桌面：4/12
             </div>
         </div>
+        -->
+
+
     </div>
 
 
@@ -73,12 +78,13 @@
 <script>
     //一般直接写在一个js文件中
     layui.use(['layer', 'form'], function(){
-      var layer = layui.layer
-      ,form = layui.form;
+        var layer = layui.layer
+        var form = layui.form;
 
 
     });
-
+    // 全局更新时间
+    var time_update_secends = 5000
     var host = 'http://127.0.0.1:5000'
     Highcharts.setOptions({
         global: {
@@ -86,7 +92,8 @@
 
         }
     });
-    /*
+
+
     //实时每秒的请求量
     function get_request_num_by_secends(){
         var init_request_url = '/get_request_num_by_secends?type=init'
@@ -109,91 +116,86 @@
 
             init_data = filter_msg_data(msg.data)
 
-            // 图表配置
-            var options = {
-                chart: {
-                    type: 'spline',
-                    events:{
+            var secends_chart = Highcharts.chart('get_request_num_by_secends', {
+                    chart: {
+                        zoomType: 'x',
+                        events:{
                         load:function(){
 
+                                var series = this.series[0];
+                                setInterval(function () {
 
-                            var series = this.series[0];
-                            setInterval(function () {
+                                    $.getJSON(host + secend_request_url,function (msg) {
+                                        subdata = filter_msg_data(msg.data)
 
-                                $.getJSON(host + secend_request_url,function (msg) {
-                                    subdata = filter_msg_data(msg.data)
+                                        $.each(subdata,function (k,v) {
+                                            series.addPoint([ v[0], v[1] ], true, true);
+                                        })
 
-                                    $.each(subdata,function (k,v) {
-                                        series.addPoint([ v[0], v[1] ], true, true);
                                     })
 
-                                })
-
-                            }, 5000);
+                                }, time_update_secends);
+                            }
                         }
-                    }
-                },
-                credits: {
-                    enabled: false//不显示LOGO
-                },
-                title: {
-                        text: '今日请求量实时统计'
-                },
-                rangeSelector: {
-                    buttons: [
-                        {
-                            count: 1,
-                            type: 'minute',
-                            text: '1分钟'
-                        },
-                        {
-                            count: 5,
-                            type: 'minute',
-                            text: '5分钟'
-                        },
-                        {
-                            count: 10,
-                            type: 'minute',
-                            text: '10分钟'
-                        },
-                        {
-                            type: 'all',
-                            text: '所有'
-                        }
-                    ],
-                    inputEnabled: false,
-                    selected: 0
-                },
-                yAxis: {
-                    allowDecimals: false,
+                    },
                     title: {
-                        text: '请求量'
-                    }
-                },
-                tooltip: {
-                    //保留小数点后两位
-                    valueDecimals: 0,
-                    formatter: function () {
-                        return '<b>请求量 : ' + this.y +'</b> <br/> <b>时间 : ' + Highcharts.dateFormat('%Y-%m-%d %H:%M:%S',this.x) + '</b>';
+                        text: '最近10分钟实时请求量'
+                    },
+                    subtitle: {
+                        text: '10分钟内每秒的请求量'
+                    },
+                    xAxis: {
+                        type: 'datetime',
+                        title: {
+                            text: null
+                        },
+                        dateTimeLabelFormats: {
+                            millisecond: '%H:%M:%S.%L',
+                            second: '%Y-%m-%d %H:%M:%S',
+                            minute: '%H:%M',
+                            hour: '%H:%M',
+                            day: '%m-%d',
+                            week: '%m-%d',
+                            month: '%Y-%m-%d %H:%M:%S',
+                            year: '%Y'
+                        }
+                    },
+                    colors: ['#6CF', '#39F', '#06C', '#036', '#000'],
+                    yAxis: {
+                        title: {
+                            text: '请求次数'
+                        },
+                        min: 0
+                    },
+                    tooltip: {
+                       formatter: function () {
+                            return '<b>请求量 : ' + this.y +'</b> <br/> <b>时间 : ' + Highcharts.dateFormat('%Y-%m-%d %H:%M:%S',this.x) + '</b>';
 
-                    }
+                        }
+                    },
+                    plotOptions: {
+                        spline: {
+                            marker: {
+                                enabled: true
+                            }
+                        }
+                    },
+                    series: [{
+                        name: '2007-2008 冬',
+                        // Define the data points. All series have a dummy year
+                        // of 1970/71 in order to be compared on the same x axis. Note
+                        // that in JavaScript, months start at 0 for January, 1 for February etc.
+                        data: init_data
+                    }]
+                });
 
-                },
-                series: [{                              // 数据列
-                    name: '请求量',                        // 数据列名
-                    data: init_data      // 数据
-                }],
-
-
-            };
-            // 图表初始化函数
-            var chart = Highcharts.stockChart('get_request_num_by_secends', options);
         })
 
     }
     get_request_num_by_secends()
 
-    */
+
+
 
     // 请求量前50IP占比
     function get_request_num_by_ip() {
@@ -206,28 +208,31 @@
             $.each(data,function (k,v) {
                 var item = {}
                 item.name = v._id
-                item.y = v.percent
+                item.y = v.total_num
                 item.drilldown = true
 
                 _data.push(item)
             })
             return _data
         }
+        var is_drilldown = false
 
         $.getJSON(host + init_request_url ,function (msg) {
 
             var data = filter_msg_data(msg.data)
-
-
-            Highcharts.chart('get_request_num_by_ip', {
+            var ip_chart = Highcharts.chart('get_request_num_by_ip', {
                 chart: {
                     type: 'column',
                     events:{
+                        drillup:function(){
+                            is_drilldown = false
+                        },
                         drilldown:function(e){
-                            var chart = this
+                            is_drilldown = true
+
                             _url = host + ip_detail_request_url + e.point.name
 
-                            chart.showLoading('数据加载中...')
+                            ip_chart.showLoading('数据加载中...')
                             $.getJSON(_url ,function (msg){
                                  drilldown_data = {'name': e.point.name ,data :[]}
                                  $.each(msg.data,function (k,v) {
@@ -237,15 +242,31 @@
                                         drilldown_data.data.push(item)
                                     })
 
-                                chart.hideLoading()
-                                chart.addSeriesAsDrilldown(e.point, drilldown_data);
+                                ip_chart.hideLoading()
+                                ip_chart.addSeriesAsDrilldown(e.point, drilldown_data);
                             })
 
+                        },
+                        load:function(e){
+
+                            setInterval(function () {
+                                if(is_drilldown == true) return;
+
+                                $.getJSON(host + init_request_url,function (msg) {
+                                    subdata = filter_msg_data(msg.data)
+                                    ip_chart.update({
+                                        series: [{
+                                            data: subdata
+                                        }],
+                                    })
+                                })
+
+                            }, time_update_secends);
                         }
                     }
                 },
                 title: {
-                    text: '今日IP请求量最高的50'
+                    text: '今日请求量最高的前50IP'
                 },
                 subtitle: {
                     text: 'Tips : 点击IP可查看访问页面的详情'
@@ -270,8 +291,9 @@
                     }
                 },
                 tooltip: {
-                    headerFormat: '<span style="font-size:11px">{series.name}</span><br>',
-                    pointFormat: '{point.name} 占总请求量的 : <b>{point.y:.2f}%</b> <br/>'
+                    formatter: function () {
+                            return '<b>请求量 : ' + this.y +'</b> <br/> <b>IP : ' + this.key + '</b>';
+                        }
                 },
                 series: [{
                     name: '请求占比',
@@ -289,7 +311,7 @@
     get_request_num_by_ip()
 
 
-        // 请求量前50IP占比
+    // 非200的状态的请求量
     function get_request_num_by_status() {
         var init_request_url = '/get_request_num_by_status?type=init'
         var code_detail_request_url = '/get_request_num_by_status_code?code='
@@ -306,20 +328,26 @@
             })
             return _data
         }
+        var is_drilldown = false
 
         $.getJSON(host + init_request_url ,function (msg) {
 
             var data = filter_msg_data(msg.data)
+            $('#get_request_num_by_status').highcharts(
 
-            Highcharts.chart('get_request_num_by_status', {
+            )
+            var statsu_chart = Highcharts.chart('get_request_num_by_status', {
                 chart: {
                     type: 'column',
                     events:{
+                        drillup:function(){
+                            is_drilldown = false
+                        },
                         drilldown:function(e){
-                            var chart = this
+                            is_drilldown = true
                             _url = host + code_detail_request_url + e.point.name
 
-                            chart.showLoading('数据加载中...')
+                            statsu_chart.showLoading('数据加载中...')
                             $.getJSON(_url ,function (msg){
                                  drilldown_data = {'name': e.point.name ,data :[]}
                                  $.each(msg.data,function (k,v) {
@@ -329,10 +357,31 @@
                                         drilldown_data.data.push(item)
                                     })
 
-                                chart.hideLoading()
-                                chart.addSeriesAsDrilldown(e.point, drilldown_data);
+                                statsu_chart.hideLoading()
+                                statsu_chart.addSeriesAsDrilldown(e.point, drilldown_data);
                             })
 
+                        },
+                        load:function(){
+
+
+                            setInterval(function () {
+                                if(is_drilldown == true) return;
+
+                                $.getJSON(host + init_request_url,function (msg) {
+                                    subdata = filter_msg_data(msg.data)
+
+                                    statsu_chart.update({
+                                        series: [{
+                                            name: '状态码',
+                                            colorByPoint: true,
+                                            data: subdata
+                                        }],
+                                    })
+
+                                })
+
+                            }, time_update_secends);
                         }
                     }
                 },
@@ -381,6 +430,8 @@
     get_request_num_by_status()
 
 
+
+
     // 被请求的url前50IP占比
     function get_request_num_by_url() {
         var init_request_url = '/get_request_num_by_url?type=init'
@@ -401,7 +452,8 @@
 
             var data = filter_msg_data(msg.data)
 
-            var options = {
+
+            var url_chart = Highcharts.chart('get_request_num_by_url',{
                     chart: {
                         plotBackgroundColor: null,
                         plotBorderWidth: null,
@@ -410,14 +462,18 @@
                         events: {
                             load:function(){
 
-                                var series = this.series[0];
                                 setInterval(function () {
                                     $.getJSON(host + init_request_url,function (msg) {
                                         subdata = filter_msg_data(msg.data)
-                                        series.setData(subdata)
-                                    })
+                                        url_chart.update({
+                                            series: [{
 
-                                }, 5000);
+                                                data: data
+                                            }]
+                                        })
+                                    })
+                                }, time_update_secends);
+
                             }
                         }
                     },
@@ -425,7 +481,7 @@
                         enabled: false//不显示LOGO
                     },
                     title: {
-                        text: '今日页面请求量前50IP占比'
+                        text: '今日访问最多的页面前50占比'
                     },
                     tooltip: {
                         pointFormat: '{series.name} : <b>{point.percentage:.1f}%</b>'
@@ -448,11 +504,14 @@
                         colorByPoint: true,
                         data: data
                     }]
-                }
-            Highcharts.chart('get_request_num_by_url',options);
+                });
+
         })
+
+
     }
     get_request_num_by_url()
+
 
     // 请求来源地域
     function get_request_num_by_citys() {
@@ -461,9 +520,9 @@
             var init_request_url = '/get_request_num_by_province'
             $.getJSON(host + init_request_url,function (msg) {
 
-                var map =  Highcharts.mapChart('get_request_num_by_citys', {
+                var map_chart = Highcharts.mapChart('get_request_num_by_citys', {
                     title: {
-                        text: '中国地图'
+                        text: '全国访问情况'
                     },
                     mapNavigation: {
                         enabled: true,
@@ -488,6 +547,25 @@
                         name: '全国访问请求量'
                     }]
                 })
+
+
+                setInterval(function () {
+                    $.getJSON(host + init_request_url,function (msg) {
+
+                        map_chart.update({
+                            series: [{
+                                data: msg.data,
+                                mapData: mapdata,
+                                joinBy: 'fullname',
+                                name: '全国访问请求量'
+                            }]
+                        })
+
+                    })
+
+                }, time_update_secends);
+
+
             })
 
 
@@ -497,6 +575,7 @@
         });
     }
     get_request_num_by_citys()
+
 
 
 

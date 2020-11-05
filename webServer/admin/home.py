@@ -110,11 +110,11 @@ def get_request_num_by_ip():
         {'$group': {'_id': '$remote_addr' ,'total_num':{'$sum':1}} },
         {'$project':{
             'total_num': 1 ,
-            'percent':{ '$toDouble': {'$substr':[  {'$multiply':[ {'$divide':['$total_num' , total]} ,100] }  ,0,4  ] }   }
+           # 'percent':{ '$toDouble': {'$substr':[  {'$multiply':[ {'$divide':['$total_num' , total]} ,100] }  ,0,4  ] }   }
             }
         },
         {'$sort': {'total_num': -1}},
-        {'$limit':20}
+        {'$limit':50}
     ])
 
 
@@ -216,7 +216,6 @@ def get_request_num_by_status_code():
     data.reverse()
 
     return ApiCorsResponse.response(data)
-
 
 
 
