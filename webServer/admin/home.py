@@ -1,3 +1,4 @@
+# coding=UTF-8
 from flask.blueprints import Blueprint
 from flask_pymongo import PyMongo
 from flask import render_template,request,flash,session,current_app

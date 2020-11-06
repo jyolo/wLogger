@@ -1,10 +1,8 @@
 # coding=UTF-8
 from multiprocessing import Queue,Process
-from redis import Redis,exceptions as redis_exceptions
 from configparser import ConfigParser
 from threading import Thread,RLock
 from collections import deque
-from pymongo import MongoClient,errors as pyerrors
 from src.ip2Region import Ip2Region
 import time,shutil,json,traceback,os,platform,importlib,sys,threading
 
@@ -17,66 +15,6 @@ try:
 except ImportError:
     # Python 2.x
     from urllib import quote_plus
-
-
-
-class Base(object):
-    conf = None
-
-    def __init__(self):
-        self._root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-        self.conf = self.__getConfig()
-
-    def __getConfig(self):
-        config_path = self._root + '/config.ini'
-        if ( not os.path.exists(config_path) ):
-            raise FileNotFoundError('config.ini not found in the project root path')
-
-        conf = ConfigParser()
-        conf.read(config_path, encoding="utf-8")
-
-        return conf
-
-    def _getRedisQueue(self):
-
-        try:
-
-            return Redis(
-                host=self.conf['redis']['host'],
-                port=int(self.conf['redis']['port']),
-                password=str(self.conf['redis']['password']),
-                db=self.conf['redis']['db'],
-            )
-
-        except redis_exceptions.RedisError as e:
-            self.event['stop'] = e.args[0]
-
-
-    def _getMongodbQueue(self):
-
-        if self.conf['mongodb']['username'] and self.conf['mongodb']['password']:
-            mongo_url = 'mongodb://%s:%s@%s:%s/?authSource=%s' % \
-                        (
-                            quote_plus(self.conf['mongodb']['username']),
-                            quote_plus(self.conf['mongodb']['password']),
-                            self.conf['mongodb']['host'],
-                            int(self.conf['mongodb']['port']),
-                            self.conf['mongodb']['db']
-                        )
-
-        else:
-            mongo_url = 'mongodb://%s:%s/?authSource=%s' % \
-                        (
-                            self.conf['mongodb']['host'],
-                            int(self.conf['mongodb']['port']),
-                            self.conf['mongodb']['db']
-                        )
-
-        mongodb = MongoClient(mongo_url)
-        mongodb_client = mongodb[self.conf['mongodb']['db']]
-
-        return mongodb_client
-
 
 # 日志解析
 class loggerParse(object):
@@ -106,9 +44,45 @@ class loggerParse(object):
         try:
 
             return importlib.import_module(handler_module).Handler
-        except ModuleNotFoundError:
+        except ImportError:
             sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))) + '/ParserAdapter')
             return importlib.import_module(handler_module).Handler
+
+
+class Base(object):
+    conf = None
+
+    def __init__(self):
+        self._root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        self.conf = self.__getConfig()
+
+    def __getConfig(self):
+        config_path = self._root + '/config.ini'
+        if ( not os.path.exists(config_path) ):
+            raise FileNotFoundError('config.ini not found in the project root path')
+
+        conf = ConfigParser()
+        conf.read(config_path, encoding="utf-8")
+
+        return conf
+
+    def _findAdapterHandler(self,adapter_type,queue_type):
+
+        if adapter_type not in ['queue','storage']:
+            raise ValueError('%s Adapter 类型不存在' % adapter_type)
+
+        handler_module = '%sAdapter.%s' % (adapter_type.lower().capitalize(),queue_type.lower().capitalize())
+
+        try:
+            if adapter_type == 'queue':
+                return importlib.import_module(handler_module).QueueAp
+            if adapter_type == 'storage':
+                return importlib.import_module(handler_module).StorageAp
+
+        except ImportError:
+            sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))) + '/ParserAdapter')
+            return importlib.import_module(handler_module).Handler
+
 
 
 
@@ -152,8 +126,6 @@ class Reader(Base):
             self.max_retry_reconnect_time = 20
 
 
-
-
         self.app_name = log_file_conf['app_name']
         self.server_type = log_file_conf['server_type']
         self.read_type = log_file_conf['read_type']
@@ -182,28 +154,30 @@ class Reader(Base):
                     exit('权限不足 : 修改目录: %s 所属用户和用户组 为 www 失败 ' % (log_prev_path))
 
 
-
         elif platform.system() == 'Windows':
             self.newline_char = '\r\n'
 
+        # 内部队列
         self.dqueue = deque()
 
         self.queue_key = self.conf['inputer']['queue_name']
 
         self.server_conf = loggerParse(log_file_conf['server_type'],self.conf[log_file_conf['server_type']]['server_conf']).logger_format
 
-        
         self.fd = self.__getFileFd()
         # 文件切割中标志
         self.cutting_file = False
         self.lock = RLock()
+
+        # 外部队列handle
+        self.queue_handle = self._findAdapterHandler('queue',self.conf['inputer']['queue']).initQueue(self)
 
 
     def __getFileFd(self):
         try:
             return open(self.log_path, mode='r+' ,newline=self.newline_char)
 
-        except FileNotFoundError as e:
+        except OSError as e:
             self.event['stop'] = self.log_path + ' 文件不存在'
             return False
 
@@ -324,160 +298,11 @@ class Reader(Base):
 
             self.lock.release()
 
-    def pushQueueToRedis(self):
-        try:
 
-            redis = self._getRedisQueue()
-            pipe = redis.pipeline()
-        except redis_exceptions.RedisError  as e:
-            self.event['stop'] = 'redis 链接失败'
+    def pushDataToQueue(self):
 
-        retry_reconnect_time = 0
+        self.queue_handle.pushDatatoQueue()
 
-        while True:
-            time.sleep(1)
-            if self.event['stop']:
-                print( '%s ; pushQueue threading stop pid: %s ---- tid: %s ' % (self.event['stop'] ,os.getpid() ,threading.get_ident() ))
-                return
-
-            try:
-
-                # 重试连接queue的时候; 不再从 dqueue 中拿数据
-                if retry_reconnect_time == 0:
-
-                    start_time = time.perf_counter()
-                    # print("\n pushQueue -------pid: %s -tid: %s-  started \n" % ( os.getpid(), threading.get_ident()))
-
-                    for i in range(self.max_batch_push_queue_size):
-                        try:
-                            line = self.dqueue.pop()
-                        except IndexError as e:
-                            # print("\n pushQueue -------pid: %s -tid: %s- wait for data ;queue len: %s---- start \n" % ( os.getpid(), threading.get_ident(), len(list(self.dqueue))))
-                            break
-
-                        data = {}
-                        data['node_id'] = self.node_id
-                        data['app_name'] = self.app_name
-                        data['log_format_name'] = self.log_format_name
-
-                        data['line'] = line.strip()
-
-                        try:
-                            data['log_format_str'] = self.server_conf[self.log_format_name].strip()
-                        except KeyError as e:
-                            self.event['stop'] = self.log_format_name + '日志格式不存在'
-                            break
-
-                        data = json.dumps(data)
-                        pipe.lpush(self.queue_key, data)
-
-
-                res = pipe.execute()
-                if len(res):
-                    retry_reconnect_time = 0
-                    end_time = time.perf_counter()
-                    print("\n pushQueue -------pid: %s -tid: %s- push data to queue :%s ; queue_len : %s----耗时:%s \n"
-                          % (os.getpid(), threading.get_ident(), len(res),redis.llen(self.queue_key), round(end_time - start_time, 2)))
-
-                    self.event['stop'] = 1111
-
-            except redis_exceptions.RedisError as e:
-
-
-                retry_reconnect_time = retry_reconnect_time + 1
-
-                if retry_reconnect_time >= self.max_retry_reconnect_time :
-                    self.event['stop'] = 'pushQueue 重试连接 queue 超出最大次数'
-                else:
-                    time.sleep(2)
-                    print('pushQueue -------pid: %s -tid: %s-  push data fail; reconnect Queue %s times' % (os.getpid() , threading.get_ident() , retry_reconnect_time))
-
-                continue
-
-    def pushQueueToMongodb(self):
-        try:
-            mongodb = self._getMongodbQueue()
-        except pyerrors.PyMongoError  as e:
-            self.event['stop'] = 'mongodb 链接失败'
-
-        retry_reconnect_time = 0
-
-        while True:
-            time.sleep(1)
-            if self.event['stop']:
-                print('%s ; pushQueue threading stop pid: %s ---- tid: %s ' % (
-                self.event['stop'], os.getpid(), threading.get_ident()))
-                return
-
-            try:
-
-
-                # 重试连接queue的时候; 不再从 dqueue 中拿数据
-                if retry_reconnect_time == 0:
-                    _queuedata = []
-
-                    start_time = time.perf_counter()
-                    # print("\n pushQueue -------pid: %s -tid: %s-  started \n" % ( os.getpid(), threading.get_ident()))
-
-                    for i in range(self.max_batch_push_queue_size):
-                        try:
-                            line = self.dqueue.pop()
-                        except IndexError as e:
-                            # print("\n pushQueue -------pid: %s -tid: %s- wait for data ;queue len: %s---- start \n" % ( os.getpid(), threading.get_ident(), len(list(self.dqueue))))
-                            break
-
-                        data = {}
-                        data['node_id'] = self.node_id
-                        data['app_name'] = self.app_name
-                        data['log_format_name'] = self.log_format_name
-
-                        data['line'] = line.strip()
-
-                        try:
-                            data['log_format_str'] = self.server_conf[self.log_format_name].strip()
-                        except KeyError as e:
-                            self.event['stop'] = self.log_format_name + '日志格式不存在'
-                            break
-
-                        data['out_queue'] = 0
-                        data['add_time'] = time.time()
-
-                        _queuedata.append(data)
-
-                        # data['out_queue'] = 0
-                        # _queuedata.append(data)
-
-
-                if len(_queuedata):
-
-                    # mongodb[self.queue_key].create_index([("out_queue",1)] ,background = True)
-
-                    # res = mongodb[self.queue_key].insert_many(_queuedata ,ordered=False,bypass_document_validation=True)
-                    res = mongodb[self.queue_key].insert_many(_queuedata ,ordered=False)
-
-                    # total = mongodb[self.queue_key].count_documents({'out_queue':0})
-
-                    end_time = time.perf_counter()
-                    print(
-                        "\n pushQueue -------pid: %s -tid: %s- push data to queue :%s ; queue_len : %s----耗时:%s \n"
-                        % (os.getpid(), threading.get_ident(),  len(res.inserted_ids), 0,
-                           round(end_time - start_time, 2)))
-
-
-
-
-            except pyerrors.PyMongoError as e:
-
-                retry_reconnect_time = retry_reconnect_time + 1
-
-                if retry_reconnect_time >= self.max_retry_reconnect_time:
-                    self.event['stop'] = 'pushQueue 重试连接 queue 超出最大次数'
-                else:
-                    time.sleep(2)
-                    print('pushQueue -------pid: %s -tid: %s-  push data fail: %s ; reconnect Queue %s times' % (
-                    os.getpid(),e.args, threading.get_ident(), retry_reconnect_time))
-
-                continue
 
     def readLog(self):
 
@@ -552,12 +377,10 @@ class OutputCustomer(Base):
 
         super(OutputCustomer,self).__init__()
 
+
         self.inputer_queue_type = self.conf['outputer']['queue']
-        self.inputer_queue = self._getQueue()
         self.inputer_queue_key = self.conf['outputer']['queue_name']
 
-        print('123')
-        exit()
 
         self.save_engine_conf = dict( self.conf[ self.conf['outputer']['save_engine'] ])
         self.save_engine_name = self.conf['outputer']['save_engine'].lower().capitalize()
@@ -579,45 +402,91 @@ class OutputCustomer(Base):
         else:
             self.max_batch_insert_db_size = 500
 
-        if not hasattr(self , self.call_engine ):
-            raise ValueError('Outputer 未定义 "%s" 该存储方法' %  self.save_engine_name)
+
+        # 外部队列handle
+        self.queue_handle = self._findAdapterHandler('queue',self.conf['outputer']['queue']).initQueue(self)
+        # 外部 存储引擎
+        self.storage_handle = self._findAdapterHandler('storage',self.conf['outputer']['save_engine']).initStorage(self)
 
 
 
-    def getQueueData(self):
-
-
-        start_time = time.perf_counter()
-        # print("\n outputerer -------pid: %s -- take from queue len: %s---- start \n" % (
-        #     os.getpid(), self.inputer_queue.llen(self.inputer_queue_key)))
-
-        pipe = self.inputer_queue.pipeline()
-
-        queue_len = self.inputer_queue.llen(self.inputer_queue_key)
-        if queue_len >= self.max_batch_insert_db_size:
-            num = self.max_batch_insert_db_size
-        else:
-            num = queue_len
-
-
-        for i in range(num):
-            res = pipe.lpop(self.inputer_queue_key)
-
-
-
-        queue_list = pipe.execute()
-
-        # 过滤掉None
-        if queue_list.count(None) :
-            queue_list = list(filter(None,queue_list))
-
-
-        end_time = time.perf_counter()
-        if len(queue_list):
-            print("\n outputerer -------pid: %s -- take len: %s ; queue len : %s----end 耗时: %s \n" % ( os.getpid(), len(queue_list),self.inputer_queue.llen(self.inputer_queue_key), round(end_time - start_time, 2)))
-
-
-        return queue_list
+    # def getQueueDataFromMongodb(self):
+    #     _data = []
+    #     # print('pid: %s ;queuesize : ' % os.getpid(),self.multi_queue.qsize() )
+    #     start_time = time.perf_counter()
+    #
+    #     for i in range( int(self.conf['outputer']['max_batch_insert_db_size']) ):
+    #
+    #         res = self.inputer_queue[self.inputer_queue_key].find_and_modify(
+    #             query={'out_queue':0},
+    #             update = {'$set': {'out_queue': 1}},
+    #             remove = False,
+    #             sort =  {'add_time': -1},
+    #         )
+    #         if not res:
+    #             break
+    #
+    #         _data.append(res)
+    #
+    #
+    #     # print('pid: %s ;take data from queue %s ;total queue size : %s ' % (os.getpid() , len(_data) ,self.multi_queue.qsize() ))
+    #     # print(self.multi_queue.qsize())
+    #     end_time = time.perf_counter()
+    #     print('pid:%s ; 耗时 %s' % (os.getpid() ,end_time - start_time))
+    #     return  _data
+    #
+    #     # self.inputer_queue = self._getMongodbQueue()
+    #     #
+    #     # res = self.inputer_queue[self.inputer_queue_key]\
+    #     #     .find({'out_queue':0})\
+    #     #     .sort([('add_time',-1)])\
+    #     #     .limit(self.max_batch_insert_db_size)
+    #     #
+    #     #
+    #     #
+    #     # page_collection = self.inputer_queue_key+'_take_page'
+    #     #
+    #     # p = self.inputer_queue[page_collection].find_and_modify(
+    #     #     query= { },
+    #     #     update={'$set':{'pid':os.getpid() ,'page': 10 }}
+    #     # )
+    #     # print(p)
+    #     # exit()
+    #     #
+    #     # return list(res)
+    #
+    #
+    # def getQueueDataFromRedis(self):
+    #
+    #     start_time = time.perf_counter()
+    #     # print("\n outputerer -------pid: %s -- take from queue len: %s---- start \n" % (
+    #     #     os.getpid(), self.inputer_queue.llen(self.inputer_queue_key)))
+    #     self.inputer_queue = self._getRedisQueue()
+    #
+    #     pipe = self.inputer_queue.pipeline()
+    #
+    #     queue_len = self.inputer_queue.llen(self.inputer_queue_key)
+    #     if queue_len >= self.max_batch_insert_db_size:
+    #         num = self.max_batch_insert_db_size
+    #     else:
+    #         num = queue_len
+    #
+    #     for i in range(num):
+    #         pipe.lpop(self.inputer_queue_key)
+    #
+    #     queue_list = pipe.execute()
+    #
+    #     # 过滤掉None
+    #     if queue_list.count(None) :
+    #         queue_list = list(filter(None,queue_list))
+    #
+    #
+    #     end_time = time.perf_counter()
+    #     if len(queue_list):
+    #         print("\n outputerer -------pid: %s -- take len: %s ; queue len : %s----end 耗时: %s \n" % ( os.getpid(), len(queue_list),self.inputer_queue.llen(self.inputer_queue_key), round(end_time - start_time, 2)))
+    #
+    #
+    #     return queue_list
 
 
     def __parse_time_str(self,data):
@@ -712,11 +581,20 @@ class OutputCustomer(Base):
 
         return data
 
+    def _get_queue_count_num(self):
+
+        if self.inputer_queue_type == 'mongodb':
+            return self.inputer_queue[self.inputer_queue_key].count()
+        elif self.inputer_queue_type == 'redis':
+            return self.inputer_queue.llen(self.inputer_queue_type)
 
 
     def parse_line_data(self,line):
 
-        line_data = json.loads(line)
+        if isinstance(line ,str):
+            line_data = json.loads(line)
+        else:
+            line_data = line
 
         try:
 
@@ -749,106 +627,25 @@ class OutputCustomer(Base):
         return line_data
 
 
-    def saveToMongodb(self):
+    def getQueueData(self):
+        return self.queue_handle.getDataFromQueue()
+
+    def saveToStorage(self ):
+
+        self.storage_handle.pushDatatoStorage()
 
 
-        if self.save_engine_conf['username'] and self.save_engine_conf['password']:
-            mongo_url = 'mongodb://%s:%s@%s:%s/?authSource=%s' % \
-                (
-                    quote_plus(self.save_engine_conf['username']),
-                    quote_plus(self.save_engine_conf['password']),
-                    self.save_engine_conf['host'],
-                    int(self.save_engine_conf['port']),
-                    self.save_engine_conf['db']
-                )
-        else:
-            mongo_url = 'mongodb://%s:%s/?authSource=%s' % \
-                        (
-                            self.save_engine_conf['host'],
-                            int(self.save_engine_conf['port']),
-                            self.save_engine_conf['db']
-                        )
-
-
-        mongodb = MongoClient( mongo_url)
-        mongodb_client = mongodb[ self.save_engine_conf['db'] ][ self.save_engine_conf['collection'] ]
-
-        if 'max_retry_reconnect_time' in  self.conf['outputer']:
-            max_retry_reconnect_time = int(self.conf['outputer']['max_retry_reconnect_time'])
-        else:
-            max_retry_reconnect_time = 3
-
-        retry_reconnect_time = 0
-
-        while True:
-            time.sleep(0.1)
-            # 重试链接的时候 不再 从队列中取数据
-            if retry_reconnect_time == 0:
-                num = self.inputer_queue.llen(self.inputer_queue_key)
-
-                if num == 0:
-                    # print('pid: %s wait for data' % os.getpid())
-                    continue
-
-                queue_list = self.getQueueData()
-
-
-                if len(queue_list) == 0:
-                    print('pid: %s wait for data' % os.getpid())
-                    continue
-
-                start_time = time.perf_counter()
-                print("\n outputerer -------pid: %s -- reg data len: %s---- start \n" % (
-                    os.getpid(), len(queue_list)))
-
-                backup_for_push_back_queue = []
-                insertList = []
-                for i in queue_list:
-                    if not i:
-                        continue
-
-                    line = i.decode(encoding='utf-8')
-                    backup_for_push_back_queue.append(line)
-
-                    line_data = self.parse_line_data(line)
-                    insertList.append(line_data)
-
-                end_time = time.perf_counter()
-                print("\n outputerer -------pid: %s -- reg datas len: %s---- end 耗时: %s \n" % (
-                    os.getpid(), len(insertList), round(end_time - start_time, 2)))
-
-
-            if len(insertList):
-                try:
-                    start_time = time.perf_counter()
-                    print("\n outputerer -------pid: %s -- insert into mongodb: %s---- start \n" % (os.getpid(), len(insertList)))
-
-                    res = mongodb_client.insert_many(insertList, ordered=False)
-
-
-                    retry_reconnect_time = 0
-
-                    end_time = time.perf_counter()
-                    print("\n outputerer -------pid: %s -- insert into mongodb: %s---- end 耗时: %s \n" % (os.getpid(), len(res.inserted_ids), round(end_time - start_time, 2)))
-
-                except pyerrors.PyMongoError as e:
-                    time.sleep(1)
-                    retry_reconnect_time = retry_reconnect_time + 1
-                    if retry_reconnect_time >= max_retry_reconnect_time:
-                        self.push_back_to_queue(backup_for_push_back_queue)
-                        exit('重试重新链接 mongodb 超出最大次数 %s' % max_retry_reconnect_time)
-                    else:
-                        print("\n outputerer -------pid: %s -- retry_reconnect_mongodb at: %s time---- \n" % (os.getpid() ,retry_reconnect_time) )
-                        continue
 
     def saveToMysql(self):
         pass
 
     #退回队列
     def push_back_to_queue(self,data_list):
-        for item in data_list:
-            self.inputer_queue.lpush(self.inputer_queue_key , item)
+        if self.inputer_queue_type == 'redis':
+            for item in data_list:
+                self.inputer_queue.lpush(self.inputer_queue_key , item)
 
+        pass
 
 
 

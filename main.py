@@ -1,3 +1,4 @@
+# coding=UTF-8
 from src.core import OutputCustomer,Reader,Base
 from multiprocessing import Queue,Process
 from threading import Thread
@@ -9,17 +10,9 @@ import multiprocessing,time,sys,os
 def runReader(log_files_conf):
 
     r = Reader(log_file_conf=log_files_conf)
-    queue_type = r.conf['inputer']['queue']
-    method = 'pushQueueTo%s' % queue_type.capitalize()
-    if not hasattr(r,method):
-        raise AttributeError('Reader "%s" 方法不存在' % method )
 
-    pushQueue = [method] * multiprocessing.cpu_count()
-    # pushQueue = [method]
-
-
+    pushQueue = ['pushDataToQueue'] * multiprocessing.cpu_count()
     jobs = ['readLog','cutFile'] + pushQueue
-    # jobs = ['readLog'] + pushQueue
 
     t = []
     for i in jobs:
@@ -32,9 +25,8 @@ def runReader(log_files_conf):
     for i in t:
         i.join()
 
-def customer():
-    obj = OutputCustomer()
-    getattr(obj, obj.call_engine)()
+def customer(multi_queue = None):
+    OutputCustomer().saveToStorage()
 
 
 def getLogFilsDict(conf):
@@ -65,7 +57,6 @@ if __name__ == "__main__":
                 p = Process(target=runReader, args=( i, ))
                 plist.append(p)
 
-
             for i in plist:
                 i.start()
 
@@ -74,16 +65,63 @@ if __name__ == "__main__":
 
         elif args[1] == 'outputer':
 
-            p_list = []
-            for i in range( int(base.conf['outputer']['worker_process_num']) ):
-                p = Process(target = customer)
-                p_list.append(p)
+            if base.conf['outputer']['queue'] == 'mongodb':
+                p_list = []
+                for i in range(int(base.conf['outputer']['worker_process_num'])):
+                    p = Process(target=customer)
+                    p_list.append(p)
 
-            for i in p_list:
-                i.start()
+                for i in p_list:
+                    i.start()
 
-            for i in p_list:
-                i.join()
+                for i in p_list:
+                    i.join()
+                # obj = OutputCustomer()
+                # objqueue = getattr(obj,obj.getQueueMethod)()
+                # takenum = int(base.conf['outputer']['worker_process_num']) * int(base.conf['outputer']['max_batch_insert_db_size'])
+                # current_page = 0
+                # multi_queue = Queue()
+                #
+                # while True:
+                #     offset = current_page * takenum
+                #
+                #     res = objqueue[obj.inputer_queue_key].find().sort([('add_time',-1)]).skip(offset).limit(takenum)
+                #
+                #     for i in res:
+                #         multi_queue.put(i)
+                #
+                #
+                #     # print(multi_queue.qsize())
+                #     p_list = []
+                #     for i in range(int(base.conf['outputer']['worker_process_num'])):
+                #         p = Process(target=customer ,args = (multi_queue,) )
+                #         p_list.append(p)
+                #
+                #     for i in p_list:
+                #         i.start()
+                #
+                #     for i in p_list:
+                #         i.join()
+                #
+                #     print('%s - %s - %s ' %(offset,current_page,takenum) )
+                #     current_page = (current_page + 1)
+                #
+                #     exit()
+
+
+
+
+            elif base.conf['outputer']['queue'] == 'redis':
+                p_list = []
+                for i in range( int(base.conf['outputer']['worker_process_num']) ):
+                    p = Process(target = customer)
+                    p_list.append(p)
+
+                for i in p_list:
+                    i.start()
+
+                for i in p_list:
+                    i.join()
 
         elif args[1] == 'web':
             web_conf = dict(base.conf['web'])

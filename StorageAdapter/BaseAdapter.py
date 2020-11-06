@@ -5,13 +5,12 @@ from abc import abstractmethod,ABCMeta
 class Adapter():
     __metaclass__ = ABCMeta
 
+
     def __init__(self): pass
 
     @abstractmethod
-    def getLogFormat(self): pass
+    def initStorage(self): pass
 
     @abstractmethod
-    def parse(self): pass
+    def pushDatatoStorage(self ): pass
 
-    @abstractmethod
-    def getLogFormatByConfStr(self): pass

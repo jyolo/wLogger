@@ -1,3 +1,4 @@
+# coding=UTF-8
 from flask import Response,current_app
 import json
 

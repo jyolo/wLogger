@@ -1,3 +1,4 @@
+# coding=UTF-8
 from ParserAdapter.BaseAdapter import Adapter
 from parse import parse,search,findall,compile
 import os,json,re,time
