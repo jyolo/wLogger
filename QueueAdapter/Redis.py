@@ -32,7 +32,7 @@ class QueueAp(Adapter):
         return self
 
 
-    def pushDatatoQueue(self ):
+    def pushDataToQueue(self ):
 
         pipe = self.db.pipeline()
 

@@ -301,7 +301,7 @@ class Reader(Base):
 
     def pushDataToQueue(self):
 
-        self.queue_handle.pushDatatoQueue()
+        self.queue_handle.pushDataToQueue()
 
 
     def readLog(self):
@@ -373,9 +373,11 @@ class Reader(Base):
 # 消费者 解析日志 && 存储日志
 class OutputCustomer(Base):
 
-    def __init__(self ):
+    def __init__(self ,multi_queue = None ):
 
         super(OutputCustomer,self).__init__()
+
+        self.multi_queue = multi_queue
 
 
         self.inputer_queue_type = self.conf['outputer']['queue']
@@ -607,8 +609,8 @@ class OutputCustomer(Base):
             parse_data = self.logParse.parse(line_data['log_format_name'], line_data['line'])
 
         except Exception as e:
-            traceback.print_exc()
-            exit()
+            print(line_data)
+            raise ValueError('pid : %s 解析数据错误: %s 数据: %s' % (os.getpid(),e.args,line ))
 
         # 解析时间
         parse_data = self.__parse_time_str(parse_data)
@@ -631,13 +633,8 @@ class OutputCustomer(Base):
         return self.queue_handle.getDataFromQueue()
 
     def saveToStorage(self ):
+        self.storage_handle.pushDataToStorage()
 
-        self.storage_handle.pushDatatoStorage()
-
-
-
-    def saveToMysql(self):
-        pass
 
     #退回队列
     def push_back_to_queue(self,data_list):

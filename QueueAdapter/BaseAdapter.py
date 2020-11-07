@@ -12,7 +12,7 @@ class Adapter():
     def initQueue(self): pass
 
     @abstractmethod
-    def pushDatatoQueue(self ): pass
+    def pushDataToQueue(self ): pass
 
     @abstractmethod
     def getDataFromQueue(self): pass

@@ -12,5 +12,13 @@ class Adapter():
     def initStorage(self): pass
 
     @abstractmethod
-    def pushDatatoStorage(self ): pass
+    def pushDataToStorage(self ): pass
+
+    @abstractmethod
+    def _handle_queue_data_before_into_storage(self):pass
+
+    @abstractmethod
+    def _handle_queue_data_after_into_storage(self):pass
+
+
 

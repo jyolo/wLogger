@@ -1,6 +1,6 @@
 from QueueAdapter.BaseAdapter import Adapter
 from pymongo import MongoClient,errors as pyerrors
-import time,threading,os
+import time,threading,os,json
 
 try:
     # Python 3.x
@@ -41,10 +41,12 @@ class QueueAp(Adapter):
         mongodb = MongoClient(mongo_url)
         self.db = mongodb[self.conf['mongodb']['db']]
 
+        # self.db['asdasd'].list_indexes()
+
         return self
 
 
-    def pushDatatoQueue(self ):
+    def pushDataToQueue(self ):
 
         retry_reconnect_time = 0
 
@@ -71,6 +73,7 @@ class QueueAp(Adapter):
                             # print("\n pushQueue -------pid: %s -tid: %s- wait for data ;queue len: %s---- start \n" % ( os.getpid(), threading.get_ident(), len(list(self.dqueue))))
                             break
 
+                        q_data = {}
                         data = {}
                         data['node_id'] = self.runner.node_id
                         data['app_name'] = self.runner.app_name
@@ -84,15 +87,23 @@ class QueueAp(Adapter):
                             self.runner.event['stop'] = self.runner.log_format_name + '日志格式不存在'
                             break
 
-                        data['out_queue'] = 0
-                        data['add_time'] = time.time()
+                        data = json.dumps(data)
 
-                        _queuedata.append(data)
+                        q_data['out_queue'] = 0
+                        q_data['add_time'] = time.time()
+                        q_data['data'] = data
+
+                        _queuedata.append(q_data)
+
 
                         # data['out_queue'] = 0
                         # _queuedata.append(data)
 
                 if len(_queuedata):
+
+                    # 创建一个过期索引 过时间
+                    ttl_seconds = 120
+                    self.db[self.runner.queue_key].create_index([("ttl", 1)], expireAfterSeconds=ttl_seconds)
                     self.db[self.runner.queue_key].create_index([("out_queue",1)] ,background = True)
 
                     res = self.db[self.runner.queue_key].insert_many(_queuedata, ordered=False)
@@ -119,7 +130,66 @@ class QueueAp(Adapter):
 
 
     def getDataFromQueue(self):
-        pass
+
+        while True:
+            time.sleep(1)
+            if len(self.runner.share_list) == 0 :
+                print('subproccess pid : %s 等待数据处理中....' % (os.getpid() , ))
+                continue
+
+            print(len(self.runner.share_list))
+
+            start_time = time.perf_counter()
+            _data = []
+            _ids = []
+            for i in range( int(self.conf['outputer']['max_batch_insert_db_size']) ):
+
+                # res = self.runner.multi_queue.get()
+                try:
+                    res = self.runner.share_list.pop()
+                    _ids.append(res['_id'])
+                    del res['_id']
+                    _data.append(res['data'])
+                except Exception:
+                    break
+
+            end_time = time.perf_counter()
+            print('subproccess pid : %s take multit : %s  耗时: %s' % (os.getpid() , len(_data) , (end_time - start_time) ))
+
+            if len(_ids):
+                self.runner.queue_data_ids = _ids
+
+
+            return _data
+
+        # while True:
+        #     time.sleep(1)
+        #
+        #     if self.runner.multi_queue.empty():
+        #         # print('pid : %s 等待数据处理中....' % (os.getpid() , ))
+        #         continue
+        #
+        #     start_time = time.perf_counter()
+        #     _data = []
+        #     _ids = []
+        #     for i in range( int(self.conf['outputer']['max_batch_insert_db_size']) ):
+        #         res = self.runner.multi_queue.get()
+        #         _ids.append(res['_id'])
+        #         del res['_id']
+        #         _data.append(res['data'])
+        #
+        #
+        #     end_time = time.perf_counter()
+        #     print('subproccess pid : %s take multit : %s  耗时: %s' % (os.getpid() , len(_data) , (end_time - start_time) ))
+        #
+        #     if len(_ids):
+        #         self.runner.queue_data_ids = _ids
+        #
+        #
+        #     return _data
+
+
 
     def getDataCountNum(self):
-        pass
+        res = self.db[self.runner.inputer_queue_key].count()
+        return
