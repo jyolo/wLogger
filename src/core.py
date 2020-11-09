@@ -373,15 +373,15 @@ class Reader(Base):
 # 消费者 解析日志 && 存储日志
 class OutputCustomer(Base):
 
-    def __init__(self ,multi_queue = None ):
+    def __init__(self ,share_list = None ,share_worker_list = None ):
 
         super(OutputCustomer,self).__init__()
 
-        self.multi_queue = multi_queue
-
+        self.share_list = share_list
+        self.share_worker_list = share_worker_list
 
         self.inputer_queue_type = self.conf['outputer']['queue']
-        self.inputer_queue_key = self.conf['outputer']['queue_name']
+        self.queue_key = self.conf['outputer']['queue_name']
 
 
         self.save_engine_conf = dict( self.conf[ self.conf['outputer']['save_engine'] ])
@@ -409,87 +409,6 @@ class OutputCustomer(Base):
         self.queue_handle = self._findAdapterHandler('queue',self.conf['outputer']['queue']).initQueue(self)
         # 外部 存储引擎
         self.storage_handle = self._findAdapterHandler('storage',self.conf['outputer']['save_engine']).initStorage(self)
-
-
-
-    # def getQueueDataFromMongodb(self):
-    #     _data = []
-    #     # print('pid: %s ;queuesize : ' % os.getpid(),self.multi_queue.qsize() )
-    #     start_time = time.perf_counter()
-    #
-    #     for i in range( int(self.conf['outputer']['max_batch_insert_db_size']) ):
-    #
-    #         res = self.inputer_queue[self.inputer_queue_key].find_and_modify(
-    #             query={'out_queue':0},
-    #             update = {'$set': {'out_queue': 1}},
-    #             remove = False,
-    #             sort =  {'add_time': -1},
-    #         )
-    #         if not res:
-    #             break
-    #
-    #         _data.append(res)
-    #
-    #
-    #     # print('pid: %s ;take data from queue %s ;total queue size : %s ' % (os.getpid() , len(_data) ,self.multi_queue.qsize() ))
-    #     # print(self.multi_queue.qsize())
-    #     end_time = time.perf_counter()
-    #     print('pid:%s ; 耗时 %s' % (os.getpid() ,end_time - start_time))
-    #     return  _data
-    #
-    #     # self.inputer_queue = self._getMongodbQueue()
-    #     #
-    #     # res = self.inputer_queue[self.inputer_queue_key]\
-    #     #     .find({'out_queue':0})\
-    #     #     .sort([('add_time',-1)])\
-    #     #     .limit(self.max_batch_insert_db_size)
-    #     #
-    #     #
-    #     #
-    #     # page_collection = self.inputer_queue_key+'_take_page'
-    #     #
-    #     # p = self.inputer_queue[page_collection].find_and_modify(
-    #     #     query= { },
-    #     #     update={'$set':{'pid':os.getpid() ,'page': 10 }}
-    #     # )
-    #     # print(p)
-    #     # exit()
-    #     #
-    #     # return list(res)
-    #
-    #
-    # def getQueueDataFromRedis(self):
-    #
-    #     start_time = time.perf_counter()
-    #     # print("\n outputerer -------pid: %s -- take from queue len: %s---- start \n" % (
-    #     #     os.getpid(), self.inputer_queue.llen(self.inputer_queue_key)))
-    #     self.inputer_queue = self._getRedisQueue()
-    #
-    #     pipe = self.inputer_queue.pipeline()
-    #
-    #     queue_len = self.inputer_queue.llen(self.inputer_queue_key)
-    #     if queue_len >= self.max_batch_insert_db_size:
-    #         num = self.max_batch_insert_db_size
-    #     else:
-    #         num = queue_len
-    #
-    #     for i in range(num):
-    #         pipe.lpop(self.inputer_queue_key)
-    #
-    #     queue_list = pipe.execute()
-    #
-    #     # 过滤掉None
-    #     if queue_list.count(None) :
-    #         queue_list = list(filter(None,queue_list))
-    #
-    #
-    #     end_time = time.perf_counter()
-    #     if len(queue_list):
-    #         print("\n outputerer -------pid: %s -- take len: %s ; queue len : %s----end 耗时: %s \n" % ( os.getpid(), len(queue_list),self.inputer_queue.llen(self.inputer_queue_key), round(end_time - start_time, 2)))
-    #
-    #
-    #     return queue_list
-
 
     def __parse_time_str(self,data):
         if self.server_type == 'nginx':
@@ -586,7 +505,7 @@ class OutputCustomer(Base):
     def _get_queue_count_num(self):
 
         if self.inputer_queue_type == 'mongodb':
-            return self.inputer_queue[self.inputer_queue_key].count()
+            return self.inputer_queue[self.queue_key].count()
         elif self.inputer_queue_type == 'redis':
             return self.inputer_queue.llen(self.inputer_queue_type)
 
@@ -633,6 +552,8 @@ class OutputCustomer(Base):
         return self.queue_handle.getDataFromQueue()
 
     def saveToStorage(self ):
+
+
         self.storage_handle.pushDataToStorage()
 
 
@@ -640,7 +561,7 @@ class OutputCustomer(Base):
     def push_back_to_queue(self,data_list):
         if self.inputer_queue_type == 'redis':
             for item in data_list:
-                self.inputer_queue.lpush(self.inputer_queue_key , item)
+                self.inputer_queue.lpush(self.queue_key , item)
 
         pass
 

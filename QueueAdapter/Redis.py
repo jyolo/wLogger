@@ -101,19 +101,19 @@ class QueueAp(Adapter):
     def getDataFromQueue(self):
         start_time = time.perf_counter()
         # print("\n outputerer -------pid: %s -- take from queue len: %s---- start \n" % (
-        #     os.getpid(), self.inputer_queue.llen(self.inputer_queue_key)))
+        #     os.getpid(), self.inputer_queue.llen(self.queue_key)))
 
 
         pipe = self.db.pipeline()
 
-        queue_len = self.db.llen(self.runner.inputer_queue_key)
+        queue_len = self.db.llen(self.runner.queue_key)
         if queue_len >= self.runner.max_batch_insert_db_size:
             num = self.runner.max_batch_insert_db_size
         else:
             num = queue_len
 
         for i in range(num):
-            pipe.lpop(self.runner.inputer_queue_key)
+            pipe.lpop(self.runner.queue_key)
 
         queue_list = pipe.execute()
 
@@ -124,11 +124,11 @@ class QueueAp(Adapter):
 
         end_time = time.perf_counter()
         if len(queue_list):
-            print("\n outputerer -------pid: %s -- take len: %s ; queue len : %s----end 耗时: %s \n" % ( os.getpid(), len(queue_list),self.db.llen(self.runner.inputer_queue_key), round(end_time - start_time, 2)))
+            print("\n outputerer -------pid: %s -- take len: %s ; queue len : %s----end 耗时: %s \n" % ( os.getpid(), len(queue_list),self.db.llen(self.runner.queue_key), round(end_time - start_time, 2)))
 
         return queue_list
 
 
     def getDataCountNum(self):
-        return self.db.llen(self.runner.inputer_queue_key)
+        return self.db.llen(self.runner.queue_key)
 

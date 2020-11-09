@@ -41,6 +41,11 @@ class QueueAp(Adapter):
         mongodb = MongoClient(mongo_url)
         self.db = mongodb[self.conf['mongodb']['db']]
 
+        # 创建一个过期索引 过时间
+        ttl_seconds = 120
+        self.db[self.runner.queue_key].create_index([("ttl", 1)], expireAfterSeconds=ttl_seconds)
+        self.db[self.runner.queue_key].create_index([("out_queue", 1)], background=True)
+
         # self.db['asdasd'].list_indexes()
 
         return self
@@ -100,12 +105,6 @@ class QueueAp(Adapter):
                         # _queuedata.append(data)
 
                 if len(_queuedata):
-
-                    # 创建一个过期索引 过时间
-                    ttl_seconds = 120
-                    self.db[self.runner.queue_key].create_index([("ttl", 1)], expireAfterSeconds=ttl_seconds)
-                    self.db[self.runner.queue_key].create_index([("out_queue",1)] ,background = True)
-
                     res = self.db[self.runner.queue_key].insert_many(_queuedata, ordered=False)
 
                     end_time = time.perf_counter()
@@ -133,63 +132,36 @@ class QueueAp(Adapter):
 
         while True:
             time.sleep(1)
-            if len(self.runner.share_list) == 0 :
-                print('subproccess pid : %s 等待数据处理中....' % (os.getpid() , ))
-                continue
 
-            print(len(self.runner.share_list))
+            if len(self.runner.share_worker_list) == 0:
+                # print('subproccess pid : %s ;tid : %s 等待数据处理中....' % (os.getpid() , threading.get_ident()))
+                continue
 
             start_time = time.perf_counter()
             _data = []
             _ids = []
+
+
             for i in range( int(self.conf['outputer']['max_batch_insert_db_size']) ):
 
-                # res = self.runner.multi_queue.get()
                 try:
                     res = self.runner.share_list.pop()
+
                     _ids.append(res['_id'])
-                    del res['_id']
+                    # self.runner.dqueue.append(res['data'])
                     _data.append(res['data'])
+
                 except Exception:
                     break
 
+
+            # for 'handle_queue_data_after_into_storage' method
+            self.runner.queue_data_ids = _ids
             end_time = time.perf_counter()
-            print('subproccess pid : %s take multit : %s  耗时: %s' % (os.getpid() , len(_data) , (end_time - start_time) ))
-
-            if len(_ids):
-                self.runner.queue_data_ids = _ids
-
-
+            print('subproccess pid : %s take dqueue data : %s  耗时: %s ; share_worker_list : %s' % (os.getpid() , len(_data) , (end_time - start_time) ,len(self.runner.share_worker_list) ))
+            del _ids
             return _data
-
-        # while True:
-        #     time.sleep(1)
-        #
-        #     if self.runner.multi_queue.empty():
-        #         # print('pid : %s 等待数据处理中....' % (os.getpid() , ))
-        #         continue
-        #
-        #     start_time = time.perf_counter()
-        #     _data = []
-        #     _ids = []
-        #     for i in range( int(self.conf['outputer']['max_batch_insert_db_size']) ):
-        #         res = self.runner.multi_queue.get()
-        #         _ids.append(res['_id'])
-        #         del res['_id']
-        #         _data.append(res['data'])
-        #
-        #
-        #     end_time = time.perf_counter()
-        #     print('subproccess pid : %s take multit : %s  耗时: %s' % (os.getpid() , len(_data) , (end_time - start_time) ))
-        #
-        #     if len(_ids):
-        #         self.runner.queue_data_ids = _ids
-        #
-        #
-        #     return _data
-
 
 
     def getDataCountNum(self):
-        res = self.db[self.runner.inputer_queue_key].count()
-        return
+        return len(self.runner.dqueue)

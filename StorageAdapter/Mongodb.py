@@ -63,25 +63,23 @@ class StorageAp(Adapter):
 
             # 重试链接的时候 不再 从队列中取数据
             if retry_reconnect_time == 0:
-                num = self.runner.queue_handle.getDataCountNum()
+                # num = self.runner.queue_handle.getDataCountNum()
+                # if num == 0:
+                #     print('subproccess pid : %s ;tid : %s pushDataToStorage 等待数据处理中....' % (os.getpid() ,threading.get_ident()))
+                #     continue
 
-                if num == 0:
-                    # print('pid: %s wait for data' % os.getpid())
-                    continue
+                data = self.runner.getQueueData()
 
-                queue_list = self.runner.getQueueData()
-
-                if not queue_list or len(queue_list) == 0:
-                    print('subproccess pid: %s wait for data' % os.getpid())
+                if len(data) == 0 :
+                    # print('subproccess pid : %s ;tid : %s pushDataToStorage 等待数据处理中....' % (os.getpid() ,threading.get_ident()))
                     continue
 
                 start_time = time.perf_counter()
-                print("\n outputerer -------pid: %s -- reg data len: %s---- start \n" % (
-                    os.getpid(), len(queue_list)))
+                print("\n outputerer -------pid: %s -- reg data len: %s---- start \n" % (os.getpid(), len(data)))
 
                 backup_for_push_back_queue = []
                 insertList = []
-                for i in queue_list:
+                for i in data:
                     if not i:
                         continue
 
@@ -120,6 +118,11 @@ class StorageAp(Adapter):
                     print("\n outputerer -------pid: %s -- insert into mongodb: %s---- end 耗时: %s \n" % (
                     os.getpid(), len(res.inserted_ids), round(end_time - start_time, 2)))
 
+                    # 消费完 dqueue 里面的数据后 取出标识 标识已完成
+                    if hasattr(self.runner,'share_worker_list') and self.runner.share_worker_list != None:
+                        self.runner.share_worker_list.pop()
+
+
                 except pyerrors.PyMongoError as e:
                     print(e.args)
                     time.sleep(1)
@@ -141,7 +144,7 @@ class StorageAp(Adapter):
     def _handle_queue_data_after_into_storage(self):
         if (hasattr(self.runner, 'queue_data_ids')):
             ids = self.runner.queue_data_ids
-            self.db[self.runner.inputer_queue_key].update_many(
+            self.db[self.runner.queue_key].update_many(
                 {'_id': {'$in': ids}},
                 {
                     '$set': {'out_queue': 1},
@@ -150,4 +153,7 @@ class StorageAp(Adapter):
 
             )
 
-            self.runner.multi_queue.get()
+
+
+
+
