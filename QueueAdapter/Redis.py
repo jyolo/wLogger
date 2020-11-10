@@ -99,34 +99,38 @@ class QueueAp(Adapter):
         pass
 
     def getDataFromQueue(self):
-        start_time = time.perf_counter()
-        # print("\n outputerer -------pid: %s -- take from queue len: %s---- start \n" % (
-        #     os.getpid(), self.inputer_queue.llen(self.queue_key)))
+        while True:
+            time.sleep(1)
+
+            start_time = time.perf_counter()
 
 
-        pipe = self.db.pipeline()
+            pipe = self.db.pipeline()
 
-        queue_len = self.db.llen(self.runner.queue_key)
-        if queue_len >= self.runner.max_batch_insert_db_size:
-            num = self.runner.max_batch_insert_db_size
-        else:
-            num = queue_len
+            queue_len = self.db.llen(self.runner.queue_key)
+            if queue_len >= self.runner.max_batch_insert_db_size:
+                num = self.runner.max_batch_insert_db_size
+            else:
+                num = queue_len
 
-        for i in range(num):
-            pipe.lpop(self.runner.queue_key)
+            for i in range(num):
+                pipe.lpop(self.runner.queue_key)
 
-        queue_list = pipe.execute()
+            queue_list = pipe.execute()
 
-        # 过滤掉None
-        if queue_list.count(None) :
-            queue_list = list(filter(None,queue_list))
+            # 过滤掉None
+            if queue_list.count(None):
+                queue_list = list(filter(None, queue_list))
 
+            for i in queue_list:
+                # self.runner.dqueue.append(i)
+                self.runner.multi_queue.put_bucket(i)
 
-        end_time = time.perf_counter()
-        if len(queue_list):
-            print("\n outputerer -------pid: %s -- take len: %s ; queue len : %s----end 耗时: %s \n" % ( os.getpid(), len(queue_list),self.db.llen(self.runner.queue_key), round(end_time - start_time, 2)))
+            end_time = time.perf_counter()
+            if len(queue_list):
+                print("\n pid: %s ;tid : %s-- take len: %s ; queue db len : %s----end 耗时: %s \n" % (os.getpid(),threading.get_ident(), self.runner.multi_queue.qsize(), self.db.llen(self.runner.queue_key), round(end_time - start_time, 2)))
 
-        return queue_list
+        # return queue_list
 
 
     def getDataCountNum(self):

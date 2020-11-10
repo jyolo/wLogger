@@ -3,7 +3,9 @@ from src.core import OutputCustomer,Reader,Base
 from multiprocessing import Manager,Process,Pool,Pipe,Value
 from threading import Thread
 from webServer.start import start_web
+from quick_queue import QQueue
 import multiprocessing,time,sys,os
+
 
 
 
@@ -25,11 +27,58 @@ def runReader(log_files_conf):
     for i in t:
         i.join()
 
-def customer(share_list = None ,share_worker_list = None ):
-    print('subproccess pid  : %s ---------- start' % os.getpid())
-    obj = OutputCustomer(share_list = share_list , share_worker_list = share_worker_list )
-    obj.saveToStorage()
+def customer( queue ,type = None ):
+    work_types = ['getQueueData' ,'pushDataToStorage','parseQeueuData']
 
+    if type not in work_types:
+        raise ValueError('type 参数超出范围')
+
+    if type == 'getQueueData':
+        print('pid:%s getQueueData' % (os.getpid()))
+
+        jobs = ['getQueueData'] * 8
+
+        r = OutputCustomer( multi_queue=queue)
+
+        t = []
+        for i in jobs:
+            th = Thread(target=r.runMethod, args=(i,))
+            t.append(th)
+
+        for i in t:
+            i.start()
+
+        for i in t:
+            i.join()
+
+
+    elif type == 'pushDataToStorage':
+        print('222222222')
+
+    elif type == 'parseQeueuData':
+        OutputCustomer(multi_queue=qqueue).parseQeueuData()
+
+
+    # print('subproccess pid  : %s ---------- start' % os.getpid())
+    # obj = OutputCustomer(worker_num= worker_num )
+    # # obj.saveToStorage()
+    # # jobs = ['getQueueData', 'parseLine', 'pushDataToStorage']
+    # getQueueDataJobs = ['getQueueData'] * multiprocessing.cpu_count()
+    # # getQueueDataJobs = ['getQueueData']
+    # jobs = getQueueDataJobs + ['saveToStorage']
+    # # jobs = ['getQueueData'] * multiprocessing.cpu_count()
+    #
+    #
+    # t = []
+    # for i in jobs:
+    #     th = Thread(target=obj.runMethod, args=(i,))
+    #     t.append(th)
+    #
+    # for i in t:
+    #     i.start()
+    #
+    # for i in t:
+    #     i.join()
 
 
 def getLogFilsDict(conf):
@@ -131,22 +180,20 @@ if __name__ == "__main__":
 
         elif args[1] == 'outputer':
 
-            if base.conf['outputer']['queue'] == 'mongodb':
+            p_list = []
 
-                outputerRunInMongdbQueue()
+            qqueue = QQueue(maxsize=1000000)
 
+            for i in range(int(base.conf['outputer']['worker_process_num'])):
+                p = Process(target=customer ,args=(qqueue,'parseQeueuData',))
+                p_list.append(p)
 
-            elif base.conf['outputer']['queue'] == 'redis':
-                p_list = []
-                for i in range( int(base.conf['outputer']['worker_process_num']) ):
-                    p = Process(target = customer)
-                    p_list.append(p)
+            for i in p_list:
+                i.start()
 
-                for i in p_list:
-                    i.start()
-
-                for i in p_list:
-                    i.join()
+            customer(qqueue, 'getQueueData')
+            # for i in p_list:
+            #     i.join()
 
         elif args[1] == 'web':
             web_conf = dict(base.conf['web'])

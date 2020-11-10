@@ -45,8 +45,9 @@ class QueueAp(Adapter):
         ttl_seconds = 120
         self.db[self.runner.queue_key].create_index([("ttl", 1)], expireAfterSeconds=ttl_seconds)
         self.db[self.runner.queue_key].create_index([("out_queue", 1)], background=True)
+        self.db[self.runner.queue_key].create_index([("add_time", -1)], background=True)
 
-        # self.db['asdasd'].list_indexes()
+        # self.db['asdasd']
 
         return self
 
@@ -130,37 +131,32 @@ class QueueAp(Adapter):
 
     def getDataFromQueue(self):
 
-        while True:
-            time.sleep(1)
+        if 'mongo_queue_take_num' in self.conf['outputer']:
+            takenum = int(self.conf['outputer']['mongo_queue_take_num'])
+        else:
+            takenum = 20
 
-            if len(self.runner.share_worker_list) == 0:
-                # print('subproccess pid : %s ;tid : %s 等待数据处理中....' % (os.getpid() , threading.get_ident()))
-                continue
+        while True:
+            time.sleep(0.1)
 
             start_time = time.perf_counter()
-            _data = []
-            _ids = []
 
+            for i in range(takenum):
+                res = self.db[self.runner.queue_key].find_and_modify(
+                    query={'out_queue':0},
+                    update={'$set':{'out_queue':1} ,'$currentDate': {'ttl': True}},
+                    sort=[('add_time',-1)]
+                )
 
-            for i in range( int(self.conf['outputer']['max_batch_insert_db_size']) ):
+                if res:
+                    self.runner.dqueue.append(res['data'])
 
-                try:
-                    res = self.runner.share_list.pop()
-
-                    _ids.append(res['_id'])
-                    # self.runner.dqueue.append(res['data'])
-                    _data.append(res['data'])
-
-                except Exception:
-                    break
-
-
-            # for 'handle_queue_data_after_into_storage' method
-            self.runner.queue_data_ids = _ids
             end_time = time.perf_counter()
-            print('subproccess pid : %s take dqueue data : %s  耗时: %s ; share_worker_list : %s' % (os.getpid() , len(_data) , (end_time - start_time) ,len(self.runner.share_worker_list) ))
-            del _ids
-            return _data
+
+
+            print('pid: %s tid: %s take data from queue %s .耗时: %s' % (os.getpid(), threading.get_ident() ,len(self.runner.dqueue) , end_time - start_time))
+
+
 
 
     def getDataCountNum(self):

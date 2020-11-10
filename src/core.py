@@ -1,5 +1,6 @@
 # coding=UTF-8
-from multiprocessing import Queue,Process
+# from multiprocessing import Queue,Process
+from multiprocessing import Process
 from configparser import ConfigParser
 from threading import Thread,RLock
 from collections import deque
@@ -84,7 +85,9 @@ class Base(object):
             return importlib.import_module(handler_module).Handler
 
 
-
+    def runMethod(self,method_name):
+        print('pid:%s , %s ,%s' % (os.getpid() ,method_name  ,time.perf_counter()))
+        getattr(self,method_name)()
 
 
 # 生产者 实时读取日志 && 切割日志 && 上报服务器状况
@@ -364,21 +367,17 @@ class Reader(Base):
 
 
 
-    def runMethod(self,method_name):
-        print('pid:%s , %s ,%s' % (os.getpid() ,method_name  ,time.perf_counter()))
-        getattr(self,method_name)()
-
-
 
 # 消费者 解析日志 && 存储日志
 class OutputCustomer(Base):
 
-    def __init__(self ,share_list = None ,share_worker_list = None ):
+    def __init__(self , multi_queue = None):
 
         super(OutputCustomer,self).__init__()
 
-        self.share_list = share_list
-        self.share_worker_list = share_worker_list
+        self.multi_queue = multi_queue
+
+        self.dqueue = deque()
 
         self.inputer_queue_type = self.conf['outputer']['queue']
         self.queue_key = self.conf['outputer']['queue_name']
@@ -549,12 +548,19 @@ class OutputCustomer(Base):
 
 
     def getQueueData(self):
-        return self.queue_handle.getDataFromQueue()
+        print('subproccess pid: %s -- tid: %s ----- ' % (os.getpid() , threading.get_ident() ) )
+        self.queue_handle.getDataFromQueue()
 
     def saveToStorage(self ):
 
+        self.storage_handle.pushDataToStorage()
+
+    def parseQeueuData(self):
 
         self.storage_handle.pushDataToStorage()
+
+
+
 
 
     #退回队列
