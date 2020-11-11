@@ -5,10 +5,15 @@ from configparser import ConfigParser
 from threading import Thread,RLock
 from collections import deque
 from src.ip2Region import Ip2Region
-import time,shutil,json,traceback,os,platform,importlib,sys,threading
+import time,shutil,json,os,platform,importlib,sys,logging
 
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))) )
+
+# LOG_FORMAT = "%(asctime)s %(name)s %(levelname)s %(pathname)s %(message)s "#配置输出日志格式
+# DATE_FORMAT = '%Y-%m-%d  %H:%M:%S ' #配置输出时间的格式，注意月份和天数不要搞乱了
+# #, filename=r"d:\test\test.log"
+# logging.basicConfig(level=logging.DEBUG,format=LOG_FORMAT, datefmt = DATE_FORMAT )
 
 try:
     # Python 3.x
@@ -502,14 +507,9 @@ class OutputCustomer(Base):
         return data
 
     def _get_queue_count_num(self):
+        return self.queue_handle.getDataCountNum()
 
-        if self.inputer_queue_type == 'mongodb':
-            return self.inputer_queue[self.queue_key].count()
-        elif self.inputer_queue_type == 'redis':
-            return self.inputer_queue.llen(self.inputer_queue_type)
-
-
-    def parse_line_data(self,line):
+    def _parse_line_data(self,line):
 
         if isinstance(line ,str):
             line_data = json.loads(line)
@@ -527,7 +527,7 @@ class OutputCustomer(Base):
             parse_data = self.logParse.parse(line_data['log_format_name'], line_data['line'])
 
         except Exception as e:
-            print(line_data)
+
             raise ValueError('pid : %s 解析数据错误: %s 数据: %s' % (os.getpid(),e.args,line ))
 
         # 解析时间
@@ -546,30 +546,17 @@ class OutputCustomer(Base):
 
         return line_data
 
-
+    #　获取队列数据
     def getQueueData(self):
-        print('subproccess pid: %s -- tid: %s ----- ' % (os.getpid() , threading.get_ident() ) )
-        self.queue_handle.getDataFromQueue()
+        return self.queue_handle.getDataFromQueue()
 
+    # 消费队列
     def saveToStorage(self ):
-
         self.storage_handle.pushDataToStorage()
-
-    def parseQeueuData(self):
-
-        self.storage_handle.pushDataToStorage()
-
-
-
-
 
     #退回队列
-    def push_back_to_queue(self,data_list):
-        if self.inputer_queue_type == 'redis':
-            for item in data_list:
-                self.inputer_queue.lpush(self.queue_key , item)
-
-        pass
+    def rollBackQueue(self,data_list):
+        self.queue_handle.rollBackToQueue(data_list)
 
 
 

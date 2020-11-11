@@ -49,86 +49,7 @@ class StorageAp(Adapter):
 
     def _parseData(self):
 
-        retry_reconnect_time = 0
-
-        while True:
-            time.sleep(0.1)
-
-            if self.runner.multi_queue.qsize() == 0:
-                # print('pid: %s tid: %s _parseData multi_queue len: %s' % (
-                # os.getpid(), threading.get_ident(), self.runner.multi_queue.qsize()))
-                continue
-
-
-            if retry_reconnect_time == 0:
-
-                start_time = time.perf_counter()
-
-                _data = []
-                for i in range(5000):
-                    if self.runner.multi_queue.qsize() == 0 :
-                        break
-
-                    item = self.runner.multi_queue.get_bucket()
-                    if not item:
-                        break
-
-                    if isinstance(item, bytes):
-                        item = item.decode(encoding='utf-8')
-
-                    item = self.runner.parse_line_data(item)
-                    _data.append(item)
-
-
-                end_time = time.perf_counter()
-
-                take_time = round(end_time - start_time, 3)
-                print('\n outputerer ---pid: %s tid: %s reg data len:%s; dqueue len:%s ;multi_queue len :%s; take time :  %s' %
-                    (os.getpid(), threading.get_ident(), len(_data), len(self.runner.dqueue),
-                     self.runner.multi_queue.qsize(), take_time))
-
-
-            if 'max_retry_reconnect_time' in self.conf['outputer']:
-                max_retry_reconnect_time = int(self.conf['outputer']['max_retry_reconnect_time'])
-            else:
-                max_retry_reconnect_time = 3
-
-
-            mongodb_outputer_client = self.db[self.runner.save_engine_conf['collection']]
-            try:
-                start_time = time.perf_counter()
-
-                if len(_data) == 0:
-                    continue
-
-                backup_for_push_back_queue = _data
-                # before_into_storage
-                self._handle_queue_data_before_into_storage()
-
-                res = mongodb_outputer_client.insert_many(_data, ordered=False)
-
-                # after_into_storage
-                self._handle_queue_data_after_into_storage()
-
-                retry_reconnect_time = 0
-
-                end_time = time.perf_counter()
-                print("\n outputerer -------pid: %s -- insert into mongodb: %s---- end 耗时: %s \n" % (
-                    os.getpid(), len(res.inserted_ids), round(end_time - start_time, 3)))
-
-                _data = []
-
-            except pyerrors.PyMongoError as e:
-                print(e.args)
-                time.sleep(1)
-                retry_reconnect_time = retry_reconnect_time + 1
-                if retry_reconnect_time >= max_retry_reconnect_time:
-                    self.runner.push_back_to_queue(backup_for_push_back_queue)
-                    raise pyerrors.PyMongoError('重试重新链接 mongodb 超出最大次数 %s' % max_retry_reconnect_time)
-                else:
-                    print("\n outputerer -------pid: %s -- retry_reconnect_mongodb at: %s time---- \n" % (
-                        os.getpid(), retry_reconnect_time))
-                    continue
+        pass
 
 
     def _intoDb(self):
@@ -190,7 +111,80 @@ class StorageAp(Adapter):
 
 
     def pushDataToStorage(self):
-        self._parseData()
+        retry_reconnect_time = 0
+
+        while True:
+            time.sleep(0.1)
+
+            if retry_reconnect_time == 0:
+
+                # 获取队列数据
+                queue_data = self.runner.getQueueData()
+                if len(queue_data) == 0:
+                    continue
+
+                start_time = time.perf_counter()
+
+                # 　错误退回队列 (未解析的原始的数据)
+                backup_for_push_back_queue = []
+                _data = []
+                for item in queue_data:
+                    if isinstance(item, bytes):
+                        item = item.decode(encoding='utf-8')
+
+                    backup_for_push_back_queue.append(item)
+                    item = self.runner._parse_line_data(item)
+                    _data.append(item)
+
+
+                end_time = time.perf_counter()
+
+                take_time = round(end_time - start_time, 3)
+                print(
+                    '\n outputerer ---pid: %s tid: %s reg data len:%s;  take time :  %s' %
+                    (os.getpid(), threading.get_ident(), len(_data), take_time))
+
+
+
+            if 'max_retry_reconnect_time' in self.conf['outputer']:
+                max_retry_reconnect_time = int(self.conf['outputer']['max_retry_reconnect_time'])
+            else:
+                max_retry_reconnect_time = 3
+
+            mongodb_outputer_client = self.db[self.runner.save_engine_conf['collection']]
+            try:
+                start_time = time.perf_counter()
+
+                if len(_data) == 0:
+                    continue
+
+                # before_into_storage
+                self._handle_queue_data_before_into_storage()
+
+                res = mongodb_outputer_client.insert_many(_data, ordered=False)
+
+                # after_into_storage
+                self._handle_queue_data_after_into_storage()
+
+                # 重置 retry_reconnect_time
+                retry_reconnect_time = 0
+
+                end_time = time.perf_counter()
+                print("\n outputerer -------pid: %s -- insert into mongodb: %s---- end 耗时: %s \n" % (
+                    os.getpid(), len(res.inserted_ids), round(end_time - start_time, 3)))
+
+
+            except pyerrors.PyMongoError as e:
+                print(e.args)
+                time.sleep(1)
+                retry_reconnect_time = retry_reconnect_time + 1
+                if retry_reconnect_time >= max_retry_reconnect_time:
+                    self.runner.rollBackQueue(backup_for_push_back_queue)
+                    raise pyerrors.PyMongoError('重试重新链接 mongodb 超出最大次数 %s' % max_retry_reconnect_time)
+                else:
+                    print("\n outputerer -------pid: %s -- retry_reconnect_mongodb at: %s time---- \n" % (
+                        os.getpid(), retry_reconnect_time))
+                    continue
 
 
     # 在持久化存储之前 对 队列中的数据 进行预处理 ,比如 update ,delete 等操作

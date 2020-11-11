@@ -27,32 +27,9 @@ def runReader(log_files_conf):
     for i in t:
         i.join()
 
-def customer( queue ,type = None ):
-    work_types = ['getQueueData' ,'pushDataToStorage','parseQeueuData']
+def customer(  ):
+    OutputCustomer().saveToStorage()
 
-    if type not in work_types:
-        raise ValueError('type 参数超出范围')
-
-    if type == 'getQueueData':
-        print('pid:%s getQueueData' % (os.getpid()))
-
-        jobs = ['getQueueData'] * 4
-
-        r = OutputCustomer( multi_queue=queue)
-
-        t = []
-        for i in jobs:
-            th = Thread(target=r.runMethod, args=(i,))
-            t.append(th)
-
-        for i in t:
-            i.start()
-
-        for i in t:
-            i.join()
-
-    elif type == 'parseQeueuData':
-        OutputCustomer(multi_queue=qqueue).parseQeueuData()
 
 
 def getLogFilsDict(conf):
@@ -156,27 +133,21 @@ if __name__ == "__main__":
 
             p_list = []
 
-            qqueue = QQueue(maxsize=1000000)
-
             for i in range(int(base.conf['outputer']['worker_process_num'])):
-                p = Process(target=customer ,args=(qqueue,'parseQeueuData',))
+                p = Process(target=customer )
                 p_list.append(p)
 
             for i in p_list:
                 i.start()
 
-            customer(qqueue, 'getQueueData')
-            print('zzzzzzzzzzzzzzzzzz')
-            # for i in p_list:
-            #     i.join()
+            for i in p_list:
+                i.join()
+
 
         elif args[1] == 'web':
             web_conf = dict(base.conf['web'])
             web_conf[ web_conf['data_engine'] ] = dict(base.conf[ web_conf['data_engine'] ])
-
             start_web(web_conf)
-
-
         else:
             raise ValueError('example: python3 main.py -run [inputer | outputer]')
 

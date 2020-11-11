@@ -18,4 +18,7 @@ class Adapter():
     def getDataFromQueue(self): pass
 
     @abstractmethod
+    def rollBackToQueue(self): pass
+
+    @abstractmethod
     def getDataCountNum(self): pass
