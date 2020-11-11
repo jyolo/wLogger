@@ -100,7 +100,7 @@ class QueueAp(Adapter):
 
     def getDataFromQueue(self):
         while True:
-            time.sleep(0.1)
+            time.sleep(1)
 
             start_time = time.perf_counter()
 
@@ -135,7 +135,7 @@ class QueueAp(Adapter):
             # if len(queue_list):
 
             print("\n pid: %s ;tid : %s-- take len: %s ; queue db len : %s ;multi_queue: %s ----end 耗时: %s \n" %
-                      (os.getpid(),threading.get_ident(), multi_queue_size, self.db.llen(self.runner.queue_key),multi_queue_size, round(end_time - start_time, 2)))
+                     (os.getpid(),threading.get_ident(), multi_queue_size, self.db.llen(self.runner.queue_key),multi_queue_size, round(end_time - start_time, 2)))
 
         # return queue_list
 
