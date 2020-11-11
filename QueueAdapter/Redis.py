@@ -100,18 +100,23 @@ class QueueAp(Adapter):
 
     def getDataFromQueue(self):
         while True:
-            time.sleep(1)
+            time.sleep(0.1)
 
             start_time = time.perf_counter()
 
 
             pipe = self.db.pipeline()
 
-            queue_len = self.db.llen(self.runner.queue_key)
-            if queue_len >= self.runner.max_batch_insert_db_size:
+            db_queue_len = self.db.llen(self.runner.queue_key)
+
+            if db_queue_len >= self.runner.max_batch_insert_db_size:
                 num = self.runner.max_batch_insert_db_size
             else:
-                num = queue_len
+                num = db_queue_len
+
+
+            multi_queue_size = self.runner.multi_queue.qsize()
+
 
             for i in range(num):
                 pipe.lpop(self.runner.queue_key)
@@ -127,8 +132,10 @@ class QueueAp(Adapter):
                 self.runner.multi_queue.put_bucket(i)
 
             end_time = time.perf_counter()
-            if len(queue_list):
-                print("\n pid: %s ;tid : %s-- take len: %s ; queue db len : %s----end 耗时: %s \n" % (os.getpid(),threading.get_ident(), self.runner.multi_queue.qsize(), self.db.llen(self.runner.queue_key), round(end_time - start_time, 2)))
+            # if len(queue_list):
+
+            print("\n pid: %s ;tid : %s-- take len: %s ; queue db len : %s ;multi_queue: %s ----end 耗时: %s \n" %
+                      (os.getpid(),threading.get_ident(), multi_queue_size, self.db.llen(self.runner.queue_key),multi_queue_size, round(end_time - start_time, 2)))
 
         # return queue_list
 

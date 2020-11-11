@@ -36,7 +36,7 @@ def customer( queue ,type = None ):
     if type == 'getQueueData':
         print('pid:%s getQueueData' % (os.getpid()))
 
-        jobs = ['getQueueData'] * 8
+        jobs = ['getQueueData'] * 4
 
         r = OutputCustomer( multi_queue=queue)
 
@@ -51,34 +51,8 @@ def customer( queue ,type = None ):
         for i in t:
             i.join()
 
-
-    elif type == 'pushDataToStorage':
-        print('222222222')
-
     elif type == 'parseQeueuData':
         OutputCustomer(multi_queue=qqueue).parseQeueuData()
-
-
-    # print('subproccess pid  : %s ---------- start' % os.getpid())
-    # obj = OutputCustomer(worker_num= worker_num )
-    # # obj.saveToStorage()
-    # # jobs = ['getQueueData', 'parseLine', 'pushDataToStorage']
-    # getQueueDataJobs = ['getQueueData'] * multiprocessing.cpu_count()
-    # # getQueueDataJobs = ['getQueueData']
-    # jobs = getQueueDataJobs + ['saveToStorage']
-    # # jobs = ['getQueueData'] * multiprocessing.cpu_count()
-    #
-    #
-    # t = []
-    # for i in jobs:
-    #     th = Thread(target=obj.runMethod, args=(i,))
-    #     t.append(th)
-    #
-    # for i in t:
-    #     i.start()
-    #
-    # for i in t:
-    #     i.join()
 
 
 def getLogFilsDict(conf):
@@ -192,6 +166,7 @@ if __name__ == "__main__":
                 i.start()
 
             customer(qqueue, 'getQueueData')
+            print('zzzzzzzzzzzzzzzzzz')
             # for i in p_list:
             #     i.join()
 
