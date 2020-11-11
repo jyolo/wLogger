@@ -5,6 +5,7 @@ environs == 8.0.0
 parse == 1.17.0
 redis == 3.5.3
 mongo == 0.2.0
+pymysql == 0.10.1
 asyncio-redis == 0.15.1
 aredis == 1.1.8
 aioredis == 1.3.1

@@ -102,9 +102,6 @@ class QueueAp(Adapter):
                         _queuedata.append(q_data)
 
 
-                        # data['out_queue'] = 0
-                        # _queuedata.append(data)
-
                 if len(_queuedata):
                     res = self.db[self.runner.queue_key].insert_many(_queuedata, ordered=False)
 
@@ -120,9 +117,9 @@ class QueueAp(Adapter):
                 retry_reconnect_time = retry_reconnect_time + 1
 
                 if retry_reconnect_time >= self.runner.max_retry_reconnect_time:
-                    self.runner.event['stop'] = 'pushQueue 重试连接 queue 超出最大次数'
+                    exit('pushQueue 重试连接 queue 超出最大次数')
                 else:
-                    time.sleep(2)
+                    time.sleep(1)
                     print('pushQueue -------pid: %s -tid: %s-  push data fail: %s ; reconnect Queue %s times' % (
                         os.getpid(), e.args, threading.get_ident(), retry_reconnect_time))
 
@@ -130,34 +127,38 @@ class QueueAp(Adapter):
 
 
     def getDataFromQueue(self):
+        db_queue_len = self.getDataCountNum()
 
-        if 'mongo_queue_take_num' in self.conf['outputer']:
-            takenum = int(self.conf['outputer']['mongo_queue_take_num'])
+        if db_queue_len == 0:
+            return []
+
+        if db_queue_len >= self.runner.max_batch_insert_db_size:
+            takenum = self.runner.max_batch_insert_db_size
         else:
-            takenum = 20
-
-        while True:
-            time.sleep(0.1)
-
-            start_time = time.perf_counter()
-
-            for i in range(takenum):
-                res = self.db[self.runner.queue_key].find_and_modify(
-                    query={'out_queue':0},
-                    update={'$set':{'out_queue':1} ,'$currentDate': {'ttl': True}},
-                    sort=[('add_time',-1)]
-                )
-
-                if res:
-                    self.runner.dqueue.append(res['data'])
-
-            end_time = time.perf_counter()
+            takenum = db_queue_len
 
 
-            print('pid: %s tid: %s take data from queue %s .耗时: %s' % (os.getpid(), threading.get_ident() ,len(self.runner.dqueue) , end_time - start_time))
+        start_time = time.perf_counter()
+
+        _data = []
+        for i in range(takenum):
+            res = self.db[self.runner.queue_key].find_and_modify(
+                query={'out_queue': 0},
+                update={'$set': {'out_queue': 1}, '$currentDate': {'ttl': True}},
+                sort=[('add_time', -1)]
+            )
+
+            if res:
+                _data.append(res['data'])
+
+        end_time = time.perf_counter()
+        print('pid: %s  take data from queue %s .耗时: %s' % (
+        os.getpid(), len(_data), end_time - start_time))
+
+        return _data
 
 
 
 
     def getDataCountNum(self):
-        return len(self.runner.dqueue)
+        return self.db[self.runner.queue_key].count_documents({'out_queue':0})
