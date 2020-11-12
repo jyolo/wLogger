@@ -10,10 +10,10 @@ import time,shutil,json,os,platform,importlib,sys,logging
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))) )
 
-# LOG_FORMAT = "%(asctime)s %(name)s %(levelname)s %(pathname)s %(message)s "#配置输出日志格式
-# DATE_FORMAT = '%Y-%m-%d  %H:%M:%S ' #配置输出时间的格式，注意月份和天数不要搞乱了
-# #, filename=r"d:\test\test.log"
-# logging.basicConfig(level=logging.DEBUG,format=LOG_FORMAT, datefmt = DATE_FORMAT )
+LOG_FORMAT = "%(asctime)s %(name)s %(levelname)s %(pathname)s %(message)s "#配置输出日志格式
+DATE_FORMAT = '%Y-%m-%d  %H:%M:%S ' #配置输出时间的格式，注意月份和天数不要搞乱了
+
+logging.basicConfig(level=logging.DEBUG,format=LOG_FORMAT, datefmt = DATE_FORMAT,filename=r"./error.log" )
 
 try:
     # Python 3.x
@@ -21,6 +21,8 @@ try:
 except ImportError:
     # Python 2.x
     from urllib import quote_plus
+
+class loggerParseFailException(Exception):pass
 
 # 日志解析
 class loggerParse(object):
@@ -91,7 +93,7 @@ class Base(object):
 
 
     def runMethod(self,method_name):
-        print('pid:%s , %s ,%s' % (os.getpid() ,method_name  ,time.perf_counter()))
+        logging.info('pid:%s , %s ,%s' % (os.getpid() ,method_name  ,time.perf_counter()))
         getattr(self,method_name)()
 
 
@@ -192,7 +194,7 @@ class Reader(Base):
 
     def __cutFileHandle(self,server_pid_path,log_path ,target_path = None ):
         start_time = time.perf_counter()
-        print("\n start_time -------cutting file start ---  %s \n" % (
+        logging.info("\n start_time -------cutting file start ---  %s \n" % (
              start_time))
 
         file_suffix = time.strftime('%Y-%m-%d_%H-%M-%S', time.localtime())
@@ -227,13 +229,13 @@ class Reader(Base):
 
         res = os.popen(cmd)
         if  len(res.readlines()) > 0:
-            print(res.readlines())
+            logging.info(res.readlines())
             self.event['stop'] = 'reload 服务器进程失败'
             return
 
 
         end_time = time.perf_counter()
-        print(';;;;;;;;;;;;;;;;full_cut;;;;;;finnish truncate;;;;;;;;;;;;; mark at %s' % (time.time()))
+        logging.info(';;;;;;;;;;;;;;;;full_cut;;;;;;finnish truncate;;;;;;;;;;;;; mark at %s' % (time.time()))
 
 
     def cutFile(self):
@@ -241,7 +243,7 @@ class Reader(Base):
         while True:
             time.sleep(1)
             if self.event['stop']:
-                print( '%s ; cutFile threading stop pid: %s' % (self.event['stop'] , os.getpid()))
+                logging.info( '%s ; cutFile threading stop pid: %s' % (self.event['stop'] , os.getpid()))
                 return
 
             try:
@@ -269,7 +271,7 @@ class Reader(Base):
 
                 try:
                     now = time.strftime("%H:%M", time.localtime(time.time()))
-                    # print('cut_file_type: filesize ;%s ---pid: %s----thread_id: %s--- %s ---------%s' % (  now, os.getpid(), threading.get_ident(), self.cut_file_point, self.cutting_file))
+                    # logging.info('cut_file_type: filesize ;%s ---pid: %s----thread_id: %s--- %s ---------%s' % (  now, os.getpid(), threading.get_ident(), self.cut_file_point, self.cutting_file))
 
                     # 文件大小 单位 M
                     file_size = round(os.path.getsize(self.log_path) / (1024 * 1024))
@@ -288,7 +290,7 @@ class Reader(Base):
             elif self.cut_file_type == 'time':
 
                 now = time.strftime("%H:%M" , time.localtime(time.time()) )
-                # print('cut_file_type: time ;%s ---pid: %s----thread_id: %s--- %s ---------%s' % (
+                # logging.info('cut_file_type: time ;%s ---pid: %s----thread_id: %s--- %s ---------%s' % (
                 # now,os.getpid(), threading.get_ident(), self.cut_file_point, self.cutting_file))
 
                 if now == self.cut_file_point and self.cutting_file == False:
@@ -334,11 +336,11 @@ class Reader(Base):
             time.sleep(0.5)
 
             if self.event['stop']:
-                print( '%s ; read threading stop pid: %s' % (self.event['stop'] ,os.getpid()))
+                logging.info( '%s ; read threading stop pid: %s' % (self.event['stop'] ,os.getpid()))
                 return
 
             start_time = time.perf_counter()
-            # print("\n start_time -------pid: %s -- read file---queue len: %s---- %s \n" % ( os.getpid(), len(list(self.dqueue)), round(start_time, 2)))
+            # logging.info("\n start_time -------pid: %s -- read file---queue len: %s---- %s \n" % ( os.getpid(), len(list(self.dqueue)), round(start_time, 2)))
 
 
             for line in self.fd:
@@ -350,12 +352,12 @@ class Reader(Base):
 
 
             end_time = time.perf_counter()
-            print("\n end_time -------pid: %s -- read file---line len :%s --- 耗时:%s \n" % (os.getpid(), len(list(self.dqueue)), round(end_time - start_time, 2)))
+            logging.info("\n end_time -------pid: %s -- read file---line len :%s --- 耗时:%s \n" % (os.getpid(), len(list(self.dqueue)), round(end_time - start_time, 2)))
 
             if self.event['cut_file'] == 1 and self.event['stop'] == None:
                 # 防止 重启进程服务后 新的日志文件并没有那么快重新打开
                 time.sleep(1.5)
-                print('--------------------reopen file--------------------at: %s' % time.time())
+                logging.info('--------------------reopen file--------------------at: %s' % time.time())
 
                 self.fd.close()
                 self.fd = self.__getFileFd()
@@ -414,6 +416,7 @@ class OutputCustomer(Base):
         # 外部 存储引擎
         self.storage_handle = self._findAdapterHandler('storage',self.conf['outputer']['save_engine']).initStorage(self)
 
+
     def __parse_time_str(self,data):
         if self.server_type == 'nginx':
             if 'time_iso8601' in data:
@@ -467,9 +470,7 @@ class OutputCustomer(Base):
 
                     del data['request_uri']
             except IndexError as e:
-                print(data)
-                print(_strarr)
-                exit()
+                logging.error('解析日志 request_url 错误;data : %s' % json.dumps(data))
 
 
 
@@ -517,18 +518,16 @@ class OutputCustomer(Base):
             line_data = line
 
         try:
-
             # 预编译对应的正则
             self.logParse.getLogFormatByConfStr(line_data['log_format_str'], line_data['log_format_name'])
-
             line_data['line'] = line_data['line'].strip()
-
-            # parse_data = self.logParse.parse(parse_data, line_data['line'])
             parse_data = self.logParse.parse(line_data['log_format_name'], line_data['line'])
-
+        except ValueError as e:
+            logging.error('pid : %s 解析数据 ValueError 错误: %s 数据: %s' % (os.getpid(),e.args,line ))
         except Exception as e:
+            logging.error('pid : %s 解析数据 Exception 错误: %s 数据: %s' % (os.getpid(),e.args,line ))
 
-            raise ValueError('pid : %s 解析数据错误: %s 数据: %s' % (os.getpid(),e.args,line ))
+
 
         # 解析时间
         parse_data = self.__parse_time_str(parse_data)

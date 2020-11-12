@@ -41,7 +41,7 @@ class QueueAp(Adapter):
         while True:
             time.sleep(1)
             if self.runner.event['stop']:
-                print( '%s ; pushQueue threading stop pid: %s ---- tid: %s ' % (self.runner.event['stop'] ,os.getpid() ,threading.get_ident() ))
+                self.logging.info( '%s ; pushQueue threading stop pid: %s ---- tid: %s ' % (self.runner.event['stop'] ,os.getpid() ,threading.get_ident() ))
                 return
 
             try:
@@ -50,13 +50,13 @@ class QueueAp(Adapter):
                 if retry_reconnect_time == 0:
 
                     start_time = time.perf_counter()
-                    # print("\n pushQueue -------pid: %s -tid: %s-  started \n" % ( os.getpid(), threading.get_ident()))
+                    # self.logging.info("\n pushQueue -------pid: %s -tid: %s-  started \n" % ( os.getpid(), threading.get_ident()))
 
                     for i in range(self.runner.max_batch_push_queue_size):
                         try:
                             line = self.runner.dqueue.pop()
                         except IndexError as e:
-                            # print("\n pushQueue -------pid: %s -tid: %s- wait for data ;queue len: %s---- start \n" % ( os.getpid(), threading.get_ident(), len(list(self.dqueue))))
+                            # self.logging.info("\n pushQueue -------pid: %s -tid: %s- wait for data ;queue len: %s---- start \n" % ( os.getpid(), threading.get_ident(), len(list(self.dqueue))))
                             break
 
                         data = {}
@@ -80,7 +80,7 @@ class QueueAp(Adapter):
                 if len(res):
                     retry_reconnect_time = 0
                     end_time = time.perf_counter()
-                    print("\n pushQueue -------pid: %s -tid: %s- push data to queue :%s ; queue_len : %s----耗时:%s \n"
+                    self.logging.info("\n pushQueue -------pid: %s -tid: %s- push data to queue :%s ; queue_len : %s----耗时:%s \n"
                           % (os.getpid(), threading.get_ident(), len(res),self.db.llen(self.runner.queue_key), round(end_time - start_time, 2)))
 
                     
@@ -93,7 +93,7 @@ class QueueAp(Adapter):
                     self.runner.event['stop'] = 'pushQueue 重试连接 queue 超出最大次数'
                 else:
                     time.sleep(2)
-                    print('pushQueue -------pid: %s -tid: %s-  push data fail; reconnect Queue %s times' % (os.getpid() , threading.get_ident() , retry_reconnect_time))
+                    self.logging.info('pushQueue -------pid: %s -tid: %s-  push data fail; reconnect Queue %s times' % (os.getpid() , threading.get_ident() , retry_reconnect_time))
 
                 continue
         pass
@@ -123,7 +123,7 @@ class QueueAp(Adapter):
 
         end_time = time.perf_counter()
         if len(queue_list):
-            print("\n pid: %s ;tid : %s-- take len: %s ; queue db len : %s ; ----end 耗时: %s \n" %
+            self.logging.info("\n pid: %s ;tid : %s-- take len: %s ; queue db len : %s ; ----end 耗时: %s \n" %
                   (os.getpid(), threading.get_ident(), len(queue_list), self.db.llen(self.runner.queue_key),
                    round(end_time - start_time, 2)))
 

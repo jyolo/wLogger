@@ -35,6 +35,8 @@ $upstream_http_host  服务端响应的地址
 
 """
 
+
+
 class Handler(Adapter):
 
 
@@ -83,25 +85,40 @@ class Handler(Adapter):
         log_format_list = self.log_line_pattern_dict[log_format_name]['log_format_list']
         log_format_recompile = self.log_line_pattern_dict[log_format_name]['log_format_recompile']
 
-        try:
-            res = log_format_recompile.match( log_line )
+        res = log_format_recompile.match(log_line)
 
-            if res == None:
-                print(res)
-                print(log_line)
-                raise Exception('解析日志失败,请检查client 配置中 日志的 格式名称是否一致 log_format_name')
+        if res == None:
+            print(res)
+            print(log_line)
+            raise ValueError('解析日志失败,请检查client 配置中 日志的 格式名称是否一致 log_format_name')
 
-            matched = list(res.groups())
-            if len(matched) == len(log_format_list):
-                data = {}
-                for i in range(len(list(log_format_list))):
-                    data[log_format_list[i]] = matched[i]
+        matched = list(res.groups())
+        if len(matched) == len(log_format_list):
+            data = {}
+            for i in range(len(list(log_format_list))):
+                data[log_format_list[i]] = matched[i]
 
-            return data
+        return data
 
-        except Exception as e:
-            print(e.args)
-            exit()
+        # try:
+        #     res = log_format_recompile.match( log_line )
+        #
+        #     if res == None:
+        #         print(res)
+        #         print(log_line)
+        #         raise loggerParseFailException('解析日志失败,请检查client 配置中 日志的 格式名称是否一致 log_format_name')
+        #
+        #     matched = list(res.groups())
+        #     if len(matched) == len(log_format_list):
+        #         data = {}
+        #         for i in range(len(list(log_format_list))):
+        #             data[log_format_list[i]] = matched[i]
+        #
+        #     return data
+        #
+        # except Exception as e:
+        #     print(e.args)
+        #     exit()
 
 
 
