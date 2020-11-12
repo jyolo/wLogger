@@ -1,19 +1,14 @@
 # coding=UTF-8
-# from multiprocessing import Queue,Process
 from multiprocessing import Process
 from configparser import ConfigParser
 from threading import Thread,RLock
 from collections import deque
-from src.ip2Region import Ip2Region
+from Src.ip2Region import Ip2Region
 import time,shutil,json,os,platform,importlib,sys,logging
 
 
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))) )
 
-LOG_FORMAT = "%(asctime)s %(name)s %(levelname)s %(pathname)s %(message)s "#配置输出日志格式
-DATE_FORMAT = '%Y-%m-%d  %H:%M:%S ' #配置输出时间的格式，注意月份和天数不要搞乱了
 
-logging.basicConfig(level=logging.DEBUG,format=LOG_FORMAT, datefmt = DATE_FORMAT,filename=r"./error.log" )
 
 try:
     # Python 3.x
@@ -22,7 +17,6 @@ except ImportError:
     # Python 2.x
     from urllib import quote_plus
 
-class loggerParseFailException(Exception):pass
 
 # 日志解析
 class loggerParse(object):
@@ -63,6 +57,34 @@ class Base(object):
     def __init__(self):
         self._root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
         self.conf = self.__getConfig()
+        self.__initLogging()
+
+
+    def __initLogging(self):
+        LOG_FORMAT = "%(asctime)s %(levelname)s %(pathname)s %(message)s "
+        DATE_FORMAT = '%Y-%m-%d  %H:%M:%S '
+        if self.__class__.__name__ == 'Base':return
+
+        logg_setting_map = {
+            'Reader': {
+                'config_name': 'inputer',
+            },
+            'OutputCustomer': {
+                'config_name': 'outputer',
+            }
+        }
+
+        log_file_name = conf_name = logg_setting_map[self.__class__.__name__]['config_name']
+        if 'log_debug' in self.conf[conf_name] and self.conf[conf_name]['log_debug'] == 'True':
+            _level = logging.DEBUG
+        else:
+            _level = logging.INFO
+
+        log_file_name = log_file_name
+
+        logging.basicConfig(level=_level, format=LOG_FORMAT, datefmt=DATE_FORMAT,
+                            filename=r"./%s.log" % log_file_name)
+        self.logging = logging
 
     def __getConfig(self):
         config_path = self._root + '/config.ini'
@@ -93,7 +115,7 @@ class Base(object):
 
 
     def runMethod(self,method_name):
-        logging.info('pid:%s , %s ,%s' % (os.getpid() ,method_name  ,time.perf_counter()))
+        self.logging.debug('pid:%s , %s ,%s' % (os.getpid() ,method_name  ,time.perf_counter()))
         getattr(self,method_name)()
 
 
@@ -194,7 +216,7 @@ class Reader(Base):
 
     def __cutFileHandle(self,server_pid_path,log_path ,target_path = None ):
         start_time = time.perf_counter()
-        logging.info("\n start_time -------cutting file start ---  %s \n" % (
+        self.logging.debug("\n start_time -------cutting file start ---  %s \n" % (
              start_time))
 
         file_suffix = time.strftime('%Y-%m-%d_%H-%M-%S', time.localtime())
@@ -229,13 +251,13 @@ class Reader(Base):
 
         res = os.popen(cmd)
         if  len(res.readlines()) > 0:
-            logging.info(res.readlines())
+            self.logging.debug(res.readlines())
             self.event['stop'] = 'reload 服务器进程失败'
             return
 
 
         end_time = time.perf_counter()
-        logging.info(';;;;;;;;;;;;;;;;full_cut;;;;;;finnish truncate;;;;;;;;;;;;; mark at %s' % (time.time()))
+        self.logging.debug(';;;;;;;;;;;;;;;;full_cut;;;;;;finnish truncate;;;;;;;;;;;;; mark at %s' % (time.time()))
 
 
     def cutFile(self):
@@ -243,7 +265,7 @@ class Reader(Base):
         while True:
             time.sleep(1)
             if self.event['stop']:
-                logging.info( '%s ; cutFile threading stop pid: %s' % (self.event['stop'] , os.getpid()))
+                self.logging.debug( '%s ; cutFile threading stop pid: %s' % (self.event['stop'] , os.getpid()))
                 return
 
             try:
@@ -271,7 +293,7 @@ class Reader(Base):
 
                 try:
                     now = time.strftime("%H:%M", time.localtime(time.time()))
-                    # logging.info('cut_file_type: filesize ;%s ---pid: %s----thread_id: %s--- %s ---------%s' % (  now, os.getpid(), threading.get_ident(), self.cut_file_point, self.cutting_file))
+                    # self.logging.debug('cut_file_type: filesize ;%s ---pid: %s----thread_id: %s--- %s ---------%s' % (  now, os.getpid(), threading.get_ident(), self.cut_file_point, self.cutting_file))
 
                     # 文件大小 单位 M
                     file_size = round(os.path.getsize(self.log_path) / (1024 * 1024))
@@ -290,7 +312,7 @@ class Reader(Base):
             elif self.cut_file_type == 'time':
 
                 now = time.strftime("%H:%M" , time.localtime(time.time()) )
-                # logging.info('cut_file_type: time ;%s ---pid: %s----thread_id: %s--- %s ---------%s' % (
+                # self.logging.debug('cut_file_type: time ;%s ---pid: %s----thread_id: %s--- %s ---------%s' % (
                 # now,os.getpid(), threading.get_ident(), self.cut_file_point, self.cutting_file))
 
                 if now == self.cut_file_point and self.cutting_file == False:
@@ -336,11 +358,11 @@ class Reader(Base):
             time.sleep(0.5)
 
             if self.event['stop']:
-                logging.info( '%s ; read threading stop pid: %s' % (self.event['stop'] ,os.getpid()))
+                self.logging.debug( '%s ; read threading stop pid: %s' % (self.event['stop'] ,os.getpid()))
                 return
 
             start_time = time.perf_counter()
-            # logging.info("\n start_time -------pid: %s -- read file---queue len: %s---- %s \n" % ( os.getpid(), len(list(self.dqueue)), round(start_time, 2)))
+            # self.logging.debug("\n start_time -------pid: %s -- read file---queue len: %s---- %s \n" % ( os.getpid(), len(list(self.dqueue)), round(start_time, 2)))
 
 
             for line in self.fd:
@@ -352,12 +374,12 @@ class Reader(Base):
 
 
             end_time = time.perf_counter()
-            logging.info("\n end_time -------pid: %s -- read file---line len :%s --- 耗时:%s \n" % (os.getpid(), len(list(self.dqueue)), round(end_time - start_time, 2)))
+            self.logging.debug("\n end_time -------pid: %s -- read file---line len :%s --- 耗时:%s \n" % (os.getpid(), len(list(self.dqueue)), round(end_time - start_time, 2)))
 
             if self.event['cut_file'] == 1 and self.event['stop'] == None:
                 # 防止 重启进程服务后 新的日志文件并没有那么快重新打开
                 time.sleep(1.5)
-                logging.info('--------------------reopen file--------------------at: %s' % time.time())
+                self.logging.debug('--------------------reopen file--------------------at: %s' % time.time())
 
                 self.fd.close()
                 self.fd = self.__getFileFd()
@@ -470,7 +492,7 @@ class OutputCustomer(Base):
 
                     del data['request_uri']
             except IndexError as e:
-                logging.error('解析日志 request_url 错误;data : %s' % json.dumps(data))
+                self.logging.error('解析日志 request_url 错误;data : %s' % json.dumps(data))
 
 
 
@@ -523,10 +545,11 @@ class OutputCustomer(Base):
             line_data['line'] = line_data['line'].strip()
             parse_data = self.logParse.parse(line_data['log_format_name'], line_data['line'])
         except ValueError as e:
-            logging.error('pid : %s 解析数据 ValueError 错误: %s 数据: %s' % (os.getpid(),e.args,line ))
+            self.logging.error('\n pid : %s 解析数据 ValueError 错误: %s 数据: %s' % (os.getpid(),e.args,line ))
+            return False
         except Exception as e:
-            logging.error('pid : %s 解析数据 Exception 错误: %s 数据: %s' % (os.getpid(),e.args,line ))
-
+            self.logging.error('\n pid : %s 解析数据 Exception 错误: %s 数据: %s' % (os.getpid(),e.args,line ))
+            return False
 
 
         # 解析时间
@@ -551,6 +574,7 @@ class OutputCustomer(Base):
 
     # 消费队列
     def saveToStorage(self ):
+
         self.storage_handle.pushDataToStorage()
 
     #退回队列

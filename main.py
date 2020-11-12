@@ -1,5 +1,5 @@
 # coding=UTF-8
-from src.Core import OutputCustomer,Reader,Base
+from Src.Core import OutputCustomer,Reader,Base
 from multiprocessing import Manager,Process,Pool,Pipe,Value
 from threading import Thread
 from webServer.start import start_web
@@ -29,8 +29,6 @@ def runReader(log_files_conf):
 
 def customer(  ):
     OutputCustomer().saveToStorage()
-
-
 
 def getLogFilsDict(conf):
     logFiles = []

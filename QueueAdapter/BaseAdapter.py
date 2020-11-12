@@ -1,8 +1,6 @@
 from abc import abstractmethod,ABCMeta
-from src.Adapter import Base
 
-
-class Adapter(Base):
+class Adapter():
     __metaclass__ = ABCMeta
 
 

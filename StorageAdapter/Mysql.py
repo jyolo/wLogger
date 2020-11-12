@@ -70,6 +70,7 @@ class StorageAp(Adapter):
         self = cls()
         self.runner = runnerObject
         self.conf = self.runner.conf
+        self.logging = self.runner.logging
 
         try:
             self.db = pymysql.connect(
@@ -80,6 +81,7 @@ class StorageAp(Adapter):
                 db=quote_plus(self.conf['mysql']['db'])
             )
         except pymysql.MySQLError:
+            self.logging.error('Mysql 链接失败,请检查配置文件!')
             raise Exception('Mysql 链接失败,请检查配置文件!')
 
         self.table = self.conf['mysql']['table']
@@ -113,14 +115,15 @@ class StorageAp(Adapter):
 
                     item = self.runner._parse_line_data(item)
 
-                    _data.append(item)
+                    if item:
+                        _data.append(item)
 
 
                 end_time = time.perf_counter()
 
                 take_time = round(end_time - start_time, 3)
-                self.logging.info(
-                    '\n outputerer ---pid: %s tid: %s reg data len:%s;  take time :  %s' %
+                self.logging.debug(
+                    '\n outputerer ---pid: %s tid: %s reg data len:%s;  take time :  %s \n ' %
                     (os.getpid(), threading.get_ident(), len(_data), take_time))
 
 
@@ -147,7 +150,7 @@ class StorageAp(Adapter):
                 retry_reconnect_time = 0
 
                 end_time = time.perf_counter()
-                self.logging.info("\n outputerer -------pid: %s -- insert into mysql : %s---- end 耗时: %s \n" % (
+                self.logging.debug("\n outputerer -------pid: %s -- insert into mysql : %s---- end 耗时: %s \n" % (
                     os.getpid(), affected_rows, round(end_time - start_time, 3)))
 
             except pymysql.err.MySQLError as e:
@@ -155,9 +158,10 @@ class StorageAp(Adapter):
                 retry_reconnect_time = retry_reconnect_time + 1
                 if retry_reconnect_time >= max_retry_reconnect_time:
                     self.runner.rollBackQueue(self.backup_for_push_back_queue)
+                    self.logging.error('重试重新链接 mongodb 超出最大次数 %s' % max_retry_reconnect_time)
                     raise Exception('重试重新链接 mongodb 超出最大次数 %s' % max_retry_reconnect_time)
                 else:
-                    self.logging.info("\n outputerer -------pid: %s -- retry_reconnect_mysql at: %s time---- \n" % (
+                    self.logging.warn("\n outputerer -------pid: %s -- retry_reconnect_mysql at: %s time---- \n" % (
                         os.getpid(), retry_reconnect_time))
                     continue
 
@@ -196,7 +200,7 @@ class StorageAp(Adapter):
             return affected_rows
         # when table not found
         except pymysql.err.ProgrammingError as e:
-
+            self.logging.warn('没有发现数据表,开始尝试常见数据表')
             self._handle_queue_data_before_into_storage(self.backup_for_push_back_queue)
 
             with self.db.cursor() as cursor:
@@ -207,6 +211,8 @@ class StorageAp(Adapter):
         # other mysql errors
         except pymysql.err.MySQLError as e:
             self.db.rollback()
+            self.logging.error('数据写入失败 %s' % e.args)
+            raise Exception('数据写入失败 %s' % e.args)
 
     def __createTable(self,org_data):
 
@@ -233,9 +239,10 @@ class StorageAp(Adapter):
 
                 try:
                     with self.db.cursor() as cursor:
-                        res = cursor.execute(sql)
+                        cursor.execute(sql)
                 except pymysql.MySQLError:
-                    self.logging.error('数据表创建失败')
+                    self.logging.error('数据表 %s.%s 创建失败' % (self.conf['mysql']['db'], self.conf['mysql']['table']))
+                    raise Exception('数据表 %s.%s 创建失败' % (self.conf['mysql']['db'], self.conf['mysql']['table']))
 
     # 检查table　是否存在
     def _handle_queue_data_before_into_storage(self ,org_data):

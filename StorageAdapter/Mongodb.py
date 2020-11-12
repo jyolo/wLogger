@@ -22,6 +22,7 @@ class StorageAp(Adapter):
         self = cls()
         self.runner = runnerObject
         self.conf = self.runner.conf
+        self.logging = self.runner.logging
 
         if self.conf['mongodb']['username'] and self.conf['mongodb']['password']:
             mongo_url = 'mongodb://%s:%s@%s:%s/?authSource=%s' % \
@@ -63,7 +64,7 @@ class StorageAp(Adapter):
 
         while True:
             time.sleep(1)
-            # print('\n outputerer -------pid: %s tid: %s parseQeueuData _intoDb len: %s' % (os.getpid(), threading.get_ident(), len(self.runner.dqueue) ))
+            # self.logging.debug('\n outputerer -------pid: %s tid: %s parseQeueuData _intoDb len: %s' % (os.getpid(), threading.get_ident(), len(self.runner.dqueue) ))
 
             mongodb_outputer_client = self.db[self.runner.save_engine_conf['collection']]
             try:
@@ -87,7 +88,7 @@ class StorageAp(Adapter):
                 retry_reconnect_time = 0
 
                 end_time = time.perf_counter()
-                print("\n outputerer -------pid: %s -- insert into mongodb: %s---- end 耗时: %s \n" % (
+                self.logging.debug("\n outputerer -------pid: %s -- insert into mongodb: %s---- end 耗时: %s \n" % (
                 os.getpid(), len(res.inserted_ids), round(end_time - start_time, 3)))
 
                 # 消费完 dqueue 里面的数据后 取出标识 标识已完成
@@ -96,15 +97,15 @@ class StorageAp(Adapter):
 
 
             except pyerrors.PyMongoError as e:
-                print(list(self.runner.dqueue))
-                print(e.args)
+
                 time.sleep(1)
                 retry_reconnect_time = retry_reconnect_time + 1
                 if retry_reconnect_time >= max_retry_reconnect_time:
                     self.runner.push_back_to_queue(backup_for_push_back_queue)
+                    self.logging.error('重试重新链接 mongodb 超出最大次数 %s' % max_retry_reconnect_time)
                     raise pyerrors.PyMongoError('重试重新链接 mongodb 超出最大次数 %s' % max_retry_reconnect_time)
                 else:
-                    print("\n outputerer -------pid: %s -- retry_reconnect_mongodb at: %s time---- \n" % (
+                    self.logging.warn("\n outputerer -------pid: %s -- retry_reconnect_mongodb at: %s time---- \n" % (
                     os.getpid(), retry_reconnect_time))
                     continue
 
@@ -134,14 +135,16 @@ class StorageAp(Adapter):
 
                     backup_for_push_back_queue.append(item)
                     item = self.runner._parse_line_data(item)
-                    _data.append(item)
+                    if item:
+                        _data.append(item)
+
 
 
                 end_time = time.perf_counter()
 
                 take_time = round(end_time - start_time, 3)
-                print(
-                    '\n outputerer ---pid: %s tid: %s reg data len:%s;  take time :  %s' %
+                self.logging.debug(
+                    '\n outputerer ---pid: %s tid: %s reg data len:%s;  take time :  %s \n' %
                     (os.getpid(), threading.get_ident(), len(_data), take_time))
 
 
@@ -170,19 +173,19 @@ class StorageAp(Adapter):
                 retry_reconnect_time = 0
 
                 end_time = time.perf_counter()
-                print("\n outputerer -------pid: %s -- insert into mongodb: %s---- end 耗时: %s \n" % (
+                self.logging.debug("\n outputerer -------pid: %s -- insert into mongodb: %s---- end 耗时: %s \n" % (
                     os.getpid(), len(res.inserted_ids), round(end_time - start_time, 3)))
 
 
             except pyerrors.PyMongoError as e:
-                print(e.args)
                 time.sleep(1)
                 retry_reconnect_time = retry_reconnect_time + 1
                 if retry_reconnect_time >= max_retry_reconnect_time:
                     self.runner.rollBackQueue(backup_for_push_back_queue)
-                    raise pyerrors.PyMongoError('重试重新链接 mongodb 超出最大次数 %s' % max_retry_reconnect_time)
+                    self.logging.error('重试重新链接 mongodb 超出最大次数 %s' % max_retry_reconnect_time)
+                    raise Exception('重试重新链接 mongodb 超出最大次数 %s' % max_retry_reconnect_time)
                 else:
-                    print("\n outputerer -------pid: %s -- retry_reconnect_mongodb at: %s time---- \n" % (
+                    self.logging.warn("\n outputerer -------pid: %s -- retry_reconnect_mongodb at: %s time---- \n" % (
                         os.getpid(), retry_reconnect_time))
                     continue
 
