@@ -115,7 +115,7 @@ class StorageAp(Adapter):
         retry_reconnect_time = 0
 
         while True:
-            time.sleep(0.1)
+            time.sleep(1)
 
             if retry_reconnect_time == 0:
 
@@ -123,6 +123,7 @@ class StorageAp(Adapter):
                 queue_data = self.runner.getQueueData()
                 if len(queue_data) == 0:
                     self.logging.debug('pid: %s  暂无数据 等待 queue数据 ' % os.getpid())
+                    time.sleep(1)
                     continue
 
                 start_time = time.perf_counter()
