@@ -122,7 +122,6 @@ class Base(object):
 # 生产者 实时读取日志 && 切割日志 && 上报服务器状况
 class Reader(Base):
 
-
     event = {
         'cut_file' : 0,
         'stop' : None,
