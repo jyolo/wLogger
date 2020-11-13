@@ -122,6 +122,7 @@ class StorageAp(Adapter):
                 # 获取队列数据
                 queue_data = self.runner.getQueueData()
                 if len(queue_data) == 0:
+                    self.logging.debug('pid: %s  暂无数据 等待 queue数据 ' % os.getpid())
                     continue
 
                 start_time = time.perf_counter()
