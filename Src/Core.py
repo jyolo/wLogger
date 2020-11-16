@@ -354,7 +354,7 @@ class Reader(Base):
         max_retry_open_file_time = 3
         retry_open_file_time = 0
         while True:
-            time.sleep(0.5)
+            time.sleep(1)
 
             if self.event['stop']:
                 self.logging.debug( '%s ; read threading stop pid: %s' % (self.event['stop'] ,os.getpid()))

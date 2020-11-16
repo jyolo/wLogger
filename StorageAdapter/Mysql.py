@@ -71,21 +71,25 @@ class StorageAp(Adapter):
         self.runner = runnerObject
         self.conf = self.runner.conf
         self.logging = self.runner.logging
-
+        pymysql_timeout_secends = 60
         try:
             self.db = pymysql.connect(
-                host=self.conf['mysql']['host'],
-                port=int(self.conf['mysql']['port']),
-                user=quote_plus(self.conf['mysql']['username']),
-                password=quote_plus(self.conf['mysql']['password']),
-                db=quote_plus(self.conf['mysql']['db'])
+                host = self.conf['mysql']['host'],
+                port = int(self.conf['mysql']['port']),
+                user = quote_plus(self.conf['mysql']['username']),
+                password = quote_plus(self.conf['mysql']['password']),
+                db = quote_plus(self.conf['mysql']['db']),
+                connect_timeout = pymysql_timeout_secends,
+                read_timeout = pymysql_timeout_secends,
+                write_timeout = pymysql_timeout_secends,
             )
-        except pymysql.MySQLError:
+        except pymysql.err.MySQLError:
             self.logging.error('Mysql 链接失败,请检查配置文件!')
             raise Exception('Mysql 链接失败,请检查配置文件!')
 
-        self.table = self.conf['mysql']['table']
+
         return self
+
 
 
     def pushDataToStorage(self):
@@ -93,6 +97,7 @@ class StorageAp(Adapter):
 
         while True:
             time.sleep(0.1)
+            self._getTableName('table')
 
             if retry_reconnect_time == 0:
 
@@ -126,8 +131,6 @@ class StorageAp(Adapter):
                     '\n outputerer ---pid: %s tid: %s reg data len:%s;  take time :  %s \n ' %
                     (os.getpid(), threading.get_ident(), len(_data), take_time))
 
-
-
             if 'max_retry_reconnect_time' in self.conf['outputer']:
                 max_retry_reconnect_time = int(self.conf['outputer']['max_retry_reconnect_time'])
             else:
@@ -140,13 +143,18 @@ class StorageAp(Adapter):
                 if len(_data) == 0:
                     continue
 
+                # for reconnect
+                self.db.ping()
+
+
+
 
                 affected_rows = self.__insertToMysql(_data)
 
                 # after_into_storage
                 self._handle_queue_data_after_into_storage()
 
-                # 重置 retry_reconnect_time
+                # reset retry_reconnect_time
                 retry_reconnect_time = 0
 
                 end_time = time.perf_counter()
@@ -154,15 +162,16 @@ class StorageAp(Adapter):
                     os.getpid(), affected_rows, round(end_time - start_time, 3)))
 
             except pymysql.err.MySQLError as e:
-                time.sleep(1)
+                time.sleep(2)
+
                 retry_reconnect_time = retry_reconnect_time + 1
                 if retry_reconnect_time >= max_retry_reconnect_time:
                     self.runner.rollBackQueue(self.backup_for_push_back_queue)
                     self.logging.error('重试重新链接 mongodb 超出最大次数 %s' % max_retry_reconnect_time)
                     raise Exception('重试重新链接 mongodb 超出最大次数 %s' % max_retry_reconnect_time)
                 else:
-                    self.logging.warn("\n outputerer -------pid: %s -- retry_reconnect_mysql at: %s time---- \n" % (
-                        os.getpid(), retry_reconnect_time))
+                    self.logging.error("\n outputerer -------pid: %s -- retry_reconnect_mysql at: %s time---- Exceptions: %s \n" % (
+                        os.getpid(), retry_reconnect_time ,e.args))
                     continue
 
     def __insertToMysql(self,data):
@@ -174,14 +183,11 @@ class StorageAp(Adapter):
         for item in data:
             _values = '('
             for i in item:
-                item[i] = '"%s"' % str(item[i])
-
-
+                item[i] = '"%s"' % str(item[i]).strip('"')
 
             if fields == None:
                 fk = item.keys()
                 fields = ','.join(fk)
-
 
             values = '(%s)' % ','.join(item.values())
 
@@ -189,7 +195,6 @@ class StorageAp(Adapter):
 
 
         sql = "INSERT INTO %s(%s)  VALUES %s" % (self.table,fields,','.join(_valuelist))
-
 
         try:
             with self.db.cursor() as cursor:
@@ -200,16 +205,18 @@ class StorageAp(Adapter):
             return affected_rows
         # when table not found
         except pymysql.err.ProgrammingError as e:
-            self.logging.warn('没有发现数据表,开始尝试常见数据表')
+            self.logging.warn('没有发现数据表,开始尝试创建数据表')
             self._handle_queue_data_before_into_storage(self.backup_for_push_back_queue)
 
             with self.db.cursor() as cursor:
                 affected_rows = cursor.execute(sql)
+
             self.db.commit()
 
             return affected_rows
         # other mysql errors
         except pymysql.err.MySQLError as e:
+            self.runner.rollBackQueue(self.backup_for_push_back_queue)
             self.db.rollback()
             self.logging.error('数据写入失败 %s' % e.args)
             raise Exception('数据写入失败 %s' % e.args)
@@ -229,43 +236,36 @@ class StorageAp(Adapter):
                     fields.append(_str)
 
                 sql = """
-                                    CREATE TABLE `%s`.`%s`  (
-                                          `id` int(11) NULL AUTO_INCREMENT,
+                        CREATE TABLE IF NOT EXISTS  `%s`.`%s`  (
+                                          `id` int(11) NOT NULL AUTO_INCREMENT,
                                           %s ,
                                           PRIMARY KEY (`id`)
                                         )
-                                """ % (self.conf['mysql']['db'], self.conf['mysql']['table'] ,','.join(fields))
+                                """ % (self.conf['mysql']['db'], self.table ,','.join(fields))
 
 
                 try:
                     with self.db.cursor() as cursor:
                         cursor.execute(sql)
-                except pymysql.MySQLError:
-                    self.logging.error('数据表 %s.%s 创建失败' % (self.conf['mysql']['db'], self.conf['mysql']['table']))
-                    raise Exception('数据表 %s.%s 创建失败' % (self.conf['mysql']['db'], self.conf['mysql']['table']))
+                except pymysql.MySQLError as e:
+
+                    self.logging.error('数据表 %s.%s 创建失败 ;Exception: %s ; SQL:%s' % (self.conf['mysql']['db'], self.conf['mysql']['table'] , e.args ,sql))
+                    raise Exception('数据表 %s.%s 创建失败 ;Exception: %s ; SQL:%s' % (self.conf['mysql']['db'], self.conf['mysql']['table'], e.args ,sql))
+
 
     # 检查table　是否存在
     def _handle_queue_data_before_into_storage(self ,org_data):
 
         sql = "SELECT table_name FROM information_schema.TABLES WHERE table_name ='%s'" % self.table;
         with self.db.cursor() as cursor:
-            isset = cursor.execute(sql)
-            if isset == 0:
+            cursor.execute(sql)
+            res = cursor.fetchone()
+            if not res:
                 self.__createTable(org_data)
 
 
     # 在持久化存储之前 对 队列中的数据 进行预处理 ,比如 update ,delete 等操作
     def _handle_queue_data_after_into_storage(self):
-        # if (hasattr(self.runner, 'queue_data_ids')):
-        #     ids = self.runner.queue_data_ids
-        #     self.db[self.runner.queue_key].update_many(
-        #         {'_id': {'$in': ids}},
-        #         {
-        #             '$set': {'out_queue': 1},
-        #             '$currentDate': {'ttl': True}
-        #         },
-        #
-        #     )
         pass
 
 

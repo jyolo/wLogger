@@ -116,6 +116,8 @@ class StorageAp(Adapter):
 
         while True:
             time.sleep(1)
+            self._getTableName('collection')
+
 
             if retry_reconnect_time == 0:
 
@@ -150,13 +152,12 @@ class StorageAp(Adapter):
                     (os.getpid(), threading.get_ident(), len(_data), take_time))
 
 
-
             if 'max_retry_reconnect_time' in self.conf['outputer']:
                 max_retry_reconnect_time = int(self.conf['outputer']['max_retry_reconnect_time'])
             else:
                 max_retry_reconnect_time = 3
 
-            mongodb_outputer_client = self.db[self.runner.save_engine_conf['collection']]
+            mongodb_outputer_client = self.db[self.table]
             try:
                 start_time = time.perf_counter()
 
@@ -177,7 +178,6 @@ class StorageAp(Adapter):
                 end_time = time.perf_counter()
                 self.logging.debug("\n outputerer -------pid: %s -- insert into mongodb: %s---- end 耗时: %s \n" % (
                     os.getpid(), len(res.inserted_ids), round(end_time - start_time, 3)))
-
 
             except pyerrors.PyMongoError as e:
                 time.sleep(1)
