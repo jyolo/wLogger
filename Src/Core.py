@@ -61,7 +61,7 @@ class Base(object):
 
 
     def __initLogging(self):
-        LOG_FORMAT = "%(asctime)s %(levelname)s %(pathname)s %(message)s "
+        LOG_FORMAT = "%(asctime)s %(levelname)s %(pathname)s %(lineno)s %(message)s "
         DATE_FORMAT = '%Y-%m-%d  %H:%M:%S '
         if self.__class__.__name__ == 'Base':return
 

@@ -146,9 +146,6 @@ class StorageAp(Adapter):
                 # for reconnect
                 self.db.ping()
 
-
-
-
                 affected_rows = self.__insertToMysql(_data)
 
                 # after_into_storage
@@ -205,21 +202,18 @@ class StorageAp(Adapter):
             return affected_rows
         # when table not found
         except pymysql.err.ProgrammingError as e:
-            self.logging.warn('没有发现数据表,开始尝试创建数据表')
-            self._handle_queue_data_before_into_storage(self.backup_for_push_back_queue)
+            create_table_flag = self._handle_queue_data_before_into_storage(self.backup_for_push_back_queue)
+            # 创建表的时候 补插入数据
+            if create_table_flag == True:
+                with self.db.cursor() as cursor:
+                    affected_rows = cursor.execute(sql)
+                self.db.commit()
+                return affected_rows
+            # 数据表存在的 其它错误
+            else:
+                self.runner.logging.error(' pymysql.err.ProgrammingError 数据写入错误: %s' % e.args)
+                raise Exception(' pymysql.err.ProgrammingError 数据写入错误: %s' % e.args)
 
-            with self.db.cursor() as cursor:
-                affected_rows = cursor.execute(sql)
-
-            self.db.commit()
-
-            return affected_rows
-        # other mysql errors
-        except pymysql.err.MySQLError as e:
-            self.runner.rollBackQueue(self.backup_for_push_back_queue)
-            self.db.rollback()
-            self.logging.error('数据写入失败 %s' % e.args)
-            raise Exception('数据写入失败 %s' % e.args)
 
     def __createTable(self,org_data):
 
@@ -261,7 +255,11 @@ class StorageAp(Adapter):
             cursor.execute(sql)
             res = cursor.fetchone()
             if not res:
+                self.logging.warn('没有发现数据表,开始尝试创建数据表')
                 self.__createTable(org_data)
+                return True
+
+        return False
 
 
     # 在持久化存储之前 对 队列中的数据 进行预处理 ,比如 update ,delete 等操作
