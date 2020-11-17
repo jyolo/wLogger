@@ -21,7 +21,7 @@ class StorageAp(Adapter):
         'http_x_forwarded_for' : 'varchar(255)',
         'scheme' : 'varchar(255)',
         'request': 'varchar(255)',
-        'request_body': 'text',
+        'request_body': 'mediumtext',
         'request_length': 'int(10)',
         'request_time': 'float(10,3)',
         'upstream_response_time': 'varchar(255)',
@@ -31,13 +31,13 @@ class StorageAp(Adapter):
         'connection': 'int(10)',
         'connection_requests': 'int(10)',
         'http_referer': 'varchar(255)',
-        'http_user_agent': 'varchar(255)',
+        'http_user_agent': 'text',
         'time_local': 'varchar(255)',
         'upstream_addr': 'varchar(255)',
         # 预设附加字段
         'time_str': 'datetime',
         'timestamp': 'int(10)',
-        'args' : 'varchar(255)', # log_format 中有request　则会有此字段
+        'args' : 'mediumtext', # log_format 中有request　则会有此字段
         'server_protocol' : 'varchar(255)', # log_format 中有request　则会有此字段
         'request_url' : 'varchar(255)', # log_format 中有request　则会有此字段
         'request_method' : 'varchar(10)', # log_format 中有request　则会有此字段
@@ -103,6 +103,7 @@ class StorageAp(Adapter):
 
                 # 获取队列数据
                 queue_data = self.runner.getQueueData()
+
                 if len(queue_data) == 0:
                     continue
 
@@ -136,7 +137,6 @@ class StorageAp(Adapter):
             else:
                 max_retry_reconnect_time = 3
 
-
             try:
                 start_time = time.perf_counter()
 
@@ -148,15 +148,23 @@ class StorageAp(Adapter):
 
                 affected_rows = self.__insertToMysql(_data)
 
-                # after_into_storage
-                self._handle_queue_data_after_into_storage()
-
                 # reset retry_reconnect_time
                 retry_reconnect_time = 0
 
                 end_time = time.perf_counter()
                 self.logging.debug("\n outputerer -------pid: %s -- insert into mysql : %s---- end 耗时: %s \n" % (
                     os.getpid(), affected_rows, round(end_time - start_time, 3)))
+
+            except pymysql.err.DataError as e:
+                error_msg = "\n outputerer -------pid: %s -- pymysql.err.DataError 数据类型错误 请检查 field_map 配置---- Exceptions: %s \n" % (
+                        os.getpid(), e.args)
+                self.logging.error( error_msg )
+                raise Exception( error_msg)
+            except pymysql.err.OperationalError as e:
+
+                print(e.args)
+                print(self.debug_sql)
+                exit()
 
             except pymysql.err.MySQLError as e:
                 time.sleep(2)
@@ -166,7 +174,7 @@ class StorageAp(Adapter):
                     self.logging.error('重试重新链接 mongodb 超出最大次数 %s' % max_retry_reconnect_time)
                     raise Exception('重试重新链接 mongodb 超出最大次数 %s' % max_retry_reconnect_time)
                 else:
-                    print(_data)
+                    print(e.__class__)
                     self.logging.error("\n outputerer -------pid: %s -- retry_reconnect_mysql at: %s time---- Exceptions: %s \n" % (
                         os.getpid(), retry_reconnect_time ,e.args))
                     continue
@@ -177,43 +185,61 @@ class StorageAp(Adapter):
 
         fields = None
 
+        field_map_keys = list(self.field_map)
+        field_map_value = list(self.field_map.values())
         _valuelist = []
         for item in data:
-            _values = '('
+
+
+            fk = list(item.keys())
+            if 'args' not in fk:
+                print(item)
+
+            fields = ','.join(fk)
+
             for i in item:
-                item[i] = '"%s"' % str(item[i]).strip('"')
+                field_type = field_map_value[ field_map_keys.index(i) ]
+                if (field_type.find('int') > -1 or field_type.find('float') > -1) and str(item[i]) == '':
+                    item[i] = '"0"'
+                elif str(item[i]) == '' :
+                    item[i] = '"-"'
+                else:
+                    item[i] = '"%s"' % str(item[i]).strip('"')
 
-            if fields == None:
-                fk = item.keys()
-                fields = ','.join(fk)
 
-            values = '(%s)' % ','.join(item.values())
+
+            values = '(%s)' % ','.join(list(item.values()))
 
             _valuelist.append(values)
 
 
+
         sql = "INSERT INTO %s(%s)  VALUES %s" % (self.table,fields,','.join(_valuelist))
+
+        self.debug_sql = sql
 
         try:
             with self.db.cursor() as cursor:
                 affected_rows = cursor.execute(sql)
 
-            self.db.commit()
 
+            self.db.commit()
             return affected_rows
         # when table not found
         except pymysql.err.ProgrammingError as e:
             create_table_flag = self._handle_queue_data_before_into_storage(self.backup_for_push_back_queue)
             # 创建表的时候 补插入数据
             if create_table_flag == True:
+
                 with self.db.cursor() as cursor:
                     affected_rows = cursor.execute(sql)
                 self.db.commit()
                 return affected_rows
             # 数据表存在的 其它错误
             else:
-                self.runner.logging.error(' pymysql.err.ProgrammingError 数据写入错误: %s' % e.args)
-                raise Exception(' pymysql.err.ProgrammingError 数据写入错误: %s' % e.args)
+                print(self.debug_sql)
+                self.runner.logging.error(' pymysql.err.ProgrammingError 数据写入错误: %s ;sql: %s' % (e.args , self.debug_sql))
+                raise Exception(' pymysql.err.ProgrammingError 数据写入错误: %s ;sql: %s' % (e.args , self.debug_sql))
 
 
     def __createTable(self,org_data):

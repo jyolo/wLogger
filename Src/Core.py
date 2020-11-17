@@ -478,6 +478,7 @@ class OutputCustomer(Base):
                         data['args'] = _url[1]
                     else:
                         data['request_url'] = _url[0]
+                        data['args'] = ''
 
                     data['server_protocol'] = _strarr[2]
 
@@ -553,7 +554,7 @@ class OutputCustomer(Base):
 
         # 解析时间
         parse_data = self.__parse_time_str(parse_data)
-        # 解析url
+        # 解析requset 变成 request_method ,request_url ,args ,server_protocol
         parse_data = self.__parse_request_url(parse_data)
         # 解析IP 成地域
         parse_data = self.__parse_ip_to_area(parse_data)
