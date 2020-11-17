@@ -223,6 +223,7 @@ class StorageAp(Adapter):
                 return affected_rows
             # 数据表存在的 其它错误
             else:
+                
                 self.runner.logging.error('Exception: %s ; %s 数据写入错误: %s ;sql: %s' % (e.__class__,e.args , self.debug_sql))
                 raise Exception(' Exception: %s ;  数据写入错误: %s ;sql: %s' % (e.__class__,e.args , self.debug_sql))
 
