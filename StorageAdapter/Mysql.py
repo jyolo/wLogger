@@ -160,16 +160,17 @@ class StorageAp(Adapter):
 
             except pymysql.err.MySQLError as e:
                 time.sleep(2)
-
                 retry_reconnect_time = retry_reconnect_time + 1
                 if retry_reconnect_time >= max_retry_reconnect_time:
                     self.runner.rollBackQueue(self.backup_for_push_back_queue)
                     self.logging.error('重试重新链接 mongodb 超出最大次数 %s' % max_retry_reconnect_time)
                     raise Exception('重试重新链接 mongodb 超出最大次数 %s' % max_retry_reconnect_time)
                 else:
+                    print(_data)
                     self.logging.error("\n outputerer -------pid: %s -- retry_reconnect_mysql at: %s time---- Exceptions: %s \n" % (
                         os.getpid(), retry_reconnect_time ,e.args))
                     continue
+
 
     def __insertToMysql(self,data):
 
