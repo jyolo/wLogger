@@ -223,7 +223,7 @@ class StorageAp(Adapter):
                 return affected_rows
             # 数据表存在的 其它错误
             else:
-                
+
                 self.runner.logging.error('Exception: %s ; %s 数据写入错误: %s ;sql: %s' % (e.__class__,e.args , self.debug_sql))
                 raise Exception(' Exception: %s ;  数据写入错误: %s ;sql: %s' % (e.__class__,e.args , self.debug_sql))
 
@@ -235,8 +235,17 @@ class StorageAp(Adapter):
             reg = re.compile('\$(\w+)?')
             match = reg.findall(line['log_format_str'])
             if len(match):
+                # 该三项配置会被转换会 其它 字段
+                if 'request' in match:
+                    del match[ match.index('request') ]
+                if 'time_local' in match:
+                    del match[match.index('time_local')]
+                if 'time_iso8601' in match:
+                    del match[match.index('time_iso8601')]
+
 
                 match = self.pre_field + match
+
                 fields = []
                 for i in match:
                     _str = "`%s` %s NULL " % (i ,self.field_map[i] )
