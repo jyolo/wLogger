@@ -1,5 +1,6 @@
 Flask == 1.1.1
 flask-pymongo == 2.3.0
+flask_sqlalchemy == 2.4.4
 configparser == 4.0.2
 environs == 8.0.0
 parse == 1.17.0

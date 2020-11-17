@@ -2,7 +2,7 @@
 from flask.blueprints import Blueprint
 from flask_pymongo import PyMongo
 from flask import render_template,request,flash,session,current_app
-from webServer.customer import ApiCorsResponse
+from webServer.customer import ApiCorsResponse,MysqlDb,MongoDb
 import time,re
 
 
@@ -39,27 +39,16 @@ def get_request_num_by_url():
 
     session['now_timestamp'] = int(time.time())
 
+    if hasattr(current_app,'mysql'):
+        data = MysqlDb.get_request_num_by_url(current_app)
 
-    today = time.strftime('%Y-%m-%d', time.localtime(time.time()))
-    total =  current_app.mongo.db.logger.find({'time_str':{'$regex':'^%s' % today} }).count()
+    if hasattr(current_app,'mongo') :
 
-    res = current_app.mongo.db.logger.aggregate([
-        {'$match':{'time_str':{'$regex':'^%s' % today} } },
-        {'$group': {'_id': '$request_url' ,'total_num':{'$sum':1}} },
-        {'$project':{
-            'ip':'$_id',
-            'total_num': 1 ,
-            '_id':0,
-            'percent':{ '$toDouble': {'$substr':[  {'$multiply':[ {'$divide':['$total_num' , total]} ,100] }  ,0,4  ] }   }
-            }
-        },
-        {'$sort': {'total_num': -1}},
-        {'$limit':50}
-    ])
+        data = MongoDb.get_request_num_by_url(current_app)
 
 
-    data = list(res)
-    data.reverse()
+
+
     return  ApiCorsResponse.response(data)
 
 
@@ -69,6 +58,8 @@ def get_request_urls_by_ip():
         return  ApiCorsResponse.response('缺少ip参数',False)
 
     session['now_timestamp'] = int(time.time())
+
+    return {}
 
     today = time.strftime('%Y-%m-%d', time.localtime(time.time()))
     total = current_app.mongo.db.logger.find({'time_str': {'$regex': '^%s' % today}}).count()
@@ -102,6 +93,8 @@ def get_request_num_by_ip():
 
     session['now_timestamp'] = int(time.time())
 
+    return {}
+
 
     today = time.strftime('%Y-%m-%d', time.localtime(time.time()))
     total =  current_app.mongo.db.logger.find({'time_str':{'$regex':'^%s' % today} }).count()
@@ -134,7 +127,12 @@ def get_request_num_by_secends():
     else:
         limit = 5
 
+
+
+
     today = time.strftime('%Y-%m-%d', time.localtime(time.time()))
+
+    return {}
 
     res = current_app.mongo.db.logger.aggregate([
         {'$match': {'time_str': {'$regex': '^%s' % today}}},
@@ -161,6 +159,9 @@ def get_request_num_by_province():
     session['now_timestamp'] = int(time.time())
 
     today = time.strftime('%Y-%m-%d', time.localtime(time.time()))
+
+    return {}
+
     total = current_app.mongo.db.logger.find({'time_str': {'$regex': '^%s' % today}}).count()
 
     res = current_app.mongo.db.logger.aggregate([
@@ -180,6 +181,9 @@ def get_request_num_by_status():
     session['now_timestamp'] = int(time.time())
 
     today = time.strftime('%Y-%m-%d', time.localtime(time.time()))
+
+    return {}
+
     total = current_app.mongo.db.logger.find({'time_str': {'$regex': '^%s' % today}}).count()
 
     res = current_app.mongo.db.logger.aggregate([
@@ -205,6 +209,9 @@ def get_request_num_by_status_code():
     session['now_timestamp'] = int(time.time())
 
     today = time.strftime('%Y-%m-%d', time.localtime(time.time()))
+    return {}
+
+
 
     arg = re.findall('\d+?', request.args.get('code'))
     res = current_app.mongo.db.logger.aggregate([

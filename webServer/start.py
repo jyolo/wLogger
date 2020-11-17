@@ -4,7 +4,7 @@ import os,sys
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from webServer.admin.user import user
 from webServer.admin.home import home
-
+from webServer.customer import Func
 
 app = Flask(__name__)
 
@@ -19,23 +19,32 @@ def start_web(conf_dict = {}):
     if(not conf_dict ):
         raise ValueError('miss flask config of args conf_dict')
 
-    app.debug = conf_dict['debug']
+
+
     app.env = conf_dict['env']
+    if conf_dict['debug'] == 'True':
+        app.debug = True
+    elif conf_dict['debug'] == 'False':
+        app.debug = False
+
     app.secret_key = conf_dict['secret_key']
 
     app.config.from_mapping(conf_dict)
     app.register_blueprint(home, url_prefix='/')
     app.register_blueprint(user, url_prefix='/user')
 
-
+    # init flask db engine
     setAppDataEngine(conf_dict)
 
     app.run()
 
+
+
 def setAppDataEngine(conf_dict):
+    args = conf_dict[conf_dict['data_engine']]
+    db_engine_table = Func.getTableName(args)
 
     if conf_dict['data_engine'] == 'mongodb':
-        args = conf_dict[conf_dict['data_engine']]
         if args['username'] and args['password']:
             mongourl = 'mongodb://%s:%s@%s:%s/%s' % (
             args['username'], args['password'], args['host'], args['port'], args['db'])
@@ -45,6 +54,24 @@ def setAppDataEngine(conf_dict):
         app.mongo = PyMongo(app,mongourl)
 
     if conf_dict['data_engine'] == 'mysql':
+        from flask_sqlalchemy import SQLAlchemy
+        from sqlalchemy import create_engine
+        import pymysql
+
+        #sqlalchemy docs https://docs.sqlalchemy.org/en/13/core/pooling.html
+        pymysql.install_as_MySQLdb()
+
+        sql_url = 'mysql+pymysql://%s:%s@%s:%s/%s?charset=utf8' % (args['username'],args['password'],args['host'],args['port'],args['db'])
+
+        app.config['SQLALCHEMY_DATABASE_URI'] = sql_url
+        app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = True
+
+        db = SQLAlchemy(app)
+        app.mysql = db.engine
+        app.db_engine_table = db_engine_table
+
+
+
         pass
 
 
