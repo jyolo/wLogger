@@ -169,8 +169,8 @@ class StorageAp(Adapter):
                     self.logging.error('重试重新链接 mongodb 超出最大次数 %s' % max_retry_reconnect_time)
                     raise Exception('重试重新链接 mongodb 超出最大次数 %s' % max_retry_reconnect_time)
                 else:
-                    self.logging.error("\n outputerer -------pid: %s -- retry_reconnect_mysql at: %s time---- Exceptions %s: %s \n" % (
-                        os.getpid(),e.__class__, retry_reconnect_time ,e.args))
+                    self.logging.error("\n outputerer -------pid: %s -- retry_reconnect_mysql at: %s time---- Exceptions %s ; %s \n" % (
+                        os.getpid(),retry_reconnect_time,e.__class__  ,e.args))
                     continue
 
 
