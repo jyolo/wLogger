@@ -192,9 +192,6 @@ class StorageAp(Adapter):
 
 
             fk = list(item.keys())
-            if 'args' not in fk:
-                print(item)
-
             fields = ','.join(fk)
 
             for i in item:
@@ -237,7 +234,6 @@ class StorageAp(Adapter):
                 return affected_rows
             # 数据表存在的 其它错误
             else:
-                print(self.debug_sql)
                 self.runner.logging.error(' pymysql.err.ProgrammingError 数据写入错误: %s ;sql: %s' % (e.args , self.debug_sql))
                 raise Exception(' pymysql.err.ProgrammingError 数据写入错误: %s ;sql: %s' % (e.args , self.debug_sql))
 
