@@ -160,11 +160,6 @@ class StorageAp(Adapter):
                         os.getpid(), e.args)
                 self.logging.error( error_msg )
                 raise Exception( error_msg)
-            except pymysql.err.OperationalError as e:
-
-                print(e.args)
-                print(self.debug_sql)
-                exit()
 
             except pymysql.err.MySQLError as e:
                 time.sleep(2)
@@ -174,9 +169,8 @@ class StorageAp(Adapter):
                     self.logging.error('重试重新链接 mongodb 超出最大次数 %s' % max_retry_reconnect_time)
                     raise Exception('重试重新链接 mongodb 超出最大次数 %s' % max_retry_reconnect_time)
                 else:
-                    print(e.__class__)
-                    self.logging.error("\n outputerer -------pid: %s -- retry_reconnect_mysql at: %s time---- Exceptions: %s \n" % (
-                        os.getpid(), retry_reconnect_time ,e.args))
+                    self.logging.error("\n outputerer -------pid: %s -- retry_reconnect_mysql at: %s time---- Exceptions %s: %s \n" % (
+                        os.getpid(),e.__class__, retry_reconnect_time ,e.args))
                     continue
 
 
@@ -203,12 +197,8 @@ class StorageAp(Adapter):
                 else:
                     item[i] = '"%s"' % str(item[i]).strip('"')
 
-
-
             values = '(%s)' % ','.join(list(item.values()))
-
             _valuelist.append(values)
-
 
 
         sql = "INSERT INTO %s(%s)  VALUES %s" % (self.table,fields,','.join(_valuelist))
@@ -218,7 +208,6 @@ class StorageAp(Adapter):
         try:
             with self.db.cursor() as cursor:
                 affected_rows = cursor.execute(sql)
-
 
             self.db.commit()
             return affected_rows
@@ -234,8 +223,8 @@ class StorageAp(Adapter):
                 return affected_rows
             # 数据表存在的 其它错误
             else:
-                self.runner.logging.error(' pymysql.err.ProgrammingError 数据写入错误: %s ;sql: %s' % (e.args , self.debug_sql))
-                raise Exception(' pymysql.err.ProgrammingError 数据写入错误: %s ;sql: %s' % (e.args , self.debug_sql))
+                self.runner.logging.error('Exception: %s ; %s 数据写入错误: %s ;sql: %s' % (e.__class__,e.args , self.debug_sql))
+                raise Exception(' Exception: %s ;  数据写入错误: %s ;sql: %s' % (e.__class__,e.args , self.debug_sql))
 
 
     def __createTable(self,org_data):
