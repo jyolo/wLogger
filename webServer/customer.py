@@ -1,5 +1,5 @@
 # coding=UTF-8
-from flask import Response,current_app
+from flask import Response,current_app,request,session
 from sqlalchemy import text
 import json,time,datetime
 
@@ -24,16 +24,20 @@ class ApiCorsResponse():
         rep.access_control_allow_methods = ['GET','POST','OPTIONS','PUT','DELETE']
 
         return rep
-
+# 自定义函数class
 class Func():
 
     save_engine_log_split = ['day', 'week', 'month', 'year']
     @classmethod
-    def getTableName(cls,conf):
+    def getTableName(cls,conf,data_engine):
         table_suffix = ''
 
         try:
-            table = conf['table']
+            if data_engine == 'mysql':
+                table = conf['table']
+            if data_engine == 'mongodb':
+                table = conf['collection']
+
         except KeyError as e:
             raise Exception('配置错误: %s not exists' % e.args)
 
@@ -70,80 +74,24 @@ class Func():
         return table
     @classmethod
     def fetchone(cls,resultObj):
-        _l = list(resultObj)
-
-        if list(_l) == 0:
-            return False
-
-        return _l[0][0]
+        return cls.fetchall(resultObj)[0]
 
     @classmethod
     def fetchall(cls, resultObj):
-        _list = list(resultObj)
-        if len(_list) == 0:
-            return False
+        _list = []
+        for i in resultObj:
+            _dict = {}
+            item = i.items()
+            for j in item:
+
+                _dict[j[0]] = j[1]
+
+            _list.append(_dict)
 
         return _list
 
-class MysqlDb():
-
-    @classmethod
-    def get_request_num_by_url(cls,app):
-
-        today = time.strftime('%Y-%m-%d', time.localtime(time.time()))
-
-        with app.mysql.connect() as cursor:
-            sql = text("""
-                       select count(*) as total_num from {0} 
-                       where FROM_UNIXTIME(`timestamp`,'%Y-%m-%d') = :today
-                       """.format(app.db_engine_table)
-                       )
-
-            res = cursor.execute(sql, {'today': today})
-
-            total = Func.fetchone(res)
-
-
-        with app.mysql.connect() as cursor:
-            sql = text("""
-                select count(*) as total_num,request_url from {0}
-                where FROM_UNIXTIME(`timestamp`,'%Y-%m-%d') = :today
-                group by request_url
-                order by total_num desc
-                """.format(app.db_engine_table)
-               )
-
-
-            res = cursor.execute(sql,{'today':today})
-            print(total)
-            print(Func.fetchall(res))
 
 
 
 
-        # total = app.mongo.db.logger.find({'time_str': {'$regex': '^%s' % today}}).count()
-        #
-        # res = app.mongo.db.logger.aggregate([
-        #     {'$match': {'time_str': {'$regex': '^%s' % today}}},
-        #     {'$group': {'_id': '$request_url', 'total_num': {'$sum': 1}}},
-        #     {'$project': {
-        #         'ip': '$_id',
-        #         'total_num': 1,
-        #         '_id': 0,
-        #         'percent': {'$toDouble': {'$substr': [{'$multiply': [{'$divide': ['$total_num', total]}, 100]}, 0, 4]}}
-        #     }
-        #     },
-        #     {'$sort': {'total_num': -1}},
-        #     {'$limit': 50}
-        # ])
-        #
-        # data = list(res)
-        # data.reverse()
-        return {}
 
-
-class MongoDb():
-    @classmethod
-    def get_request_num_by_url(cls):
-        print('MongoDb')
-        pass
