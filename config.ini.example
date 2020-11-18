@@ -33,6 +33,16 @@ table = logger_watcher
 # 输出 日志 切割 到不同的表 或者 集合 支持 [day, week, month ,year]
 save_engine_log_split = day
 
+;[mysql]
+;host = 127.0.0.1
+;port = 3306
+;db = logger
+;username = logger
+;password = logger
+;table = logger_watcher
+;# 输出 日志 切割 到不同的表 或者 集合 支持 [day, week, month ,year]
+;save_engine_log_split = day
+
 [redis]
 host = 47.112.167.32
 port = 6666
@@ -104,8 +114,8 @@ env = development
 debug = True
 secret_key = asdasdasdsadasd
 server_name = 127.0.0.1:5500
-data_engine = mongodb
-;data_engine = mysql
+;data_engine = mongodb
+data_engine = mysql
 # 输出 日志 切割 到不同的表 或者 集合 支持 [day, week, month ,year]
 
 
