@@ -291,7 +291,7 @@ class StorageAp(Adapter):
     def _handle_queue_data_before_into_storage(self ,org_data):
 
         sql = "SELECT table_name FROM information_schema.TABLES WHERE table_name ='%s'" % self.table;
-        with self.db.cursor(pymysql.cursors.DictCursor) as cursor:
+        with self.db.cursor() as cursor:
             cursor.execute(sql)
             res = cursor.fetchone()
 
