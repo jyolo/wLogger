@@ -207,7 +207,7 @@
 
             $.each(data,function (k,v) {
                 var item = {}
-                item.name = v._id
+                item.name = v.remote_addr
                 item.y = v.total_num
                 item.drilldown = true
 
@@ -237,7 +237,7 @@
                                  drilldown_data = {'name': e.point.name ,data :[]}
                                  $.each(msg.data,function (k,v) {
                                         var item = {}
-                                        item.name = v._id
+                                        item.name = v.request_url
                                         item.y = v.total_num
                                         drilldown_data.data.push(item)
                                     })
@@ -321,7 +321,7 @@
 
             $.each(data,function (k,v) {
                 var item = {}
-                item.name = "状态码: " + v._id
+                item.name = v.status
                 item.y = v.total_num
                 item.drilldown = true
                 _data.push(item)
@@ -352,7 +352,7 @@
                                  drilldown_data = {'name': e.point.name ,data :[]}
                                  $.each(msg.data,function (k,v) {
                                         var item = {}
-                                        item.name = v._id
+                                        item.name = v.request_url
                                         item.y = v.total_num
                                         drilldown_data.data.push(item)
                                     })
@@ -412,7 +412,7 @@
                 },
                 tooltip: {
                     headerFormat: '<span style="font-size:11px"><b>{series.name}</b</span><br>',
-                    pointFormat: '链接: <b>{point.name}</b> 请求量 : <b> {point.y} </b> <br/>'
+                    pointFormat: '状态码: <b>{point.name}</b> 请求量 : <b> {point.y} </b> <br/>'
                 },
                 series: [{
                     name: '状态码',
@@ -432,7 +432,7 @@
 
 
 
-    // 被请求的url前50IP占比
+    // 被请求的url前50占比
     function get_request_num_by_url() {
         var init_request_url = '/get_request_num_by_url?type=init'
         var secend_request_url = '/get_request_num_by_url'
@@ -441,7 +441,8 @@
 
             $.each(data,function (k,v) {
                 var item = {}
-                item.name = v.ip
+
+                item.name = v.request_url
                 item.y = v.percent
                 _data.push(item)
             })
@@ -451,6 +452,7 @@
         $.getJSON(host + init_request_url ,function (msg) {
 
             var data = filter_msg_data(msg.data)
+
 
 
             var url_chart = Highcharts.chart('get_request_num_by_url',{

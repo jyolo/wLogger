@@ -58,7 +58,9 @@ class MongoDb():
             {'$match': {'time_str': {'$regex': '^%s' % today}}},
             {'$group': {'_id': '$remote_addr', 'total_num': {'$sum': 1}}},
             {'$project': {
+                'remote_addr':'$_id',
                 'total_num': 1,
+                '_id':0
                 # 'percent':{ '$toDouble': {'$substr':[  {'$multiply':[ {'$divide':['$total_num' , total]} ,100] }  ,0,4  ] }   }
             }
             },
@@ -101,7 +103,6 @@ class MongoDb():
         data.reverse()
         return ApiCorsResponse.response(data)
 
-
     @classmethod
     def get_request_num_by_status(cls):
         session['now_timestamp'] = int(time.time())
@@ -113,6 +114,29 @@ class MongoDb():
         res = current_app.db[current_app.db_engine_table].aggregate([
             {'$match': {'time_str': {'$regex': '^%s' % today}, 'status': {'$ne': '200'}}},
             {'$group': {'_id': '$status', 'total_num': {'$sum': 1}}},
+            {'$project': {'status': '$_id', 'total_num': 1, '_id': 0}},
+            {'$sort': {'total_num': -1}},
+        ])
+
+        data = list(res)
+        data.reverse()
+
+        return ApiCorsResponse.response(data)
+
+    @classmethod
+    def get_request_num_by_status_code(cls):
+        if not request.args.get('code'):
+            return ApiCorsResponse.response('缺少code参数', False)
+
+        session['now_timestamp'] = int(time.time())
+
+        today = time.strftime('%Y-%m-%d', time.localtime(time.time()))
+
+        arg = re.findall('\d+?', request.args.get('code'))
+        res = current_app.db[current_app.db_engine_table].aggregate([
+            {'$match': {'time_str': {'$regex': '^%s' % today}, 'status': ''.join(arg)}},
+            {'$group': {'_id': '$request_url', 'total_num': {'$sum': 1}}},
+            {'$project': {'request_url': '$_id', 'total_num': 1, '_id': 0}},
             {'$sort': {'total_num': -1}},
         ])
 
@@ -172,25 +196,3 @@ class MongoDb():
 
         return ApiCorsResponse.response(data)
 
-
-
-    @classmethod
-    def get_request_num_by_status_code(cls):
-        if not request.args.get('code'):
-            return ApiCorsResponse.response('缺少code参数', False)
-
-        session['now_timestamp'] = int(time.time())
-
-        today = time.strftime('%Y-%m-%d', time.localtime(time.time()))
-
-        arg = re.findall('\d+?', request.args.get('code'))
-        res = current_app.db[current_app.db_engine_table].aggregate([
-            {'$match': {'time_str': {'$regex': '^%s' % today}, 'status': ''.join(arg)}},
-            {'$group': {'_id': '$request_url', 'total_num': {'$sum': 1}}},
-            {'$sort': {'total_num': -1}},
-        ])
-
-        data = list(res)
-        data.reverse()
-
-        return ApiCorsResponse.response(data)

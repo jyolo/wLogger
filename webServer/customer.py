@@ -1,6 +1,7 @@
 # coding=UTF-8
 from flask import Response,current_app,request,session
 from sqlalchemy import text
+from decimal import Decimal
 import json,time,datetime
 
 
@@ -82,9 +83,13 @@ class Func():
         for i in resultObj:
             _dict = {}
             item = i.items()
-            for j in item:
 
-                _dict[j[0]] = j[1]
+            for j in item:
+                if isinstance(j[1],Decimal):
+                    vl = float(Decimal(j[1]).quantize(Decimal('.001')))
+                    _dict[j[0]] = vl
+                else:
+                    _dict[j[0]] = j[1]
 
             _list.append(_dict)
 
