@@ -82,7 +82,9 @@ class StorageAp(Adapter):
                 connect_timeout = pymysql_timeout_secends,
                 read_timeout = pymysql_timeout_secends,
                 write_timeout = pymysql_timeout_secends,
+
             )
+
         except pymysql.err.MySQLError:
             self.logging.error('Mysql 链接失败,请检查配置文件!')
             raise Exception('Mysql 链接失败,请检查配置文件!')
@@ -169,6 +171,7 @@ class StorageAp(Adapter):
                     self.logging.error('重试重新链接 mongodb 超出最大次数 %s' % max_retry_reconnect_time)
                     raise Exception('重试重新链接 mongodb 超出最大次数 %s' % max_retry_reconnect_time)
                 else:
+
                     self.logging.error("\n outputerer -------pid: %s -- retry_reconnect_mysql at: %s time---- Exceptions %s ; %s \n" % (
                         os.getpid(),retry_reconnect_time,e.__class__  ,e.args))
                     continue
@@ -210,6 +213,7 @@ class StorageAp(Adapter):
                 affected_rows = cursor.execute(sql)
 
             self.db.commit()
+
             return affected_rows
         # when table not found
         except pymysql.err.ProgrammingError as e:
@@ -251,13 +255,27 @@ class StorageAp(Adapter):
                     _str = "`%s` %s NULL " % (i ,self.field_map[i] )
                     fields.append(_str)
 
+                key_field = ['request_url','remote_addr','timestamp','time_str']
+                # 从字段中获取需要创建索引的 字段
+                key_field_needed = list(set(match).intersection(set(key_field)))
+                key_str = ''
+                if len(key_field_needed):
+                    karg = []
+                    for i in key_field_needed:
+                        karg.append('KEY `%s` (`%s`)' % (i,i))
+
+                    key_str = ',' + ','.join(karg)
+
+
                 sql = """
                         CREATE TABLE IF NOT EXISTS  `%s`.`%s`  (
                                           `id` int(11) NOT NULL AUTO_INCREMENT,
                                           %s ,
                                           PRIMARY KEY (`id`)
+                                          %s
                                         )
-                                """ % (self.conf['mysql']['db'], self.table ,','.join(fields))
+                                """ % (self.conf['mysql']['db'], self.table ,','.join(fields),key_str)
+
 
 
                 try:
@@ -273,13 +291,15 @@ class StorageAp(Adapter):
     def _handle_queue_data_before_into_storage(self ,org_data):
 
         sql = "SELECT table_name FROM information_schema.TABLES WHERE table_name ='%s'" % self.table;
-        with self.db.cursor() as cursor:
+        with self.db.cursor(pymysql.cursors.DictCursor) as cursor:
             cursor.execute(sql)
             res = cursor.fetchone()
+
             if not res:
                 self.logging.warn('没有发现数据表,开始尝试创建数据表')
                 self.__createTable(org_data)
                 return True
+
 
         return False
 
