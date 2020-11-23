@@ -255,14 +255,17 @@ class StorageAp(Adapter):
                     _str = "`%s` %s NULL " % (i ,self.field_map[i] )
                     fields.append(_str)
 
-                key_field = ['request_url','remote_addr','timestamp','time_str']
+                key_field = ['request_url','remote_addr','timestamp','time_str','http_user_agent']
                 # 从字段中获取需要创建索引的 字段
                 key_field_needed = list(set(match).intersection(set(key_field)))
                 key_str = ''
                 if len(key_field_needed):
                     karg = []
                     for i in key_field_needed:
-                        karg.append('KEY `%s` (`%s`)' % (i,i))
+                        if i == 'http_user_agent': # ua 全文索引
+                            karg.append('FULLTEXT `%s` (`%s`)' % (i, i))
+                        else:
+                            karg.append('KEY `%s` (`%s`)' % (i,i))
 
                     key_str = ',' + ','.join(karg)
 

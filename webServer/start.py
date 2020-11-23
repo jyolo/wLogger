@@ -57,7 +57,7 @@ def setAppDataEngine(conf_dict):
             mongourl = 'mongodb://%s:%s/%s' % (args['host'], args['port'], args['db'])
 
         app.db = PyMongo(app,mongourl).db
-        app.diver = MongoDb
+        app.driver = MongoDb
 
 
     if conf_dict['data_engine'] == 'mysql':
@@ -76,7 +76,7 @@ def setAppDataEngine(conf_dict):
 
         db = SQLAlchemy(app)
         app.db = db.engine
-        app.diver = MysqlDb
+        app.driver = MysqlDb
 
 
 

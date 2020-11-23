@@ -187,7 +187,7 @@ class MongoDb():
         res = current_app.db[current_app.db_engine_table].aggregate([
             {'$match': {'time_str': {'$regex': '^%s' % today}}},
             {'$group': {'_id': '$province', 'total_num': {'$sum': 1}}},
-            {'$project': {'fullname': '$_id', 'value': '$total_num', '_id': 0}},
+            {'$project': {'province': '$_id', 'value': '$total_num', '_id': 0}},
             {'$sort': {'total_num': -1}},
         ])
 

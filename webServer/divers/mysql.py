@@ -9,10 +9,26 @@ import json,time,datetime
 # 自定义mysql 数据获取class
 class MysqlDb():
 
+    today = time.strftime('%Y-%m-%d', time.localtime(time.time()))
+
+    @classmethod
+    def get_total_ip(cls):
+        with current_app.db.connect() as cursor:
+            sql = text("""
+                       select count(DISTINCT remote_addr) as total_num from {0}  
+                       where FROM_UNIXTIME(`timestamp`,'%Y-%m-%d') = :today
+                       """.format(current_app.db_engine_table)
+                       )
+
+            res = cursor.execute(sql, {'today': cls.today})
+
+            total = Func.fetchone(res)
+            return ApiCorsResponse.response(total)
+
+
     @classmethod
     def get_request_num_by_url(cls):
 
-        today = time.strftime('%Y-%m-%d', time.localtime(time.time()))
 
         with current_app.db.connect() as cursor:
             sql = text("""
@@ -21,7 +37,7 @@ class MysqlDb():
                        """.format(current_app.db_engine_table)
                        )
 
-            res = cursor.execute(sql, {'today': today})
+            res = cursor.execute(sql, {'today': cls.today})
 
 
             total = Func.fetchone(res)['total_num']
@@ -29,15 +45,15 @@ class MysqlDb():
 
         with current_app.db.connect() as cursor:
             sql = text("""
-                select (count(*)/{0}) as percent,request_url from {1}
+                select (count(*)/{0}) as percent,count(*) as total_num,request_url from {1}
                 where FROM_UNIXTIME(`timestamp`,'%Y-%m-%d') = :today
                 group by request_url
                 order by percent desc
-                limit 50
+                limit 10
                 """.format(total,current_app.db_engine_table)
                )
 
-            res = cursor.execute(sql,{'today':today})
+            res = cursor.execute(sql,{'today':cls.today})
             data = Func.fetchall(res)
             data.reverse()
             return ApiCorsResponse.response(data)
@@ -45,7 +61,7 @@ class MysqlDb():
     @classmethod
     def get_request_num_by_ip(cls):
 
-        today = time.strftime('%Y-%m-%d', time.localtime(time.time()))
+
 
         with current_app.db.connect() as cursor:
             sql = text("""
@@ -57,7 +73,7 @@ class MysqlDb():
                        """.format(current_app.db_engine_table)
                        )
 
-            res = cursor.execute(sql, {'today': today})
+            res = cursor.execute(sql, {'today': cls.today})
             data = Func.fetchall(res)
             data.reverse()
             return ApiCorsResponse.response(data)
@@ -78,9 +94,9 @@ class MysqlDb():
                        )
 
             ip = request.args.get('ip')
-            today = time.strftime('%Y-%m-%d', time.localtime(time.time()))
 
-            res = cursor.execute(sql, {'today': today,'remote_addr':ip})
+
+            res = cursor.execute(sql, {'today': cls.today,'remote_addr':ip})
             data = Func.fetchall(res)
             data.reverse()
 
@@ -98,9 +114,9 @@ class MysqlDb():
                        """.format(current_app.db_engine_table)
                        )
 
-            today = time.strftime('%Y-%m-%d', time.localtime(time.time()))
 
-            res = cursor.execute(sql, {'today': today})
+
+            res = cursor.execute(sql, {'today': cls.today})
             data = Func.fetchall(res)
             data.reverse()
 
@@ -124,9 +140,9 @@ class MysqlDb():
                        )
 
             code = request.args.get('code')
-            today = time.strftime('%Y-%m-%d', time.localtime(time.time()))
 
-            res = cursor.execute(sql, {'today': today,'status':code})
+
+            res = cursor.execute(sql, {'today': cls.today,'status':code})
             data = Func.fetchall(res)
             data.reverse()
             return ApiCorsResponse.response(data)
@@ -151,9 +167,7 @@ class MysqlDb():
                        )
 
 
-            today = time.strftime('%Y-%m-%d', time.localtime(time.time()))
-
-            res = cursor.execute(sql, {'today': today})
+            res = cursor.execute(sql, {'today': cls.today})
             res = Func.fetchall(res)
 
             data = []
@@ -175,17 +189,48 @@ class MysqlDb():
 
         with current_app.db.connect() as cursor:
             sql = text("""
-                       select count(*) as value,`province` as fullname from {0}
+                       select count(*) as value,`province`  from {0}
                        where FROM_UNIXTIME(`timestamp`,'%Y-%m-%d') = :today 
                        group by `province`
                        order by `value` desc 
                        """.format(current_app.db_engine_table)
                        )
 
-            today = time.strftime('%Y-%m-%d', time.localtime(time.time()))
-
-            res = cursor.execute(sql, {'today': today})
+            res = cursor.execute(sql, {'today': cls.today})
             data = Func.fetchall(res)
             data.reverse()
 
+            return ApiCorsResponse.response(data)
+
+    @classmethod
+    def get_spider_by_ua(cls):
+        with current_app.db.connect() as cursor:
+            sql = text("""
+                            select count(*) as total_num ,http_user_agent from {0}  
+                            where MATCH(`http_user_agent`) AGAINST('spider') 
+                            GROUP BY http_user_agent
+                            ORDER BY total_num desc
+                              """.format(current_app.db_engine_table)
+                       )
+
+            res = cursor.execute(sql, {'today': cls.today})
+            data = Func.fetchall(res)
+            return ApiCorsResponse.response(data)
+
+    @classmethod
+    def get_device_type_by_ua(cls):
+        with current_app.db.connect() as cursor:
+            sql = text("""
+                            select count(DISTINCT http_user_agent) as pc_num, (
+			                        select count(DISTINCT http_user_agent) as mobile_num
+				                    from {0}
+				                    where match(`http_user_agent`) AGAINST('mobile xfb' IN BOOLEAN MODE)
+	                            ) as mobile_num
+                            from {1}
+                            where match(`http_user_agent`) AGAINST('+gecko -mobile' IN BOOLEAN MODE)
+                              """.format(current_app.db_engine_table,current_app.db_engine_table)
+                       )
+
+            res = cursor.execute(sql, {'today': cls.today})
+            data = Func.fetchall(res)
             return ApiCorsResponse.response(data)

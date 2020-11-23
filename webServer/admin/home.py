@@ -29,37 +29,47 @@ def index():
 
         }
 
+@home.route('/get_total_ip' , methods=['GET'])
+def get_total_ip():
+    return current_app.driver.get_total_ip()
+
 @home.route('/get_request_num_by_url' , methods=['GET'])
 def get_request_num_by_url():
-    return current_app.diver.get_request_num_by_url()
+    return current_app.driver.get_request_num_by_url()
 
 @home.route('/get_request_urls_by_ip' , methods=['GET'])
 def get_request_urls_by_ip():
-    return current_app.diver.get_request_urls_by_ip()
+    return current_app.driver.get_request_urls_by_ip()
 
 @home.route('/get_request_num_by_ip' , methods=['GET'])
 def get_request_num_by_ip():
-    return current_app.diver.get_request_num_by_ip()
+    return current_app.driver.get_request_num_by_ip()
 
 @home.route('/get_request_num_by_secends' , methods=['GET'])
 def get_request_num_by_secends():
-    return current_app.diver.get_request_num_by_secends()
+    return current_app.driver.get_request_num_by_secends()
 
 @home.route('/get_request_num_by_province' , methods=['GET'])
 def get_request_num_by_province():
-    return current_app.diver.get_request_num_by_province()
+    return current_app.driver.get_request_num_by_province()
 
 @home.route('/get_request_num_by_status' , methods=['GET'])
 def get_request_num_by_status():
-    return current_app.diver.get_request_num_by_status()
+    return current_app.driver.get_request_num_by_status()
 
 
 @home.route('/get_request_num_by_status_code' , methods=['GET'])
 def get_request_num_by_status_code():
-    return current_app.diver.get_request_num_by_status_code()
+    return current_app.driver.get_request_num_by_status_code()
+
+@home.route('/get_spider_by_ua' , methods=['GET'])
+def get_spider_by_ua():
+    return current_app.driver.get_spider_by_ua()
 
 
-
+@home.route('/get_device_type_by_ua' , methods=['GET'])
+def get_device_type_by_ua():
+    return current_app.driver.get_device_type_by_ua()
 
 
 
