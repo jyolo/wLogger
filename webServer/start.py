@@ -45,7 +45,7 @@ def start_web(conf_dict = {}):
 
 def setAppDataEngine(conf_dict):
     args = conf_dict[conf_dict['data_engine']]
-    db_engine_table = Func.getTableName(args ,data_engine = conf_dict['data_engine'])
+    app.db_engine_table = Func.getTableName(args ,data_engine = conf_dict['data_engine'])
 
     if conf_dict['data_engine'] == 'mongodb':
         from flask_pymongo import PyMongo
@@ -58,7 +58,7 @@ def setAppDataEngine(conf_dict):
 
         app.db = PyMongo(app,mongourl).db
         app.diver = MongoDb
-        app.db_engine_table = db_engine_table
+
 
     if conf_dict['data_engine'] == 'mysql':
         from flask_sqlalchemy import SQLAlchemy
@@ -77,7 +77,7 @@ def setAppDataEngine(conf_dict):
         db = SQLAlchemy(app)
         app.db = db.engine
         app.diver = MysqlDb
-        app.db_engine_table = db_engine_table
+
 
 
 
