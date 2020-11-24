@@ -1,13 +1,33 @@
 # coding=UTF-8
-from flask import Response,current_app,request,session
-from sqlalchemy import text
+from flask import current_app,request,session
 from webServer.customer import Func,ApiCorsResponse
-import json,time,datetime,re
+import time,re
 
 
 
 
 class MongoDb():
+
+    # today = time.strftime('%Y-%m-%d', time.localtime(time.time()))
+    today = '2020-11-04'
+
+    @classmethod
+    def get_total_ip(cls):
+        res = current_app.db[current_app.db_engine_table].aggregate([
+            {'$match': {'time_str': {'$regex': '^%s' % cls.today}}},
+            {'$group': {'_id': '$remote_addr'}},
+            {'$group': {'_id': '','total_num':{'$sum':1} }},
+            {'$project': { '_id': 0}},
+            {'$sort': {'total_num': -1}},
+        ])
+        res = list(res)
+        return ApiCorsResponse.response(res[0])
+
+    @classmethod
+    def get_total_pv(cls):
+        res = current_app.db[current_app.db_engine_table].find({'time_str': {'$regex': '^%s' % cls.today}}).count()
+        return ApiCorsResponse.response({'total_num':res})
+
     @classmethod
     def get_request_num_by_url(cls):
         if request.args.get('type') == 'init':
@@ -19,17 +39,17 @@ class MongoDb():
         # session['now_timestamp'] = int(time.time())
         collection = current_app.db_engine_table
 
-        today = time.strftime('%Y-%m-%d', time.localtime(time.time()))
-        total = current_app.db[collection].find({'time_str': {'$regex': '^%s' % today}}).count()
+
+        total = current_app.db[collection].find({'time_str': {'$regex': '^%s' % cls.today}}).count()
 
         res = current_app.db[collection].aggregate([
-            {'$match': {'time_str': {'$regex': '^%s' % today}}},
+            {'$match': {'time_str': {'$regex': '^%s' % cls.today}}},
             {'$group': {'_id': '$request_url', 'total_num': {'$sum': 1}}},
             {'$project': {
-                'ip': '$_id',
+                'request_url': '$_id',
                 'total_num': 1,
                 '_id': 0,
-                'percent': {'$toDouble': {'$substr': [{'$multiply': [{'$divide': ['$total_num', total]}, 100]}, 0, 4]}}
+                # 'percent': {'$toDouble': {'$substr': [{'$multiply': [{'$divide': ['$total_num', total]}, 100]}, 0, 4]}}
             }
             },
             {'$sort': {'total_num': -1}},
@@ -51,11 +71,9 @@ class MongoDb():
 
         session['now_timestamp'] = int(time.time())
 
-        today = time.strftime('%Y-%m-%d', time.localtime(time.time()))
-        # total = current_app.db[current_app.db_engine_table].find({'time_str': {'$regex': '^%s' % today}}).count()
 
         res = current_app.db[current_app.db_engine_table].aggregate([
-            {'$match': {'time_str': {'$regex': '^%s' % today}}},
+            {'$match': {'time_str': {'$regex': '^%s' % cls.today}}},
             {'$group': {'_id': '$remote_addr', 'total_num': {'$sum': 1}}},
             {'$project': {
                 'remote_addr':'$_id',
@@ -83,11 +101,10 @@ class MongoDb():
 
         collection = current_app.db_engine_table
 
-        today = time.strftime('%Y-%m-%d', time.localtime(time.time()))
-        # total = current_app.db[collection].find({'time_str': {'$regex': '^%s' % today}}).count()
+
 
         res = current_app.db[collection].aggregate([
-            {'$match': {'time_str': {'$regex': '^%s' % today}, 'remote_addr': request.args.get('ip')}},
+            {'$match': {'time_str': {'$regex': '^%s' % cls.today}, 'remote_addr': request.args.get('ip')}},
             {'$group': {'_id': '$request_url', 'total_num': {'$sum': 1}}},
             {'$project': {
                 'total_num': 1,
@@ -107,12 +124,10 @@ class MongoDb():
     def get_request_num_by_status(cls):
         session['now_timestamp'] = int(time.time())
 
-        today = time.strftime('%Y-%m-%d', time.localtime(time.time()))
 
-        # total = current_app.mongo.db.logger.find({'time_str': {'$regex': '^%s' % today}}).count()
 
         res = current_app.db[current_app.db_engine_table].aggregate([
-            {'$match': {'time_str': {'$regex': '^%s' % today}, 'status': {'$ne': '200'}}},
+            {'$match': {'time_str': {'$regex': '^%s' % cls.today}, 'status': {'$ne': '200'}}},
             {'$group': {'_id': '$status', 'total_num': {'$sum': 1}}},
             {'$project': {'status': '$_id', 'total_num': 1, '_id': 0}},
             {'$sort': {'total_num': -1}},
@@ -130,11 +145,11 @@ class MongoDb():
 
         session['now_timestamp'] = int(time.time())
 
-        today = time.strftime('%Y-%m-%d', time.localtime(time.time()))
+
 
         arg = re.findall('\d+?', request.args.get('code'))
         res = current_app.db[current_app.db_engine_table].aggregate([
-            {'$match': {'time_str': {'$regex': '^%s' % today}, 'status': ''.join(arg)}},
+            {'$match': {'time_str': {'$regex': '^%s' % cls.today}, 'status': ''.join(arg)}},
             {'$group': {'_id': '$request_url', 'total_num': {'$sum': 1}}},
             {'$project': {'request_url': '$_id', 'total_num': 1, '_id': 0}},
             {'$sort': {'total_num': -1}},
@@ -153,10 +168,9 @@ class MongoDb():
         else:
             limit = 5
 
-        today = time.strftime('%Y-%m-%d', time.localtime(time.time()))
 
         res = current_app.db[current_app.db_engine_table].aggregate([
-            {'$match': {'time_str': {'$regex': '^%s' % today}}},
+            {'$match': {'time_str': {'$regex': '^%s' % cls.today}}},
             {'$group': {'_id': '$timestamp', 'total_num': {'$sum': 1}}},
             {'$project': {'timestamp': '$_id', 'total_request_num': '$total_num', '_id': 0}},
             {'$sort': {'timestamp': -1}},
@@ -176,23 +190,92 @@ class MongoDb():
         return ApiCorsResponse.response(data)
 
     @classmethod
-    def get_request_num_by_minute(cls):
-        pass
+    def get_pv_num_by_minute(cls):
+        current_hour = time.strftime('%Y-%m-%d %H', time.localtime(time.time()))
+
+        res = current_app.db[current_app.db_engine_table].aggregate([
+            {'$match': {'time_str': {'$regex': '^%s' % current_hour}}},
+            {'$group': {'_id': '$time_str', 'total_num': {'$sum': 1}}},
+            {'$project':
+                {
+                    'time_str': '$_id',
+                    'total_num': 1,
+                    '_id': 0,
+                    'date_str': {
+                        '$dateToString': {
+                            'format': '%Y-%m-%d %H:%M',
+                            'date': {'$dateFromString': {'dateString': '$_id'}}
+                        }
+                    }
+                }
+
+            },
+            {'$group': {'_id': '$date_str', 'total_num': {'$sum': 1}}},
+            # {'$project': {'_id': 0, 'time_str': '$_id', 'total_num': 1}},
+            {'$project':
+                {
+                    '_id': 0,
+                    'time_str': '$_id',
+                    'total_num': 1,
+                }
+            },
+            {'$sort': {'time_str': -1}},
+
+        ])
+
+        data = []
+        for i in res:
+            i['time_str'] = int(time.mktime(time.strptime(i['time_str'], '%Y-%m-%d %H:%M')))
+            data.append(i)
+
+        data.reverse()
+
+        return ApiCorsResponse.response(data)
+
     @classmethod
     def get_ip_num_by_minute(cls):
-        pass
+
+        current_hour = time.strftime('%Y-%m-%d %H', time.localtime(time.time()))
+
+        res = current_app.db[current_app.db_engine_table].aggregate([
+            {'$match': {'time_str': {'$regex': '^%s' % current_hour}}},
+            {'$group': {
+                '_id': '$remote_addr',
+                'total_num': {'$sum': 1},
+                'time_minute': {
+                    '$push': {
+                        '$dateToString': {
+                            'format': '%Y-%m-%d %H:%M',
+                            'date': {
+                                '$dateFromString': {'dateString': '$time_str'}
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            {'$unwind': '$time_minute'},
+            {'$project': {'_id': 0, 'ip': "$_id", 'time_minute': 1}},
+            {'$group': {'_id': '$time_minute', 'ips': {'$addToSet': '$ip'}}},
+            {'$project': {'total_num': {'$size': '$ips'}, 'time_str': '$_id', '_id': 0}},
+            {'$sort': {'time_str': -1}},
+
+        ])
+
+        data = []
+        for i in res:
+            i['time_str'] = int(time.mktime(time.strptime(i['time_str'], '%Y-%m-%d %H:%M')))
+            data.append(i)
+
+        data.reverse()
+        return ApiCorsResponse.response(data)
 
     @classmethod
     def get_request_num_by_province(cls):
         session['now_timestamp'] = int(time.time())
 
-        today = time.strftime('%Y-%m-%d', time.localtime(time.time()))
-
-
-        # total = current_app.mongo.db.logger.find({'time_str': {'$regex': '^%s' % today}}).count()
-
         res = current_app.db[current_app.db_engine_table].aggregate([
-            {'$match': {'time_str': {'$regex': '^%s' % today}}},
+            {'$match': {'time_str': {'$regex': '^%s' % cls.today}}},
             {'$group': {'_id': '$province', 'total_num': {'$sum': 1}}},
             {'$project': {'province': '$_id', 'value': '$total_num', '_id': 0}},
             {'$sort': {'total_num': -1}},
@@ -203,3 +286,19 @@ class MongoDb():
 
         return ApiCorsResponse.response(data)
 
+    @classmethod
+    def get_spider_by_ua(cls):
+        res = current_app.db[current_app.db_engine_table].aggregate([
+            {'$match': {
+                'time_str': {'$regex': '^%s' % cls.today} ,
+                'http_user_agent':{'$regex':'spider'}
+                }
+            },
+            {'$group': {'_id': '$http_user_agent', 'total_num': {'$sum': 1}}},
+            {'$project': {'http_user_agent': '$_id', 'total_num': 1, '_id': 0}},
+            {'$sort': {'total_num': -1}},
+        ])
+
+        data = list(res)
+        data.reverse()
+        return ApiCorsResponse.response(data)

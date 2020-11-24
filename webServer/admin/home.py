@@ -33,6 +33,10 @@ def index():
 def get_total_ip():
     return current_app.driver.get_total_ip()
 
+@home.route('/get_total_pv' , methods=['GET'])
+def get_total_pv():
+    return current_app.driver.get_total_pv()
+
 @home.route('/get_request_num_by_url' , methods=['GET'])
 def get_request_num_by_url():
     return current_app.driver.get_request_num_by_url()
@@ -49,9 +53,9 @@ def get_request_num_by_ip():
 def get_request_num_by_secends():
     return current_app.driver.get_request_num_by_secends()
 
-@home.route('/get_request_num_by_minute' , methods=['GET'])
-def get_request_num_by_minute():
-    return current_app.driver.get_request_num_by_minute()
+@home.route('/get_pv_num_by_minute' , methods=['GET'])
+def get_pv_num_by_minute():
+    return current_app.driver.get_pv_num_by_minute()
 
 @home.route('/get_ip_num_by_minute' , methods=['GET'])
 def get_ip_num_by_minute():

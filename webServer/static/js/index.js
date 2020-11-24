@@ -117,15 +117,15 @@ window.chart_load_func['top_ip_chart'] = function () {
 
 
 // 最近10分钟pv  ------------------------------- start -------------------------------
-var request_num_by_minute = echarts.init(document.querySelector(".line .chart"));
+var pv_num_by_minute = echarts.init(document.querySelector(".line .chart"));
 window.addEventListener("resize", function () {
-  request_num_by_minute.resize();
+  pv_num_by_minute.resize();
 });
-window.chart_load_func['request_num_by_minute']  = function (type = null) {
+window.chart_load_func['request_pv_by_minute']  = function (type = null) {
   if(type == 'init'){
-    __url =  host + '/get_request_num_by_minute?type=init'
+    __url =  host + '/get_pv_num_by_minute?type=init'
   }else {
-    __url =  host + '/get_request_num_by_minute'
+    __url =  host + '/get_pv_num_by_minute'
   }
   $.ajax({
     url:__url,
@@ -221,7 +221,7 @@ window.chart_load_func['request_num_by_minute']  = function (type = null) {
         ]
       };
       // 3. 把配置和数据给实例对象
-      request_num_by_minute.setOption(option);
+      pv_num_by_minute.setOption(option);
     }
 
 

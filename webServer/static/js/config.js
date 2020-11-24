@@ -11,8 +11,8 @@ window.chart_load_func['total_ip'] = function(){
         async:true,
         headers: { 'Authorization':Authorization,},
         success:function(msg){
-            let total_ip = msg.data['total_num'].toString().split('.')[0]
-            $('.total_ip').html(total_ip)
+
+            $('.total_ip').html(msg.data['total_num'])
 
         }
 
@@ -20,32 +20,32 @@ window.chart_load_func['total_ip'] = function(){
 }
 
 
-//total_member
-// window.chart_load_func['get_total_member_load']  = function(){
-//     $.ajax({
-//         url: host + '/v1/screen/get_member_total',
-//         type:'GET',
-//         async:true,
-//         headers: { 'Authorization':Authorization,},
-//         success:function(msg){
-//             let num = msg.data.toString().split('.')[0]
-//             $('.total_member').html(num)
-//
-//         }
-//     })
-// }
+//total_pv
+window.chart_load_func['total_pv']  = function(){
+    $.ajax({
+        url: host + '/get_total_pv',
+        type:'GET',
+        async:true,
+        headers: { 'Authorization':Authorization,},
+        success:function(msg){
+            $('.total_pv').html(msg.data['total_num'])
+
+        }
+    })
+}
 
 function timestampToTime(timestamp) {
   var date = new Date(timestamp * 1000) ;//时间戳为10位需*1000，时间戳为13位的话不需乘1000
-  var Y = date.getFullYear() + '-';
-  var M = (date.getMonth()+1 < 10 ? '0'+(date.getMonth()+1) : date.getMonth()+1) + '-';
-  var D = (date.getDate() < 10 ? '0'+date.getDate() : date.getDate()) + ' ';
+  // var Y = date.getFullYear() + '-';
+  // var M = (date.getMonth()+1 < 10 ? '0'+(date.getMonth()+1) : date.getMonth()+1) + '-';
+  // var D = (date.getDate() < 10 ? '0'+date.getDate() : date.getDate()) + ' ';
   var h = (date.getHours() < 10 ? '0'+date.getHours() : date.getHours()) + ':';
   var m = (date.getMinutes() < 10 ? '0'+date.getMinutes() : date.getMinutes()) + ':';
-  var s = (date.getSeconds() < 10 ? '0'+date.getSeconds() : date.getSeconds());
+  // var s = (date.getSeconds() < 10 ? '0'+date.getSeconds() : date.getSeconds());
 
   // let strDate = Y+M+D+h+m+s;
-  let strDate = h+m+s;
+  m = m.replace(':','')
+  let strDate = h+m;
 　
   return strDate;
 }
