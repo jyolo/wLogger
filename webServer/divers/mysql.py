@@ -128,7 +128,6 @@ class MysqlDb():
         if not request.args.get('code'):
             return ApiCorsResponse.response('缺少code参数', False)
 
-
         with current_app.db.connect() as cursor:
             sql = text("""
                        select count(*) as total_num,`request_url` from {0}
@@ -182,6 +181,43 @@ class MysqlDb():
 
             data.reverse()
 
+            return ApiCorsResponse.response(data)
+
+    @classmethod
+    def get_request_num_by_minute(cls):
+
+        with current_app.db.connect() as cursor:
+            current_hour = time.strftime('%Y-%m-%d %H', time.localtime(time.time()))
+            sql = text("""
+                select count(*) as total_num,unix_timestamp(STR_TO_DATE(time_str,'%Y-%m-%d %H:%i')) as time_str
+                from {0}
+                where  instr(time_str,'{1}') > 0 and request_method != 'OPTIONS'
+                GROUP BY MINUTE(time_str)
+                ORDER BY MINUTE(time_str) desc
+                limit 10
+            """.format(current_app.db_engine_table ,current_hour)
+                       )
+            res = cursor.execute(sql)
+            data = Func.fetchall(res)
+            data.reverse()
+            return ApiCorsResponse.response(data)
+
+    @classmethod
+    def get_ip_num_by_minute(cls):
+        with current_app.db.connect() as cursor:
+            current_hour = time.strftime('%Y-%m-%d %H', time.localtime(time.time()))
+            sql = text("""
+            select count(DISTINCT remote_addr) as total_num  ,unix_timestamp(STR_TO_DATE(time_str,'%Y-%m-%d %H:%i')) as time_str
+            from {0}
+            where instr(time_str,'{1}') > 0  
+            GROUP BY MINUTE(time_str)
+            ORDER BY MINUTE(time_str) desc
+            limit 10
+            """.format(current_app.db_engine_table ,current_hour)
+                       )
+            res = cursor.execute(sql)
+            data = Func.fetchall(res)
+            data.reverse()
             return ApiCorsResponse.response(data)
 
     @classmethod

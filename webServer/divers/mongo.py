@@ -176,6 +176,13 @@ class MongoDb():
         return ApiCorsResponse.response(data)
 
     @classmethod
+    def get_request_num_by_minute(cls):
+        pass
+    @classmethod
+    def get_ip_num_by_minute(cls):
+        pass
+
+    @classmethod
     def get_request_num_by_province(cls):
         session['now_timestamp'] = int(time.time())
 

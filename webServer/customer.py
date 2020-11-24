@@ -15,6 +15,7 @@ class ApiCorsResponse():
         else:
             re_data = {'msg': 'fail', 'error_info': data}
 
+
         rep = Response(
             response=json.dumps(re_data) + "\n" ,
             status=status_code,

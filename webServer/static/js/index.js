@@ -1,6 +1,6 @@
 /*********************left start********************************/
 
-// 本周投诉问题TOP10 本周上周 投诉量对比折线图 ------------------------------- start -------------------------------
+// 请求量最高的IP TOP50 ------------------------------- start -------------------------------
 var top_ip_chart = echarts.init(document.querySelector(".bar .chart"));
 window.addEventListener("resize", function () {
   top_ip_chart.resize();
@@ -113,19 +113,19 @@ window.chart_load_func['top_ip_chart'] = function () {
 
 
 }
-// 本周投诉问题TOP10 本周上周 投诉量对比折线图 ------------------------------- end -------------------------------
+// 请求量最高的IP TOP50 ------------------------------- end -------------------------------
 
 
-// 本周上周 投诉量对比折线图 ------------------------------- start -------------------------------
-var request_num_by_secends = echarts.init(document.querySelector(".line .chart"));
+// 最近10分钟pv  ------------------------------- start -------------------------------
+var request_num_by_minute = echarts.init(document.querySelector(".line .chart"));
 window.addEventListener("resize", function () {
-  request_num_by_secends.resize();
+  request_num_by_minute.resize();
 });
-window.chart_load_func['request_num_by_secends']  = function (type = null) {
+window.chart_load_func['request_num_by_minute']  = function (type = null) {
   if(type == 'init'){
-    __url =  host + '/get_request_num_by_secends?type=init'
+    __url =  host + '/get_request_num_by_minute?type=init'
   }else {
-    __url =  host + '/get_request_num_by_secends'
+    __url =  host + '/get_request_num_by_minute'
   }
   $.ajax({
     url:__url,
@@ -138,8 +138,8 @@ window.chart_load_func['request_num_by_secends']  = function (type = null) {
       secends_values = []
       secends_xAxis = []
       $.each(data,function(k,v){
-        secends_values.push(v['total_request_num'])
-        secends_xAxis.push(timestampToTime(v['timestamp']))
+        secends_values.push(v['total_num'])
+        secends_xAxis.push(timestampToTime(v['time_str']))
       })
 
       // (1)准备数据
@@ -221,7 +221,7 @@ window.chart_load_func['request_num_by_secends']  = function (type = null) {
         ]
       };
       // 3. 把配置和数据给实例对象
-      request_num_by_secends.setOption(option);
+      request_num_by_minute.setOption(option);
     }
 
 
@@ -371,28 +371,25 @@ window.chart_load_func['status_code_chart']  = function () {
 // 本周投诉量最高的10个 二级分类  ------------------------------- end -------------------------------
 
 
-// 客户端设备平台对比 对比 ------------------------------- start -------------------------------
-var device_type_by_ua = echarts.init(document.querySelector(".member .chart"));
+// 最近10分钟IP ------------------------------- start -------------------------------
+var request_ip_by_minute = echarts.init(document.querySelector(".member .chart"));
 window.addEventListener("resize", function () {
-  device_type_by_ua.resize();
+  request_ip_by_minute.resize();
 });
-window.chart_load_func['weeks_member_chart_load'] = function () {
+window.chart_load_func['request_ip_by_minute'] = function () {
   $.ajax({
-    url: host + '/v1/screen/get_member_weeks',
+    url: host + '/get_ip_num_by_minute',
     type:'GET',
     async:true,
     headers: { 'Authorization':Authorization,},
     success:function(msg){
       data = msg.data
-      prev_week = []
-      this_week = []
-      $.each(data[0],function(k,v){
-        prev_week.push(v['total_num'])
+      nums = []
+      timestamp = []
+      $.each(data,function(k,v){
+        nums.push(v['total_num'])
+        timestamp.push(timestampToTime(v['time_str']))
       })
-      $.each(data[1],function(k,v){
-        this_week.push(v['total_num'])
-      })
-
       option = {
         tooltip: {
           trigger: "axis",
@@ -433,15 +430,7 @@ window.chart_load_func['weeks_member_chart_load'] = function () {
               }
             },
 
-            data: [
-              "周一",
-              "周二",
-              "周三",
-              "周四",
-              "周五",
-              "周六",
-              "周日",
-            ]
+            data: timestamp
           },
           {
             axisPointer: { show: false },
@@ -450,7 +439,6 @@ window.chart_load_func['weeks_member_chart_load'] = function () {
             offset: 20
           }
         ],
-
         yAxis: [
           {
             type: "value",
@@ -476,51 +464,6 @@ window.chart_load_func['weeks_member_chart_load'] = function () {
         ],
         series: [
           {
-            name: "上周",
-            type: "line",
-            smooth: true,
-            symbol: "circle",
-            symbolSize: 5,
-            showSymbol: false,
-            lineStyle: {
-              normal: {
-                color: "#0184d5",
-                width: 2
-              }
-            },
-            areaStyle: {
-              normal: {
-                color: new echarts.graphic.LinearGradient(
-                    0,
-                    0,
-                    0,
-                    1,
-                    [
-                      {
-                        offset: 0,
-                        color: "rgba(1, 132, 213, 0.4)"
-                      },
-                      {
-                        offset: 0.8,
-                        color: "rgba(1, 132, 213, 0.1)"
-                      }
-                    ],
-                    false
-                ),
-                shadowColor: "rgba(0, 0, 0, 0.1)"
-              }
-            },
-            itemStyle: {
-              normal: {
-                color: "#0184d5",
-                borderColor: "rgba(221, 220, 107, .1)",
-                borderWidth: 12
-              }
-            },
-            data: prev_week
-          },
-          {
-            name: "本周",
             type: "line",
             smooth: true,
             symbol: "circle",
@@ -561,17 +504,17 @@ window.chart_load_func['weeks_member_chart_load'] = function () {
                 borderWidth: 12
               }
             },
-            data: this_week
+            data: nums
           }
         ]
       };
       // 使用刚指定的配置项和数据显示图表。
-      device_type_by_ua.setOption(option);
+      request_ip_by_minute.setOption(option);
     }
 
   })
 }
-// 客户端设备平台对比 对比 ------------------------------- end -------------------------------
+// 最近10分钟IP ------------------------------- end -------------------------------
 
 
 // 热门接口URL请求TOP 10分布 ------------------------------- start -------------------------------

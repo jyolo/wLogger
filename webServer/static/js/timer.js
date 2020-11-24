@@ -9,8 +9,8 @@ var each_loader_timmer = {
 
     status_code_chart : 20000,
 
-    request_num_by_secends : 5000,
-    // weeks_member_chart_load : 30000,
+    request_num_by_minute : 2000,
+    request_ip_by_minute : 2000,
 
     request_num_by_url : 60000,
     spider_by_ua : 60000,
@@ -24,6 +24,7 @@ var each_loader_timmer = {
 // window.chart_load_func['status_code_chart']()
 // window.chart_load_func['request_num_by_secends']('init')
 // window.chart_load_func['request_num_by_url']()
+// window.chart_load_func['request_ip_by_minute']()
 
 
 loader_key = Object.keys(each_loader_timmer)
@@ -35,17 +36,9 @@ for (var i=0 ;i < loader_key.length ; i++){
     // first run
    if (!func) continue;
 
-   if(loader_key[i] == 'request_num_by_secends'){
-        func('init')
-    }else{
-        func()
-    }
-
-
     timer = setInterval(function(){
                 // for timer
-
-               func()
+           func()
     },each_loader_timmer[ loader_key[i] ])
 
 }

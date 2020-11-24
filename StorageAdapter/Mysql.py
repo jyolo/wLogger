@@ -267,6 +267,9 @@ class StorageAp(Adapter):
                         else:
                             karg.append('KEY `%s` (`%s`)' % (i,i))
 
+                    if 'remote_addr' in key_field_needed and 'time_str' in key_field_needed:
+                        karg.append('KEY `time_str_remote_addr` (`%s`,`%s`)' % ('time_str', 'remote_addr'))
+
                     key_str = ',' + ','.join(karg)
 
 
