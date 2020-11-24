@@ -255,7 +255,7 @@ class StorageAp(Adapter):
                     _str = "`%s` %s NULL " % (i ,self.field_map[i] )
                     fields.append(_str)
 
-                key_field = ['request_url','remote_addr','timestamp','time_str','http_user_agent']
+                key_field = ['node_id','request_url','remote_addr','timestamp','time_str','http_user_agent']
                 # 从字段中获取需要创建索引的 字段
                 key_field_needed = list(set(match).intersection(set(key_field)))
                 key_str = ''
