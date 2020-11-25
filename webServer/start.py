@@ -2,7 +2,6 @@ from flask import Flask
 import os,sys
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from webServer.admin.user import user
 from webServer.admin.home import home
 from webServer.divers.mysql import MysqlDb
 from webServer.divers.mongo import MongoDb
@@ -31,10 +30,10 @@ def start_web(conf_dict = {}):
         app.debug = False
 
     app.secret_key = conf_dict['secret_key']
-
+    app.config['SERVER_NAME'] = conf_dict['server_name']
     app.config.from_mapping(conf_dict)
     app.register_blueprint(home, url_prefix='/')
-    app.register_blueprint(user, url_prefix='/user')
+
 
     # init flask db engine
     setAppDataEngine(conf_dict)

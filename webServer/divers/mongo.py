@@ -8,8 +8,7 @@ import time,re
 
 class MongoDb():
 
-    # today = time.strftime('%Y-%m-%d', time.localtime(time.time()))
-    today = '2020-11-04'
+    today = time.strftime('%Y-%m-%d', time.localtime(time.time()))
 
     @classmethod
     def get_total_ip(cls):
@@ -21,6 +20,8 @@ class MongoDb():
             {'$sort': {'total_num': -1}},
         ])
         res = list(res)
+        if len(res) == 0 :
+            return ApiCorsResponse.response({})
         return ApiCorsResponse.response(res[0])
 
     @classmethod
@@ -30,17 +31,17 @@ class MongoDb():
 
     @classmethod
     def get_request_num_by_url(cls):
-        if request.args.get('type') == 'init':
-            # 　一分钟 * 10 10分钟
-            limit = 60 * 10
-        else:
-            limit = 5
+        # if request.args.get('type') == 'init':
+        #     # 　一分钟 * 10 10分钟
+        #     limit = 60 * 10
+        # else:
+        #     limit = 5
 
-        # session['now_timestamp'] = int(time.time())
+
         collection = current_app.db_engine_table
 
 
-        total = current_app.db[collection].find({'time_str': {'$regex': '^%s' % cls.today}}).count()
+        # total = current_app.db[collection].find({'time_str': {'$regex': '^%s' % cls.today}}).count()
 
         res = current_app.db[collection].aggregate([
             {'$match': {'time_str': {'$regex': '^%s' % cls.today}}},
@@ -195,30 +196,18 @@ class MongoDb():
 
         res = current_app.db[current_app.db_engine_table].aggregate([
             {'$match': {'time_str': {'$regex': '^%s' % current_hour}}},
-            {'$group': {'_id': '$time_str', 'total_num': {'$sum': 1}}},
-            {'$project':
-                {
-                    'time_str': '$_id',
-                    'total_num': 1,
-                    '_id': 0,
-                    'date_str': {
-                        '$dateToString': {
-                            'format': '%Y-%m-%d %H:%M',
-                            'date': {'$dateFromString': {'dateString': '$_id'}}
+            {'$project': {
+                '_id': 0,
+                'time_minute': {
+                    '$dateToString': {
+                        'format': '%Y-%m-%d %H:%M',
+                        'date': {'$dateFromString': {'dateString': '$time_str'}}
                         }
                     }
                 }
-
             },
-            {'$group': {'_id': '$date_str', 'total_num': {'$sum': 1}}},
-            # {'$project': {'_id': 0, 'time_str': '$_id', 'total_num': 1}},
-            {'$project':
-                {
-                    '_id': 0,
-                    'time_str': '$_id',
-                    'total_num': 1,
-                }
-            },
+            {'$group': {'_id': '$time_minute', 'total_num': {'$sum': 1}}},
+            {'$project': {'total_num': 1, 'time_str': '$_id', '_id': 0}},
             {'$sort': {'time_str': -1}},
 
         ])
@@ -239,24 +228,20 @@ class MongoDb():
 
         res = current_app.db[current_app.db_engine_table].aggregate([
             {'$match': {'time_str': {'$regex': '^%s' % current_hour}}},
-            {'$group': {
-                '_id': '$remote_addr',
-                'total_num': {'$sum': 1},
+            {'$project': {
+                '_id': 0,
+                'remote_addr': 1,
                 'time_minute': {
-                    '$push': {
-                        '$dateToString': {
-                            'format': '%Y-%m-%d %H:%M',
-                            'date': {
-                                '$dateFromString': {'dateString': '$time_str'}
-                                }
+                    '$dateToString': {
+                        'format': '%Y-%m-%d %H:%M',
+                        'date': {
+                            '$dateFromString': {'dateString': '$time_str' }
                             }
                         }
                     }
                 }
             },
-            {'$unwind': '$time_minute'},
-            {'$project': {'_id': 0, 'ip': "$_id", 'time_minute': 1}},
-            {'$group': {'_id': '$time_minute', 'ips': {'$addToSet': '$ip'}}},
+            {'$group': {'_id': '$time_minute', 'ips': {'$addToSet': '$remote_addr'}}},
             {'$project': {'total_num': {'$size': '$ips'}, 'time_str': '$_id', '_id': 0}},
             {'$sort': {'time_str': -1}},
 

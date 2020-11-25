@@ -15,8 +15,8 @@ class MysqlDb():
     def get_total_ip(cls):
         with current_app.db.connect() as cursor:
             sql = text("""
-                       select count(DISTINCT remote_addr) as total_num from {0}  
-                       where FROM_UNIXTIME(`timestamp`,'%Y-%m-%d') = :today
+                       select count(DISTINCT remote_addr) as total_num from {0} FORCE INDEX(timestamp)  
+                       where `timestamp` >= UNIX_TIMESTAMP(:today)
                        """.format(current_app.db_engine_table)
                        )
 
@@ -25,6 +25,19 @@ class MysqlDb():
             total = Func.fetchone(res)
             return ApiCorsResponse.response(total)
 
+    @classmethod
+    def get_total_pv(cls):
+        with current_app.db.connect() as cursor:
+            sql = text("""
+                       select count(*) as total_num from {0}  FORCE INDEX(timestamp)
+                       where `timestamp` >= UNIX_TIMESTAMP(:today)
+                       """.format(current_app.db_engine_table)
+                       )
+
+            res = cursor.execute(sql, {'today': cls.today})
+
+            total = Func.fetchone(res)
+            return ApiCorsResponse.response(total)
 
     @classmethod
     def get_request_num_by_url(cls):
@@ -32,25 +45,12 @@ class MysqlDb():
 
         with current_app.db.connect() as cursor:
             sql = text("""
-                       select count(*) as total_num from {0} 
-                       where FROM_UNIXTIME(`timestamp`,'%Y-%m-%d') = :today
-                       """.format(current_app.db_engine_table)
-                       )
-
-            res = cursor.execute(sql, {'today': cls.today})
-
-
-            total = Func.fetchone(res)['total_num']
-
-
-        with current_app.db.connect() as cursor:
-            sql = text("""
-                select (count(*)/{0}) as percent,count(*) as total_num,request_url from {1}
-                where FROM_UNIXTIME(`timestamp`,'%Y-%m-%d') = :today
+                select count(*) as total_num,request_url from {0} FORCE INDEX(timestamp) 
+                where `timestamp` >= UNIX_TIMESTAMP(:today)
                 group by request_url
-                order by percent desc
+                order by total_num desc
                 limit 10
-                """.format(total,current_app.db_engine_table)
+                """.format(current_app.db_engine_table)
                )
 
             res = cursor.execute(sql,{'today':cls.today})
@@ -60,13 +60,10 @@ class MysqlDb():
 
     @classmethod
     def get_request_num_by_ip(cls):
-
-
-
         with current_app.db.connect() as cursor:
             sql = text("""
                        select count(*) as total_num,remote_addr from {0}
-                       where FROM_UNIXTIME(`timestamp`,'%Y-%m-%d') = :today
+                       where `timestamp` >= UNIX_TIMESTAMP(:today)
                        group by remote_addr
                        order by total_num desc
                        limit 50
@@ -107,7 +104,7 @@ class MysqlDb():
         with current_app.db.connect() as cursor:
             sql = text("""
                        select count(*) as total_num,`status`  from {0}
-                       where FROM_UNIXTIME(`timestamp`,'%Y-%m-%d') = :today and `status` != 200
+                       where `timestamp` >= UNIX_TIMESTAMP(:today) and `status` != 200
                        group by status
                        order by total_num desc
                        limit 50
@@ -184,20 +181,25 @@ class MysqlDb():
             return ApiCorsResponse.response(data)
 
     @classmethod
-    def get_request_num_by_minute(cls):
+    def get_pv_num_by_minute(cls):
 
         with current_app.db.connect() as cursor:
-            current_hour = time.strftime('%Y-%m-%d %H', time.localtime(time.time()))
+            current_hour_str = time.strftime('%Y-%m-%d %H', time.localtime(time.time()))
+            next_hour_str = time.strftime('%Y-%m-%d %H', time.localtime(time.time() + 3600))
+            current_hour = int(time.mktime(time.strptime(current_hour_str, '%Y-%m-%d %H')))
+            next_hour = int(time.mktime(time.strptime(next_hour_str ,'%Y-%m-%d %H')))
+
             sql = text("""
                 select count(*) as total_num,unix_timestamp(STR_TO_DATE(time_str,'%Y-%m-%d %H:%i')) as time_str
-                from {0}
-                where  instr(time_str,'{1}') > 0 and request_method != 'OPTIONS'
+                from {0} FORCE INDEX(timestamp) 
+                where  `timestamp` >= {1} and `timestamp` < {2} and request_method != 'OPTIONS'
                 GROUP BY MINUTE(time_str)
                 ORDER BY MINUTE(time_str) desc
                 limit 10
-            """.format(current_app.db_engine_table ,current_hour)
+            """.format(current_app.db_engine_table ,current_hour ,next_hour )
                        )
-            res = cursor.execute(sql)
+
+            res = cursor.execute(sql )
             data = Func.fetchall(res)
             data.reverse()
             return ApiCorsResponse.response(data)
@@ -205,16 +207,22 @@ class MysqlDb():
     @classmethod
     def get_ip_num_by_minute(cls):
         with current_app.db.connect() as cursor:
-            current_hour = time.strftime('%Y-%m-%d %H', time.localtime(time.time()))
+            current_hour_str = time.strftime('%Y-%m-%d %H', time.localtime(time.time()))
+            next_hour_str = time.strftime('%Y-%m-%d %H', time.localtime(time.time() + 3600))
+            current_hour = int(time.mktime(time.strptime(current_hour_str, '%Y-%m-%d %H')))
+            next_hour = int(time.mktime(time.strptime(next_hour_str, '%Y-%m-%d %H')))
+
             sql = text("""
             select count(DISTINCT remote_addr) as total_num  ,unix_timestamp(STR_TO_DATE(time_str,'%Y-%m-%d %H:%i')) as time_str
             from {0}
-            where instr(time_str,'{1}') > 0  
+            where `timestamp` >= {1} and `timestamp` < {2}
             GROUP BY MINUTE(time_str)
             ORDER BY MINUTE(time_str) desc
             limit 10
-            """.format(current_app.db_engine_table ,current_hour)
+            """.format(current_app.db_engine_table ,current_hour ,next_hour )
                        )
+
+
             res = cursor.execute(sql)
             data = Func.fetchall(res)
             data.reverse()
@@ -226,7 +234,7 @@ class MysqlDb():
         with current_app.db.connect() as cursor:
             sql = text("""
                        select count(*) as value,`province`  from {0}
-                       where FROM_UNIXTIME(`timestamp`,'%Y-%m-%d') = :today 
+                       where `timestamp` >= UNIX_TIMESTAMP(:today) AND province != '0'
                        group by `province`
                        order by `value` desc 
                        """.format(current_app.db_engine_table)
