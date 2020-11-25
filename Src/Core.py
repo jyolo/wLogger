@@ -416,9 +416,9 @@ class OutputCustomer(Base):
 
 
         self.call_engine = 'saveTo%s' %  self.save_engine_name
-        self.server_type = self.conf['outputer']['log_server_type']
+        self.server_type = self.conf['outputer']['server_type']
 
-        self.logParse = loggerParse(self.conf['outputer']['log_server_type'] ,server_conf=None)
+        self.logParse = loggerParse(self.conf['outputer']['server_type'] ,server_conf=None)
 
         ip_data_path = os.path.dirname(__file__) + '/ip2region.db'
         if not os.path.exists(ip_data_path):
