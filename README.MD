@@ -2,13 +2,22 @@
     > 安装拓展
     > ` pip3 install -r requirements.txt `
     > 启动 日志采集端
-    > ` python3 main.py -run inputer `
+    ```
+     python3 main.py -run inputer
+    
+    ```
     > 启动 日志实时解析存储端
     > ` python3 main.py -run inputer `
     > 启动 日志大屏监控
     > ` python3 main.py -run web `
     
     以上三个应用均可单独启用
+    
+    表头  | 表头  | 表头
+    ---- | ----- | ------  
+    单元格内容  | 单元格内容 | 单元格内容 
+    单元格内容  | 单元格内容 | 单元格内容  
+
 
 # 配置详解
 
