@@ -31,7 +31,7 @@ username = nginx_logger
 password = YmP82nHeTsfwSyce
 table = logger_watcher
 # 输出 日志 切割 到不同的表 或者 集合 支持 [day, week, month ,year]
-save_engine_log_split = day
+split_save = day
 
 ;[mysql]
 ;host = 127.0.0.1
@@ -41,7 +41,7 @@ save_engine_log_split = day
 ;password = logger
 ;table = logger_watcher
 ;# 输出 日志 切割 到不同的表 或者 集合 支持 [day, week, month ,year]
-;save_engine_log_split = day
+;split_save = day
 
 [redis]
 host = 47.112.167.32
@@ -57,7 +57,7 @@ username = logger_watcher
 password = q7758414
 db = logger_watcher
 collection = logger
-;save_engine_log_split = day
+;split_save = day
 
 ;[mongodb]
 ;host = 127.0.0.1
@@ -67,7 +67,7 @@ collection = logger
 ;db = logger_watcher
 ;collection = logger
 ;# 输出 日志 切割 到不同的表 或者 集合 支持 [day, week, month ,year]
-;save_engine_log_split = day
+;split_save = day
 
 
 
@@ -97,7 +97,7 @@ log_debug = True
 ;save_engine = mongodb
 save_engine = mysql
 # 输出 日志 切割 到不同的表 或者 集合 支持 [day, week, month ,year]
-save_engine_log_split = day
+split_save = day
 queue = redis
 ;queue = mongodb
 queue_name = logger_watch:logger

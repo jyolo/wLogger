@@ -29,7 +29,7 @@ class ApiCorsResponse():
 # 自定义函数class
 class Func():
 
-    save_engine_log_split = ['day', 'week', 'month', 'year']
+    split_save = ['day', 'week', 'month', 'year']
     @classmethod
     def getTableName(cls,conf,data_engine):
         table_suffix = ''
@@ -44,16 +44,17 @@ class Func():
             raise Exception('配置错误: %s not exists' % e.args)
 
 
-        if 'save_engine_log_split' in conf:
 
-            if conf['save_engine_log_split'] not in cls.save_engine_log_split:
-                raise Exception('webserver 配置项 save_engine_log_split 只支持 %s 选项' % ','.join(cls.save_engine_log_split))
+        if 'split_save' in conf:
 
-            if conf['save_engine_log_split'] == 'day':
+            if conf['split_save'] not in cls.split_save:
+                raise Exception('webserver 配置项 split_save 只支持 %s 选项' % ','.join(cls.split_save))
+
+            if conf['split_save'] == 'day':
 
                 table_suffix = time.strftime('%Y_%m_%d', time.localtime())
 
-            elif conf['save_engine_log_split'] == 'week':
+            elif conf['split_save'] == 'week':
 
                 now = datetime.datetime.now()
                 this_week_start = now - datetime.timedelta(days=now.weekday())
@@ -62,10 +63,10 @@ class Func():
                 table_suffix = datetime.datetime.strftime(this_week_start, '%Y_%m_%d') + datetime.datetime.strftime(
                     this_week_end, '_%d')
 
-            elif conf['save_engine_log_split'] == 'month':
+            elif conf['split_save'] == 'month':
 
                 table_suffix = time.strftime('%Y_%m', time.localtime())
-            elif conf['save_engine_log_split'] == 'year':
+            elif conf['split_save'] == 'year':
 
                 table_suffix = time.strftime('%Y', time.localtime())
 

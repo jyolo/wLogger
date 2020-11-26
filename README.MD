@@ -1,6 +1,5 @@
 # 快速开始
-> 父引用
-     安装拓展
+> 安装拓展
      
     pip3 install -r requirements.txt 
 > 启动 日志采集器
@@ -82,7 +81,7 @@
     [outputer]
     log_debug = True                      # 开启日志debug模式
     save_engine = mongodb                 # 解析后的日志存储引擎目前支持 [mysql,mongodb]
-    save_engine_log_split = day           # 开启自动分表或分集合 目前支持按 天，周，月，年 ；参数：[day, week, month ,year]  
+    split_save = day           # 开启自动分表或分集合 目前支持按 天，周，月，年 ；参数：[day, week, month ,year]  
     queue = redis                         # 队列引擎 此处需要和 inputer 采集端保持一致
     queue_name = queue_logger             # 队列中 key 或 collection 集合的名称  此处需要和 inputer 采集端保持一致
     server_type = nginx                   # 服务器的类型 

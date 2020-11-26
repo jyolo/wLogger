@@ -6,7 +6,7 @@ class Adapter():
     __metaclass__ = ABCMeta
 
     save_engine = []
-    save_engine_log_split = ['day', 'week', 'month' ,'year']
+    split_save = ['day', 'week', 'month' ,'year']
 
     def __init__(self): pass
 
@@ -14,24 +14,24 @@ class Adapter():
     def _getTableName(self,table_key_name):
 
         table_suffix = ''
-
+        save_engine_conf = self.conf[self.conf['outputer']['save_engine']]
         try:
-            self.table = self.conf[self.conf['outputer']['save_engine']][table_key_name]
+            self.table = save_engine_conf[table_key_name]
         except KeyError as e:
             raise Exception('配置错误: %s not exists' % e.args)
 
 
-        if 'save_engine_log_split' in self.conf['outputer']:
+        if 'split_save' in save_engine_conf:
 
-            if self.conf['outputer']['save_engine_log_split'] not in self.save_engine_log_split:
+            if save_engine_conf['split_save'] not in self.split_save:
 
-                raise Exception('outputer 配置项 save_engine_log_split 只支持 %s 选项' % ','.join(self.save_engine_log_split))
+                raise Exception('outputer 配置项 split_save 只支持 %s 选项' % ','.join(self.split_save))
 
-            if self.conf['outputer']['save_engine_log_split'] == 'day':
+            if save_engine_conf['split_save'] == 'day':
 
                 table_suffix = time.strftime( '%Y_%m_%d' , time.localtime())
 
-            elif self.conf['outputer']['save_engine_log_split'] == 'week':
+            elif save_engine_conf['split_save'] == 'week':
 
                 now = datetime.datetime.now()
                 this_week_start = now - datetime.timedelta(days=now.weekday())
@@ -39,10 +39,10 @@ class Adapter():
 
                 table_suffix = datetime.datetime.strftime(this_week_start,'%Y_%m_%d') + datetime.datetime.strftime(this_week_end,'_%d')
 
-            elif self.conf['outputer']['save_engine_log_split'] == 'month':
+            elif save_engine_conf['split_save'] == 'month':
 
                 table_suffix = time.strftime( '%Y_%m' , time.localtime())
-            elif self.conf['outputer']['save_engine_log_split'] == 'year':
+            elif save_engine_conf['split_save'] == 'year':
 
                 table_suffix = time.strftime( '%Y' , time.localtime())
 
