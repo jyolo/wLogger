@@ -27,7 +27,7 @@
  
     * 简单配置 开箱即用
     * 无入侵 低占用 高拓展
-    * 高拓展 采集器 已内置 mysql 和 mongodb 解析存储器 已内置 mysql 和 mongodb 
+    * 采集器 已内置 redis ; 解析存储器 已内置 mysql 和 mongodb 
     
     
     
