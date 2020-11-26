@@ -88,8 +88,6 @@ class Handler(Adapter):
         res = log_format_recompile.match(log_line)
 
         if res == None:
-            print(res)
-            print(log_line)
             raise ValueError('解析日志失败,请检查client 配置中 日志的 格式名称是否一致 log_format_name')
 
         matched = list(res.groups())
@@ -99,28 +97,6 @@ class Handler(Adapter):
                 data[log_format_list[i]] = matched[i]
 
         return data
-
-        # try:
-        #     res = log_format_recompile.match( log_line )
-        #
-        #     if res == None:
-        #         print(res)
-        #         print(log_line)
-        #         raise loggerParseFailException('解析日志失败,请检查client 配置中 日志的 格式名称是否一致 log_format_name')
-        #
-        #     matched = list(res.groups())
-        #     if len(matched) == len(log_format_list):
-        #         data = {}
-        #         for i in range(len(list(log_format_list))):
-        #             data[log_format_list[i]] = matched[i]
-        #
-        #     return data
-        #
-        # except Exception as e:
-        #     print(e.args)
-        #     exit()
-
-
 
 
     """
@@ -166,7 +142,6 @@ class Handler(Adapter):
                 'log_format_list':log_format_list ,
                 'log_format_recompile':re.compile(format ,re.I)
             }
-
 
 
 
@@ -218,8 +193,6 @@ class Handler(Adapter):
             res = re.findall(r'log_format\s+(\w+)\s+',i)
             if len(res):
                 format_list[res[0]] = i
-
-
 
 
         del content
