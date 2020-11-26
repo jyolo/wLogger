@@ -199,6 +199,9 @@ class MysqlDb():
             """.format(current_app.db_engine_table ,current_hour ,next_hour )
                        )
 
+
+
+
             res = cursor.execute(sql )
             data = Func.fetchall(res)
             data.reverse()

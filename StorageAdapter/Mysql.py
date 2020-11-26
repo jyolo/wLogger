@@ -255,10 +255,11 @@ class StorageAp(Adapter):
                     _str = "`%s` %s NULL " % (i ,self.field_map[i] )
                     fields.append(_str)
 
-                key_field = ['node_id','request_url','remote_addr','timestamp','time_str','http_user_agent']
+                key_field = ['node_id','request_url','remote_addr','timestamp','time_str','http_user_agent','province','status']
                 # 从字段中获取需要创建索引的 字段
                 key_field_needed = list(set(match).intersection(set(key_field)))
                 key_str = ''
+
                 if len(key_field_needed):
                     karg = []
                     for i in key_field_needed:
@@ -267,8 +268,20 @@ class StorageAp(Adapter):
                         else:
                             karg.append('KEY `%s` (`%s`)' % (i,i))
 
-                    if 'remote_addr' in key_field_needed and 'time_str' in key_field_needed:
-                        karg.append('KEY `time_str_remote_addr` (`%s`,`%s`)' % ('time_str', 'remote_addr'))
+                    if 'timestamp' in key_field_needed:
+                        if 'remote_addr' in key_field_needed :
+                            karg.append('KEY `timestamp_remote_addr` (`%s`,`%s`)' % ('timestamp', 'remote_addr'))
+
+                        if 'province' in key_field_needed :
+                            karg.append('KEY `timestamp_province` (`%s`,`%s`)' % ('timestamp', 'province'))
+
+                        if 'status' in key_field_needed :
+                            karg.append('KEY `timestamp_status` (`%s`,`%s`)' % ('timestamp', 'status'))
+
+                        if 'request_url' in key_field_needed:
+                            karg.append('KEY `timestamp_request_url` (`%s`,`%s`)' % ('timestamp', 'request_url'))
+
+
 
                     key_str = ',' + ','.join(karg)
 
@@ -281,6 +294,7 @@ class StorageAp(Adapter):
                                           %s
                                         )
                                 """ % (self.conf['mysql']['db'], self.table ,','.join(fields),key_str)
+
 
 
 

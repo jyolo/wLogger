@@ -28,18 +28,19 @@
     
     [redis]                                         # 当inputer 和 outputer 中指定了 queue = redis 才需此配置      
     host = 127.0.0.1
-    port = 6666
+    port = 6379
     password = xxxxxxxx
     db = 1
     prefix = logger_watch:
 
     [mysql]                                         # 当 outputer 中指定了 save_engine = mysql 才需此配置     
-    host = 192.168.0.166
+    host = 127.0.0.1
     port = 3306
-    db = nginx_logger
     username = nginx_logger
     password = xxxxxxxx
+    db = nginx_logger
     table = logger
+    split_save = day                                # 当有该配置项则代表开启自动分表 目前支持按 天，周，月，年 ；参数：[day, week, month ,year] ,进行存储
     
     [mongodb]                                       # 当 outputer 中指定了 save_engine = mongodb 才需此配置 
     host = 192.168.0.166
@@ -48,7 +49,7 @@
     password = xxxxxxxx
     db = nginx_logger
     collection = logger
-
+    split_save = day                                # 当有该配置项则代表开启自动分集合 目前支持按 天，周，月，年 ；参数：[day, week, month ,year] ,进行存储
     
 
 > 日志采集端 配置
@@ -65,13 +66,14 @@
     [inputer.log_file.web1]
     server_type = nginx                    # 服务器应用目前只支持 nginx
     file_path = /wwwlogs/ww.aaa.com.log    # 日志绝对路径
-    log_format_name = online               # 配置文件中 日志名称
-    read_type = tail                       # 读取文件方式 支持 tail 从末尾最后一行开始 ; head 从头第一行开始
+    log_format_name = online               # 配置文件中 日志名称 example : "access_log  /www/wwwlogs/xxx.log online;" 中的 `online` 则代表启用的日志配置名称
+    read_type = tail                       # 读取文件方式 支持 tail 从末尾最后一行开始 ; head 从头第一行开始 * 当文件较大的时候 建议使用 tail 
     cut_file_type = filesize               # 切割文件方式 支持 filesize 文件大小单位M ;time 指定当天时间 24:00
-    cut_file_point = 200                   # 切割文件条件节点 filesize -> 200M  ; time -> 24:00 
+    cut_file_point = 200                   # 切割文件条件节点 当 filesize 时 200 代表200M 切一次  ; 当 time 时 24:00 代表今天该时间 切一次 
     cut_file_save_dir = /wwwlogs/cut_file/ # 日志切割后存储绝对路径
     
-    [inputer.log_file.web2]                # 支持同时采集多个应用日志
+    
+    [inputer.log_file.web2]                # 支持同时采集多个应用日志 追加配置即可
     ..........................
     
              
@@ -81,7 +83,6 @@
     [outputer]
     log_debug = True                      # 开启日志debug模式
     save_engine = mongodb                 # 解析后的日志存储引擎目前支持 [mysql,mongodb]
-    split_save = day           # 开启自动分表或分集合 目前支持按 天，周，月，年 ；参数：[day, week, month ,year]  
     queue = redis                         # 队列引擎 此处需要和 inputer 采集端保持一致
     queue_name = queue_logger             # 队列中 key 或 collection 集合的名称  此处需要和 inputer 采集端保持一致
     server_type = nginx                   # 服务器的类型 
