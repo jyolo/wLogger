@@ -127,7 +127,7 @@ class Handler(Adapter):
                         'mysql_key_field': ['$time_local.timestamp', '$time_iso8601.timestamp'],
                     },
                     'args': {
-                        'mysql_field_type': 'varchar(255)',
+                        'mysql_field_type': 'text',
                     },
                     'server_protocol': {
                         'mysql_field_type': 'varchar(10)',
