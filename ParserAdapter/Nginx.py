@@ -54,6 +54,20 @@ class Handler(Adapter):
     
     mysql_field_type 指定该变量值mysql中的 字段类型
     mysql_key_field True (bool) 默认普通索引 ,指定索引 用字符串 UNIQUE ,FULLTEXT (区分大小写)
+        列表的时候 
+        '$remote_addr': {
+                'nickname':'ip' ,
+                'mysql_field_type':'varchar(15)',
+                'mysql_key_field': [
+                    表示当前字段 和 $time_local 里 extend timestamp 联合索引 key ip_timestamp (ip,timestamp)
+                    '$time_local.timestamp', 
+                    表示当前字段 和 $time_iso8601 里 extend timestamp 联合索引 key ip_timestamp (ip,timestamp)
+                    '$time_iso8601.timestamp',
+                    表示当前字段 和 $time_iso8601 里 extend timestamp 联合索引 key ip_status_request_url_method (ip,status,request,url,method)
+                    ['$status','$request.request_url','$request.method']
+                ],
+        }
+        
     """
     def getLogFormat(self):
 
@@ -76,7 +90,7 @@ class Handler(Adapter):
                 'mysql_key_field': [
                     '$time_local.timestamp',
                     '$time_iso8601.timestamp',
-                    ['$status','$request.request_url','$request.method']
+                    ['$status','$request.request_url','$request.request_method']
                 ],
                 'extend_field':{
                     'isp':{
@@ -93,7 +107,7 @@ class Handler(Adapter):
                         'mysql_field_type': 'varchar(30)',
                         'mysql_key_field': [
                             '$time_local.timestamp',
-                            ['$time_iso8601.timestamp']
+                            '$time_iso8601.timestamp',
                         ],
                     },
                     'country':{
@@ -106,6 +120,7 @@ class Handler(Adapter):
                 'extend_field': {
                     'request_method': {
                         'mysql_field_type': 'varchar(10)',
+                        'mysql_key_field':True,
                     },
                     'request_url': {
                         'mysql_field_type': 'varchar(255)',

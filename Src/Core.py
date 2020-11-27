@@ -438,6 +438,7 @@ class OutputCustomer(Base):
 
 
 
+
         try:
             # 预编译对应的正则
             self.logParse.getLogFormatByConfStr(line_data['log_format_str'], line_data['log_format_name'])

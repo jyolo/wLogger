@@ -250,20 +250,30 @@ class StorageAp(Adapter):
 
     def getKeyFieldStrForCreateTableFromList(self,key_field_needed ,i):
 
-        def func(vars,i):
+        def func(vars,i,re_field = False):
             _list = []
+            _key_field_name = []
 
             if vars.find('.') > -1:
                 _key = vars.split('.')
                 if _key[1] in self.runner.logParse.format[_key[0]]['extend_field']:
                     _list.append('KEY `{0}_{1}` (`{0}`,`{1}`)'.format(i, _key[1]))
+                    _key_field_name = _key[1]
+                else:
+                    error_str = 'self.runner.logParse.format[%s] 不存在 "%s" 属性; 请检查解析中的logformat 配置' % (_key[0], _key[1])
+                    self.runner.logging.error(error_str)
+                    raise KeyError(error_str)
             else:
                 if 'nickname' in self.runner.logParse.format[vars]:
                     field_name = self.runner.logParse.format[vars]['nickname']
                 else:
                     field_name = vars.replace('$', '')
 
+                _key_field_name = field_name
                 _list.append('KEY `{0}_{1}` (`{0}`,`{1}`)'.format(i, field_name))
+
+            if re_field:
+                return _key_field_name
 
             return _list
 
@@ -276,10 +286,14 @@ class StorageAp(Adapter):
                 karg = karg + func(args,i)
 
             elif isinstance(args, list):
+                key_str = [i]
 
                 for g in args:
+                    key_str.append(func(g,i,True))
 
-                    karg = karg + func(g, i)
+                karg.append('KEY %s (%s)' % ('_'.join(key_str), ','.join(key_str)))
+
+
 
 
         return karg
