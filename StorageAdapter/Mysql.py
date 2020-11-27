@@ -294,8 +294,6 @@ class StorageAp(Adapter):
                 karg.append('KEY %s (%s)' % ('_'.join(key_str), ','.join(key_str)))
 
 
-
-
         return karg
 
     def __createTable(self,org_data):

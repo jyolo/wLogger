@@ -147,7 +147,7 @@ class Handler(Adapter):
             },
             # 请求协议 example HTTP/1.1
             '$scheme':{
-                'mysql_field_type': 'varchar(10)'
+                'mysql_field_type': 'varchar(255)'
             } ,
             # 服务器的HTTP版本 example “HTTP/1.0” 或 “HTTP/1.1”
             '$server_protocol':{
@@ -229,7 +229,7 @@ class Handler(Adapter):
             # 客户端的UA信息 example Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/73.0.3683.86 Safari/537.36
             '$http_user_agent':{
                 'nickname':'ua',
-                'mysql_field_type': 'text',
+                'mysql_field_type': 'mediumtext',
                 'mysql_key_field': 'FULLTEXT'
 
             } ,
