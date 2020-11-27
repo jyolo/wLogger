@@ -437,7 +437,12 @@ class OutputCustomer(Base):
             line_data = line
 
 
+        """
+        错误的数据
+        {"node_id": "208", "app_name": "api", "log_format_name": "custom2", "line": "27.115.124.5 - http \"\\x00\\x0E87\\xA5&\\x08\\xA2\\x1B\\xA0\\xB1\\x00\\x00\\x00\\x00\\x00\" [-] 0 0.026 - 400 150 295 21514843 1 - \"-\" \"27/Nov/2020:16:35:29 +0800\" \"-\"", "log_format_str": "log_format custom2 '$remote_addr $http_x_forwarded_for $scheme \"$request\" [$request_body] $request_length $request_time $upstream_response_time $status $body_bytes_sent $bytes_sent $connection $connection_requests $http_referer \"$http_user_agent\" \"$time_local\" \"$upstream_addr\"'"} 
 
+        
+        """
 
         try:
             # 预编译对应的正则
