@@ -3,11 +3,7 @@ from multiprocessing import Process
 from configparser import ConfigParser
 from threading import Thread,RLock
 from collections import deque
-from Src.ip2Region import Ip2Region
 import time,shutil,json,os,platform,importlib,sys,logging
-
-
-
 
 
 try:
@@ -420,11 +416,6 @@ class OutputCustomer(Base):
 
         self.logParse = loggerParse(self.conf['outputer']['server_type'] ,server_conf=None)
 
-        ip_data_path = os.path.dirname(__file__) + '/ip2region.db'
-        if not os.path.exists(ip_data_path):
-            raise FileNotFoundError('ip2region.db 数据库不存在')
-
-        self.ip_parser = Ip2Region(ip_data_path)
 
         if 'max_batch_insert_db_size' in self.conf['outputer']:
             self.max_batch_insert_db_size = int(self.conf['outputer']['max_batch_insert_db_size'])
@@ -438,100 +429,6 @@ class OutputCustomer(Base):
         self.storage_handle = self._findAdapterHandler('storage',self.conf['outputer']['save_engine']).initStorage(self)
 
 
-    def __parse_time_str(self,data):
-        if self.server_type == 'nginx':
-            if 'time_iso8601' in data:
-                _strarr = data['time_iso8601'].split('+')
-                ts = time.strptime(_strarr[0],'%Y-%m-%dT%H:%M:%S')
-                del data['time_iso8601']
-
-            if 'time_local' in data:
-                _strarr = data['time_local'].split('+')
-                ts = time.strptime(_strarr[0].strip() ,'%d/%b/%Y:%H:%M:%S')
-                del data['time_local']
-
-            data['time_str'] = time.strftime('%Y-%m-%d %H:%M:%S',ts)
-            data['timestamp'] = int(time.mktime(ts))
-
-
-
-
-        if self.server_type == 'apache':
-            pass
-
-
-
-
-        return data
-
-    def __parse_request_url(self,data):
-        if self.server_type == 'nginx':
-            try:
-                if 'request' in data:
-                    _strarr = data['request'].split(' ')
-
-                    data['request_method'] = _strarr[0]
-                    _url = _strarr[1].split('?')
-
-                    if len(_url) > 1:
-                        data['request_url'] = _url[0]
-                        data['args'] = _url[1]
-                    else:
-                        data['request_url'] = _url[0]
-                        data['args'] = ''
-
-                    data['server_protocol'] = _strarr[2]
-
-                    del data['request']
-
-                if 'request_uri' in data:
-                    _strarr = data['request_uri'].split('?')
-
-                    data['request_url'] = _url[0]
-                    data['args'] = _url[1]
-
-                    del data['request_uri']
-            except IndexError as e:
-                self.logging.error('解析日志 request_url 错误;data : %s' % json.dumps(data))
-
-
-
-        if self.server_type == 'apache':
-            pass
-
-        return data
-
-    def __parse_ip_to_area(self,data):
-
-        if self.server_type == 'nginx':
-            if 'remote_addr' in data:
-
-
-                try:
-                    res = self.ip_parser.memorySearch(data['remote_addr'])
-                    _arg = res['region'].decode('utf-8').split('|')
-
-                    # _城市Id|国家|区域|省份|城市|ISP_
-                    data['isp'] = _arg[-1]
-                    data['city'] = _arg[-2]
-                    data['city_id'] = int(res['city_id'])
-                    data['province'] = _arg[-3]
-                    data['country'] = _arg[0]
-                except Exception as e:
-                    data['isp'] = -1
-                    data['city'] = -1
-                    data['city_id'] = -1
-                    data['province'] = -1
-                    data['country'] = -1
-
-        if self.server_type == 'apache':
-            pass
-
-        return data
-
-    def _get_queue_count_num(self):
-        return self.queue_handle.getDataCountNum()
-
     def _parse_line_data(self,line):
 
         if isinstance(line ,str):
@@ -539,11 +436,18 @@ class OutputCustomer(Base):
         else:
             line_data = line
 
+
+        line_data['line'] = "47.112.167.32 - https \"GET //ce/get_article_detail?article_id=25095 HTTP/1.1\" [-] 168 1.053 0.215, 0.838 404 27673 27956 20978801 1 - \"axios/0.15.3\" \"27/Nov/2020:04:33:20 +0800\" \"47.112.167.32:80, 110.42.1.208:8080\""
+
+
         try:
             # 预编译对应的正则
             self.logParse.getLogFormatByConfStr(line_data['log_format_str'], line_data['log_format_name'])
             line_data['line'] = line_data['line'].strip()
+
             parse_data = self.logParse.parse(line_data['log_format_name'], line_data['line'])
+
+
         except ValueError as e:
             self.logging.error('\n pid : %s 解析数据 ValueError 错误: %s 数据: %s' % (os.getpid(),e.args,line ))
             return False
@@ -551,13 +455,6 @@ class OutputCustomer(Base):
             self.logging.error('\n pid : %s 解析数据 Exception 错误: %s 数据: %s' % (os.getpid(),e.args,line ))
             return False
 
-
-        # 解析时间
-        parse_data = self.__parse_time_str(parse_data)
-        # 解析requset 变成 request_method ,request_url ,args ,server_protocol
-        parse_data = self.__parse_request_url(parse_data)
-        # 解析IP 成地域
-        parse_data = self.__parse_ip_to_area(parse_data)
 
         del line_data['log_format_name']
         del line_data['log_format_str']
@@ -567,6 +464,11 @@ class OutputCustomer(Base):
 
 
         return line_data
+
+
+    def _get_queue_count_num(self):
+        return self.queue_handle.getDataCountNum()
+
 
     #　获取队列数据
     def getQueueData(self):

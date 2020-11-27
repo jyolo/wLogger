@@ -1,11 +1,23 @@
 from abc import abstractmethod,ABCMeta
-
-
+from Src.ip2Region import Ip2Region
+import os,time
 
 class Adapter():
     __metaclass__ = ABCMeta
 
-    def __init__(self): pass
+    ip_parser = None
+
+    def __init__(self):
+
+        if self.ip_parser == None:
+            ip_data_path = os.path.dirname(os.path.dirname(__file__)) + '/Src/ip2region.db'
+
+            if not os.path.exists(ip_data_path):
+                raise FileNotFoundError('ip2region.db 数据库不存在')
+
+            self.ip_parser = Ip2Region(ip_data_path)
+
+
 
     @abstractmethod
     def getLogFormat(self): pass
@@ -15,3 +27,74 @@ class Adapter():
 
     @abstractmethod
     def getLogFormatByConfStr(self): pass
+
+    # 解析 ip 新增地域字段  isp city city_id province country
+    @abstractmethod
+    def parse_ip_to_area(self,ip):
+        data = {}
+        try:
+            res = self.ip_parser.memorySearch(ip)
+            _arg = res['region'].decode('utf-8').split('|')
+
+            # _城市Id|国家|区域|省份|城市|ISP_
+            data['isp'] = _arg[-1]
+            data['city'] = _arg[-2]
+            data['city_id'] = int(res['city_id'])
+            data['province'] = _arg[-3]
+            data['country'] = _arg[0]
+        except Exception as e:
+            data['isp'] = -1
+            data['city'] = -1
+            data['city_id'] = -1
+            data['province'] = -1
+            data['country'] = -1
+
+        return data
+
+    # 解析requset字段 变成 request_method ,request_url ,args ,server_protocol
+    @abstractmethod
+    def parse_request_to_extend(self,request_data):
+        data = {}
+        try:
+            _strarr = request_data.split(' ')
+
+            data['request_method'] = _strarr[0]
+            _url = _strarr[1].split('?')
+
+            if len(_url) > 1:
+                data['request_url'] = _url[0]
+                data['args'] = _url[1]
+            else:
+                data['request_url'] = _url[0]
+                data['args'] = ''
+
+            data['server_protocol'] = _strarr[2]
+
+            if 'request_uri' in data:
+                _strarr = data['request_uri'].split('?')
+
+                data['request_url'] = _url[0]
+                data['args'] = _url[1]
+
+            return data
+        except IndexError as e:
+            self.logging.error('解析日志 request_url 错误;request_data : %s' % request_data)
+
+    # 解析 time_iso8601 time_local 变成 time_str timestamp
+    @abstractmethod
+    def parse_time_to_str(self,time_type , time_data):
+        data = {}
+        if 'time_iso8601' == time_type:
+            _strarr = time_data.split('+')
+            ts = time.strptime(_strarr[0], '%Y-%m-%dT%H:%M:%S')
+
+
+        if 'time_local' == time_type:
+            _strarr = time_data.split('+')
+            ts = time.strptime(_strarr[0].strip(), '%d/%b/%Y:%H:%M:%S')
+
+
+        data['time_str'] = time.strftime('%Y-%m-%d %H:%M:%S', ts)
+        data['timestamp'] = int(time.mktime(ts))
+
+        return data

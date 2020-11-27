@@ -14,56 +14,9 @@ class StorageAp(Adapter):
 
     db = None
     runner = None
-    field_map = {
-        'node_id':'varchar(255)',
-        'app_name':'varchar(255)',
-        'remote_addr' : 'varchar(255)',
-        'http_x_forwarded_for' : 'varchar(255)',
-        'scheme' : 'varchar(255)',
-        'request': 'varchar(255)',
-        'request_body': 'mediumtext',
-        'request_length': 'int(10)',
-        'request_time': 'float(10,3)',
-        'upstream_response_time': 'varchar(255)',
-        'status' : 'int(4)',
-        'body_bytes_sent': 'int(10)',
-        'bytes_sent': 'int(10)',
-        'connection': 'int(10)',
-        'connection_requests': 'int(10)',
-        'http_referer': 'varchar(255)',
-        'http_user_agent': 'text',
-        'time_local': 'varchar(255)',
-        'upstream_addr': 'varchar(255)',
-        # 预设附加字段
-        'time_str': 'datetime',
-        'timestamp': 'int(10)',
-        'args' : 'mediumtext', # log_format 中有request　则会有此字段
-        'server_protocol' : 'varchar(255)', # log_format 中有request　则会有此字段
-        'request_url' : 'varchar(255)', # log_format 中有request　则会有此字段
-        'request_method' : 'varchar(10)', # log_format 中有request　则会有此字段
-        "isp": "varchar(255)",
-        "city": "varchar(255)",
-        "city_id": 'int(10)',
-        "province": "varchar(255)",
-        "country": "varchar(255)"
-    }
+    field_map = None
+    key_field_map = None
 
-    # 预设附加字段
-    pre_field = [
-        'node_id',
-        'app_name',
-        'time_str',
-        'timestamp',
-        'args',
-        'server_protocol',
-        'request_url',
-        'request_method',
-        'isp',
-        'city',
-        'city_id',
-        'province',
-        'country'
-    ]
 
     @classmethod
     def initStorage(cls,runnerObject):
@@ -97,6 +50,7 @@ class StorageAp(Adapter):
     def pushDataToStorage(self):
         retry_reconnect_time = 0
 
+
         while True:
             time.sleep(0.1)
             self._getTableName('table')
@@ -107,6 +61,9 @@ class StorageAp(Adapter):
                 queue_data = self.runner.getQueueData()
 
                 if len(queue_data) == 0:
+                    self.logging.debug(
+                        '\n outputerer ---pid: %s wait for queue data \n ' %
+                        (os.getpid()))
                     continue
 
                 start_time = time.perf_counter()
@@ -120,7 +77,7 @@ class StorageAp(Adapter):
                         item = item.decode(encoding='utf-8')
 
                     self.backup_for_push_back_queue.append(item)
-
+                    # 解析日志数据
                     item = self.runner._parse_line_data(item)
 
                     if item:
@@ -139,6 +96,7 @@ class StorageAp(Adapter):
             else:
                 max_retry_reconnect_time = 3
 
+            # 解析完成 批量入库
             try:
                 start_time = time.perf_counter()
 
@@ -176,23 +134,79 @@ class StorageAp(Adapter):
                         os.getpid(),retry_reconnect_time,e.__class__  ,e.args))
                     continue
 
+    # 根据数据 和 nginx 解析器中的format 创建 mysql 字段类型的映射
+    def build_field_map(self,example_data):
+        field_map = {}
+        key_field_map = {}
+
+        # 开始组装 mysql字典
+        data_key = list(example_data.keys())
+        for i in self.runner.logParse.format:
+            format_key = i.replace('$', '')
+
+            # 检查默认值是否在数据中
+            if format_key in data_key:
+
+                if 'mysql_key_field' in self.runner.logParse.format[i]:
+                    key_field_map[format_key] = self.runner.logParse.format[i]['mysql_key_field']
+
+                if 'mysql_field_type' in self.runner.logParse.format[i]:
+                    field_map[format_key] = self.runner.logParse.format[i]['mysql_field_type']
+                else:
+                    field_map[format_key] = 'varchar(255)'
+
+            # 检查 nickname 是否在数据中
+            elif 'nickname' in self.runner.logParse.format[i] \
+                    and self.runner.logParse.format[i]['nickname'] in data_key:
+
+                if 'mysql_key_field' in self.runner.logParse.format[i]:
+                    key_field_map[ self.runner.logParse.format[i]['nickname'] ] = self.runner.logParse.format[i]['mysql_key_field']
+
+                if 'mysql_field_type' in self.runner.logParse.format[i]:
+                    field_map[ self.runner.logParse.format[i]['nickname'] ] = self.runner.logParse.format[i]['mysql_field_type']
+                else:
+                    field_map[ self.runner.logParse.format[i]['nickname'] ] = 'varchar(255)'
+
+
+            # 检查 extend_field 是否在数据中
+            if 'extend_field' in self.runner.logParse.format[i]:
+                _intersection = set(data_key).intersection(
+                    set(list(self.runner.logParse.format[i]['extend_field'].keys())))
+
+                if len(_intersection):
+                    for k in _intersection:
+
+                        if 'mysql_key_field' in  self.runner.logParse.format[i]['extend_field'][k]:
+                            key_field_map[k] =  self.runner.logParse.format[i]['extend_field'][k]['mysql_key_field']
+
+                        if 'mysql_field_type' in self.runner.logParse.format[i]['extend_field'][k]:
+                            field_map[k] = self.runner.logParse.format[i]['extend_field'][k]['mysql_field_type']
+                        else:
+                            field_map[k] = 'varchar(255)'
+
+
+        return field_map , key_field_map
 
     def __insertToMysql(self,data):
+
+        if self.field_map == None:
+            self.field_map ,self.key_field_map = self.build_field_map(data[0])
 
 
         fields = None
 
-        field_map_keys = list(self.field_map)
-        field_map_value = list(self.field_map.values())
+
         _valuelist = []
         for item in data:
-
 
             fk = list(item.keys())
             fields = ','.join(fk)
 
+
             for i in item:
-                field_type = field_map_value[ field_map_keys.index(i) ]
+
+                field_type = self.field_map[i]
+
                 if (field_type.find('int') > -1 or field_type.find('float') > -1) and str(item[i]) == '':
                     item[i] = '"0"'
                 elif str(item[i]) == '' :
@@ -204,7 +218,9 @@ class StorageAp(Adapter):
             _valuelist.append(values)
 
 
+
         sql = "INSERT INTO %s(%s)  VALUES %s" % (self.table,fields,','.join(_valuelist))
+
 
         self.debug_sql = sql
 
@@ -232,79 +248,93 @@ class StorageAp(Adapter):
                 raise Exception(' Exception: %s ;  数据写入错误: %s ;sql: %s' % (e.__class__,e.args , self.debug_sql))
 
 
+    def getKeyFieldStrForCreateTableFromList(self,key_field_needed ,i):
+
+        def func(vars,i):
+            _list = []
+
+            if vars.find('.') > -1:
+                _key = vars.split('.')
+                if _key[1] in self.runner.logParse.format[_key[0]]['extend_field']:
+                    _list.append('KEY `{0}_{1}` (`{0}`,`{1}`)'.format(i, _key[1]))
+            else:
+                if 'nickname' in self.runner.logParse.format[vars]:
+                    field_name = self.runner.logParse.format[vars]['nickname']
+                else:
+                    field_name = vars.replace('$', '')
+
+                _list.append('KEY `{0}_{1}` (`{0}`,`{1}`)'.format(i, field_name))
+
+            return _list
+
+        karg = []
+
+        for args in key_field_needed[i]:
+
+            if isinstance(args, str):
+
+                karg = karg + func(args,i)
+
+            elif isinstance(args, list):
+
+                for g in args:
+
+                    karg = karg + func(g, i)
+
+
+        return karg
+
     def __createTable(self,org_data):
 
         if len(org_data) > 0:
-            line = json.loads(org_data[0])
-            reg = re.compile('\$(\w+)?')
-            match = reg.findall(line['log_format_str'])
-            if len(match):
-                # 该三项配置会被转换会 其它 字段
-                if 'request' in match:
-                    del match[ match.index('request') ]
-                if 'time_local' in match:
-                    del match[match.index('time_local')]
-                if 'time_iso8601' in match:
-                    del match[match.index('time_iso8601')]
 
 
-                match = self.pre_field + match
-
-                fields = []
-                for i in match:
-                    _str = "`%s` %s NULL " % (i ,self.field_map[i] )
-                    fields.append(_str)
-
-                key_field = ['node_id','request_url','remote_addr','timestamp','time_str','http_user_agent','province','status']
-                # 从字段中获取需要创建索引的 字段
-                key_field_needed = list(set(match).intersection(set(key_field)))
-                key_str = ''
-
-                if len(key_field_needed):
-                    karg = []
-                    for i in key_field_needed:
-                        if i == 'http_user_agent': # ua 全文索引
-                            karg.append('FULLTEXT `%s` (`%s`)' % (i, i))
-                        else:
-                            karg.append('KEY `%s` (`%s`)' % (i,i))
-
-                    if 'timestamp' in key_field_needed:
-                        if 'remote_addr' in key_field_needed :
-                            karg.append('KEY `timestamp_remote_addr` (`%s`,`%s`)' % ('timestamp', 'remote_addr'))
-
-                        if 'province' in key_field_needed :
-                            karg.append('KEY `timestamp_province` (`%s`,`%s`)' % ('timestamp', 'province'))
-
-                        if 'status' in key_field_needed :
-                            karg.append('KEY `timestamp_status` (`%s`,`%s`)' % ('timestamp', 'status'))
-
-                        if 'request_url' in key_field_needed:
-                            karg.append('KEY `timestamp_request_url` (`%s`,`%s`)' % ('timestamp', 'request_url'))
+            fields = []
+            for i in self.field_map:
+                _str = "`%s` %s NOT NULL " % (i ,self.field_map[i] )
+                fields.append(_str)
 
 
+            # 从字段中获取需要创建索引的 字段
+            key_field_needed = self.key_field_map
 
-                    key_str = ',' + ','.join(karg)
+            key_str = ''
+            if len(key_field_needed):
+                karg = []
+                for i in key_field_needed:
+
+                    if isinstance(key_field_needed[i],str): # 字符串
+                        karg.append('{0} `{1}` (`{1}`)'.format(key_field_needed[i].upper() ,i))
+                    elif isinstance(key_field_needed[i],bool):
+                        karg.append('KEY `{0}` (`{0}`)'.format(i))
+                    elif isinstance(key_field_needed[i], list):
+                        karg.append('KEY `{0}` (`{0}`)'.format(i))
+                        karg = karg + self.getKeyFieldStrForCreateTableFromList(key_field_needed,i)
 
 
-                sql = """
-                        CREATE TABLE IF NOT EXISTS  `%s`.`%s`  (
-                                          `id` int(11) NOT NULL AUTO_INCREMENT,
-                                          %s ,
-                                          PRIMARY KEY (`id`)
-                                          %s
-                                        )
-                                """ % (self.conf['mysql']['db'], self.table ,','.join(fields),key_str)
+                # 去重
+                karg = list(set(karg))
+
+                key_str = ',' + ','.join(karg)
 
 
+            sql = """
+                    CREATE TABLE IF NOT EXISTS  `%s`.`%s`  (
+                                      `id` int(11) NOT NULL AUTO_INCREMENT,
+                                      %s ,
+                                      PRIMARY KEY (`id`)
+                                      %s
+                                    )
+                            """ % (self.conf['mysql']['db'], self.table ,','.join(fields),key_str)
 
 
-                try:
-                    with self.db.cursor() as cursor:
-                        cursor.execute(sql)
-                except pymysql.MySQLError as e:
+            try:
+                with self.db.cursor() as cursor:
+                    cursor.execute(sql)
+            except pymysql.MySQLError as e:
 
-                    self.logging.error('数据表 %s.%s 创建失败 ;Exception: %s ; SQL:%s' % (self.conf['mysql']['db'], self.conf['mysql']['table'] , e.args ,sql))
-                    raise Exception('数据表 %s.%s 创建失败 ;Exception: %s ; SQL:%s' % (self.conf['mysql']['db'], self.conf['mysql']['table'], e.args ,sql))
+                self.logging.error('数据表 %s.%s 创建失败 ;Exception: %s ; SQL:%s' % (self.conf['mysql']['db'], self.conf['mysql']['table'] , e.args ,sql))
+                raise Exception('数据表 %s.%s 创建失败 ;Exception: %s ; SQL:%s' % (self.conf['mysql']['db'], self.conf['mysql']['table'], e.args ,sql))
 
 
     # 检查table　是否存在
