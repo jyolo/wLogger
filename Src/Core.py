@@ -437,8 +437,6 @@ class OutputCustomer(Base):
             line_data = line
 
 
-        line_data['line'] = "47.112.167.32 - https \"GET //ce/get_article_detail?article_id=25095 HTTP/1.1\" [-] 168 1.053 0.215, 0.838 404 27673 27956 20978801 1 - \"axios/0.15.3\" \"27/Nov/2020:04:33:20 +0800\" \"47.112.167.32:80, 110.42.1.208:8080\""
-
 
         try:
             # 预编译对应的正则
