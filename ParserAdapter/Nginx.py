@@ -143,7 +143,7 @@ class Handler(Adapter):
             },
             # 请求方法 example GET
             '$request_method': {
-                'mysql_field_type': 'varchar(10)',
+                'mysql_field_type': 'varchar(100)',
             },
             # 请求协议 example HTTP/1.1
             '$scheme':{
