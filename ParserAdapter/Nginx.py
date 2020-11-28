@@ -139,7 +139,7 @@ class Handler(Adapter):
             # 客户端代理IP多个逗号分割 example 203.98.182.163, 203.98.182.169
             '$http_x_forwarded_for': {
                 'nickname':'proxy_ip',
-                'mysql_field_type':'varchar(15)'
+                'mysql_field_type':'varchar(255)'
             },
             # 请求方法 example GET
             '$request_method': {
