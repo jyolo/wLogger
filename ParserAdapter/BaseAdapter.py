@@ -2,6 +2,11 @@ from abc import abstractmethod,ABCMeta
 from Src.ip2Region import Ip2Region
 import os,time
 
+
+class ParseError(Exception):pass
+
+
+
 class Adapter():
     __metaclass__ = ABCMeta
 
@@ -78,7 +83,7 @@ class Adapter():
 
             return data
         except IndexError as e:
-            self.logging.error('解析日志 request_url 错误;request_data : %s' % request_data)
+            raise ParseError('解析日志 request_url 错误;request_data : %s' % request_data)
 
     # 解析 time_iso8601 time_local 变成 time_str timestamp
     @abstractmethod

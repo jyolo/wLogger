@@ -15,7 +15,7 @@ class MysqlDb():
     def get_total_ip(cls):
         with current_app.db.connect() as cursor:
             sql = text("""
-                       select count(DISTINCT remote_addr) as total_num from {0} FORCE INDEX(timestamp)  
+                       select count(DISTINCT ip) as total_num from {0} FORCE INDEX(timestamp)  
                        where `timestamp` >= UNIX_TIMESTAMP(:today)
                        """.format(current_app.db_engine_table)
                        )
@@ -62,9 +62,9 @@ class MysqlDb():
     def get_request_num_by_ip(cls):
         with current_app.db.connect() as cursor:
             sql = text("""
-                       select count(*) as total_num,remote_addr from {0}
+                       select count(*) as total_num,ip from {0}
                        where `timestamp` >= UNIX_TIMESTAMP(:today)
-                       group by remote_addr
+                       group by ip
                        order by total_num desc
                        limit 50
                        """.format(current_app.db_engine_table)
@@ -83,7 +83,7 @@ class MysqlDb():
         with current_app.db.connect() as cursor:
             sql = text("""
                        select count(*) as total_num ,request_url from {0}
-                       where FROM_UNIXTIME(`timestamp`,'%Y-%m-%d') = :today and remote_addr = :remote_addr
+                       where FROM_UNIXTIME(`timestamp`,'%Y-%m-%d') = :today and ip = :ip
                        group by request_url
                        order by total_num desc
                        limit 50
@@ -93,7 +93,7 @@ class MysqlDb():
             ip = request.args.get('ip')
 
 
-            res = cursor.execute(sql, {'today': cls.today,'remote_addr':ip})
+            res = cursor.execute(sql, {'today': cls.today,'ip':ip})
             data = Func.fetchall(res)
             data.reverse()
 
@@ -103,9 +103,9 @@ class MysqlDb():
     def get_request_num_by_status(cls):
         with current_app.db.connect() as cursor:
             sql = text("""
-                       select count(*) as total_num,`status`  from {0}
-                       where `timestamp` >= UNIX_TIMESTAMP(:today) and `status` != 200
-                       group by status
+                       select count(*) as total_num,`status_code`  from {0}
+                       where `timestamp` >= UNIX_TIMESTAMP(:today) and `status_code` != 200
+                       group by status_code
                        order by total_num desc
                        limit 50
                        """.format(current_app.db_engine_table)
@@ -128,7 +128,7 @@ class MysqlDb():
         with current_app.db.connect() as cursor:
             sql = text("""
                        select count(*) as total_num,`request_url` from {0}
-                       where FROM_UNIXTIME(`timestamp`,'%Y-%m-%d') = :today AND `status` = :status
+                       where FROM_UNIXTIME(`timestamp`,'%Y-%m-%d') = :today AND `status_code` = :status_code
                        group by request_url
                        order by total_num desc
                        limit 30
@@ -138,7 +138,7 @@ class MysqlDb():
             code = request.args.get('code')
 
 
-            res = cursor.execute(sql, {'today': cls.today,'status':code})
+            res = cursor.execute(sql, {'today': cls.today,'status_code':code})
             data = Func.fetchall(res)
             data.reverse()
             return ApiCorsResponse.response(data)
@@ -216,7 +216,7 @@ class MysqlDb():
             next_hour = int(time.mktime(time.strptime(next_hour_str, '%Y-%m-%d %H')))
 
             sql = text("""
-            select count(DISTINCT remote_addr) as total_num  ,unix_timestamp(STR_TO_DATE(time_str,'%Y-%m-%d %H:%i')) as time_str
+            select count(DISTINCT ip) as total_num  ,unix_timestamp(STR_TO_DATE(time_str,'%Y-%m-%d %H:%i')) as time_str
             from {0}
             where `timestamp` >= {1} and `timestamp` < {2}
             GROUP BY MINUTE(time_str)
@@ -253,9 +253,9 @@ class MysqlDb():
     def get_spider_by_ua(cls):
         with current_app.db.connect() as cursor:
             sql = text("""
-                            select count(*) as total_num ,http_user_agent from {0}  
-                            where MATCH(`http_user_agent`) AGAINST('spider') 
-                            GROUP BY http_user_agent
+                            select count(*) as total_num ,ua from {0}  
+                            where MATCH(`ua`) AGAINST('spider') 
+                            GROUP BY ua
                             ORDER BY total_num desc
                               """.format(current_app.db_engine_table)
                        )
@@ -268,13 +268,13 @@ class MysqlDb():
     def get_device_type_by_ua(cls):
         with current_app.db.connect() as cursor:
             sql = text("""
-                            select count(DISTINCT http_user_agent) as pc_num, (
-			                        select count(DISTINCT http_user_agent) as mobile_num
+                            select count(DISTINCT ua) as pc_num, (
+			                        select count(DISTINCT ua) as mobile_num
 				                    from {0}
-				                    where match(`http_user_agent`) AGAINST('mobile xfb' IN BOOLEAN MODE)
+				                    where match(`ua`) AGAINST('mobile xfb' IN BOOLEAN MODE)
 	                            ) as mobile_num
                             from {1}
-                            where match(`http_user_agent`) AGAINST('+gecko -mobile' IN BOOLEAN MODE)
+                            where match(`ua`) AGAINST('+gecko -mobile' IN BOOLEAN MODE)
                               """.format(current_app.db_engine_table,current_app.db_engine_table)
                        )
 

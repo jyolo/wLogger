@@ -1,5 +1,6 @@
 # coding=UTF-8
 from multiprocessing import Process
+from ParserAdapter.BaseAdapter import ParseError
 from configparser import ConfigParser
 from threading import Thread,RLock
 from collections import deque
@@ -411,9 +412,7 @@ class OutputCustomer(Base):
         self.save_engine_name = self.conf['outputer']['save_engine'].lower().capitalize()
 
 
-        self.call_engine = 'saveTo%s' %  self.save_engine_name
         self.server_type = self.conf['outputer']['server_type']
-
         self.logParse = loggerParse(self.conf['outputer']['server_type'] ,server_conf=None)
 
 
@@ -437,12 +436,17 @@ class OutputCustomer(Base):
             line_data = line
 
 
+
         """
         错误的数据
-        {"node_id": "208", "app_name": "api", "log_format_name": "custom2", "line": "27.115.124.5 - http \"\\x00\\x0E87\\xA5&\\x08\\xA2\\x1B\\xA0\\xB1\\x00\\x00\\x00\\x00\\x00\" [-] 0 0.026 - 400 150 295 21514843 1 - \"-\" \"27/Nov/2020:16:35:29 +0800\" \"-\"", "log_format_str": "log_format custom2 '$remote_addr $http_x_forwarded_for $scheme \"$request\" [$request_body] $request_length $request_time $upstream_response_time $status $body_bytes_sent $bytes_sent $connection $connection_requests $http_referer \"$http_user_agent\" \"$time_local\" \"$upstream_addr\"'"} 
-
+         {"node_id": "208", "app_name": "api", "log_format_name": "custom2", 
+         "line": "193.106.30.234 - http \"\\x03\\x00\\x00/*\\xE0\\x00\\x00\\x00\\x00\\x00Cookie: mstshash=Administr\" [-] 0 0.286 - 400 150 295 23850474 1 - \"-\" \"30/Nov/2020:07:28:22 +0800\" \"-\"", "log_format_str": "log_format custom2 '$remote_addr $http_x_forwarded_for $scheme \"$request\" [$request_body] $request_length $request_time $upstream_response_time $status $body_bytes_sent $bytes_sent $connection $connection_requests $http_referer \"$http_user_agent\" \"$time_local\" \"$upstream_addr\"'"} 
         
         """
+        line_data = {"node_id": "208", "app_name": "api", "log_format_name": "custom2",
+         "line": "193.106.30.234 - http \"\\x03\\x00\\x00/*\\xE0\\x00\\x00\\x00\\x00\\x00Cookie: mstshash=Administr\" [-] 0 0.286 - 400 150 295 23850474 1 - \"-\" \"30/Nov/2020:07:28:22 +0800\" \"-\"", "log_format_str": "log_format custom2 '$remote_addr $http_x_forwarded_for $scheme \"$request\" [$request_body] $request_length $request_time $upstream_response_time $status $body_bytes_sent $bytes_sent $connection $connection_requests $http_referer \"$http_user_agent\" \"$time_local\" \"$upstream_addr\"'"}
+
+
 
         try:
             # 预编译对应的正则
@@ -451,13 +455,15 @@ class OutputCustomer(Base):
 
             parse_data = self.logParse.parse(line_data['log_format_name'], line_data['line'])
 
+        # 解析数据错误
+        except ParseError as e:
+            self.logging.error('\n pid : %s 数据解析错误: %s 数据: %s' % (os.getpid(), e.args, line))
+            return False
 
-        except ValueError as e:
-            self.logging.error('\n pid : %s 解析数据 ValueError 错误: %s 数据: %s' % (os.getpid(),e.args,line ))
-            return False
         except Exception as e:
-            self.logging.error('\n pid : %s 解析数据 Exception 错误: %s 数据: %s' % (os.getpid(),e.args,line ))
-            return False
+            unkown_error = '\n pid : %s 未知: %s ,error_class: %s ,数据: %s' % (os.getpid(), e.__class__, e.args, line)
+            self.logging.error(unkown_error)
+            raise Exception(unkown_error)
 
 
         del line_data['log_format_name']

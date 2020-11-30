@@ -17,7 +17,7 @@ window.chart_load_func['top_ip_chart'] = function () {
       var xdata = []
       var ydata = []
       for (var i=0; i< data.length ;i++){
-        xdata.push(data[i]['remote_addr'])
+        xdata.push(data[i]['ip'])
         ydata.push(data[i]['total_num'])
       }
       // 指定配置和数据
@@ -253,7 +253,7 @@ window.chart_load_func['status_code_chart']  = function () {
       $.each(msg.data ,function(k,v){
         total = total + v.total_num
         valdata.push(v.total_num)
-        titlename.push('状态码：' + v.status.toString())
+        titlename.push('状态码：' + v.status_code.toString())
       })
 
       $.each(msg.data ,function(k,v){

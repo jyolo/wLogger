@@ -1,5 +1,5 @@
 # coding=UTF-8
-from ParserAdapter.BaseAdapter import Adapter
+from ParserAdapter.BaseAdapter import Adapter,ParseError
 from parse import parse,search,findall,compile
 import os,json,re,time
 
@@ -298,7 +298,7 @@ class Handler(Adapter):
 
                 del data['request_uri']
         except IndexError as e:
-            self.logging.error('解析日志 request_url 错误;data : %s' % json.dumps(data))
+            raise ValueError('解析日志 request_url 错误;data : %s' % json.dumps(data))
 
         return data
 
@@ -316,7 +316,7 @@ class Handler(Adapter):
         res = log_format_recompile.match(log_line)
 
         if res == None:
-            raise ValueError('解析日志失败,请检查client 配置中 日志的 格式名称是否一致 log_format_name')
+            raise ParseError('解析日志失败,请检查client 配置中 日志的 格式名称是否一致 log_format_name')
 
         matched = list(res.groups())
 
@@ -355,8 +355,6 @@ class Handler(Adapter):
         # 剔除掉 解析出拓展字符串的 字段
         for i in del_key_name:
             del data[i]
-
-
 
 
         return data

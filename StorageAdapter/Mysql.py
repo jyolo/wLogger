@@ -24,6 +24,7 @@ class StorageAp(Adapter):
         self.runner = runnerObject
         self.conf = self.runner.conf
         self.logging = self.runner.logging
+
         pymysql_timeout_secends = 60
         try:
             self.db = pymysql.connect(
@@ -46,7 +47,6 @@ class StorageAp(Adapter):
         return self
 
 
-
     def pushDataToStorage(self):
         retry_reconnect_time = 0
 
@@ -61,9 +61,7 @@ class StorageAp(Adapter):
                 queue_data = self.runner.getQueueData()
 
                 if len(queue_data) == 0:
-                    self.logging.debug(
-                        '\n outputerer ---pid: %s wait for queue data \n ' %
-                        (os.getpid()))
+                    self.logging.debug('\n outputerer ---pid: %s wait for queue data \n ' % (os.getpid()))
                     continue
 
                 start_time = time.perf_counter()
@@ -349,7 +347,6 @@ class StorageAp(Adapter):
                 self.logging.error('数据表 %s.%s 创建失败 ;Exception: %s ; SQL:%s' % (self.conf['mysql']['db'], self.conf['mysql']['table'] , e.args ,sql))
                 raise Exception('数据表 %s.%s 创建失败 ;Exception: %s ; SQL:%s' % (self.conf['mysql']['db'], self.conf['mysql']['table'], e.args ,sql))
 
-
     # 检查table　是否存在
     def _handle_queue_data_before_into_storage(self ,org_data):
 
@@ -365,7 +362,6 @@ class StorageAp(Adapter):
 
 
         return False
-
 
     # 在持久化存储之前 对 队列中的数据 进行预处理 ,比如 update ,delete 等操作
     def _handle_queue_data_after_into_storage(self):
