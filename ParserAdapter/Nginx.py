@@ -119,7 +119,7 @@ class Handler(Adapter):
             '$request': {
                 'extend_field': {
                     'request_method': {
-                        'mysql_field_type': 'varchar(100)',
+                        'mysql_field_type': 'varchar(10)',
                         'mysql_key_field':True,
                     },
                     'request_url': {
