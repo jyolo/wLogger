@@ -443,8 +443,6 @@ class OutputCustomer(Base):
          "line": "193.106.30.234 - http \"\\x03\\x00\\x00/*\\xE0\\x00\\x00\\x00\\x00\\x00Cookie: mstshash=Administr\" [-] 0 0.286 - 400 150 295 23850474 1 - \"-\" \"30/Nov/2020:07:28:22 +0800\" \"-\"", "log_format_str": "log_format custom2 '$remote_addr $http_x_forwarded_for $scheme \"$request\" [$request_body] $request_length $request_time $upstream_response_time $status $body_bytes_sent $bytes_sent $connection $connection_requests $http_referer \"$http_user_agent\" \"$time_local\" \"$upstream_addr\"'"} 
         
         """
-        line_data = {"node_id": "208", "app_name": "api", "log_format_name": "custom2",
-         "line": "193.106.30.234 - http \"\\x03\\x00\\x00/*\\xE0\\x00\\x00\\x00\\x00\\x00Cookie: mstshash=Administr\" [-] 0 0.286 - 400 150 295 23850474 1 - \"-\" \"30/Nov/2020:07:28:22 +0800\" \"-\"", "log_format_str": "log_format custom2 '$remote_addr $http_x_forwarded_for $scheme \"$request\" [$request_body] $request_length $request_time $upstream_response_time $status $body_bytes_sent $bytes_sent $connection $connection_requests $http_referer \"$http_user_agent\" \"$time_local\" \"$upstream_addr\"'"}
 
 
 
