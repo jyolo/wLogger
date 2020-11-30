@@ -461,7 +461,7 @@ class OutputCustomer(Base):
             return False
 
         except Exception as e:
-            unkown_error = '\n pid : %s 未知: %s ,error_class: %s ,数据: %s' % (os.getpid(), e.__class__, e.args, line)
+            unkown_error = '\n pid : %s 未知错误: %s ,error_class: %s ,数据: %s' % (os.getpid(), e.__class__, e.args, line)
             self.logging.error(unkown_error)
             raise Exception(unkown_error)
 
