@@ -72,6 +72,8 @@ class Base(object):
         }
 
         log_file_name = conf_name = logg_setting_map[self.__class__.__name__]['config_name']
+
+
         if 'log_debug' in self.conf[conf_name] and self.conf[conf_name]['log_debug'] == 'True':
             _level = logging.DEBUG
         else:
@@ -128,10 +130,11 @@ class Reader(Base):
         'stop' : None,
     }
 
-    def __init__(self,log_file_conf = None ):
-        super(Reader, self).__init__()
+    def __init__(self,log_file_conf = None ,config_name = None):
+        super(Reader, self).__init__(config_name=config_name)
 
         self.log_path = log_file_conf['file_path']
+
 
         if len(log_file_conf['log_format_name']) == 0:
             self.log_format_name = 'defualt'
@@ -194,6 +197,8 @@ class Reader(Base):
         self.dqueue = deque()
 
         self.queue_key = self.conf['inputer']['queue_name']
+
+
 
         self.server_conf = loggerParse(log_file_conf['server_type'],self.conf[log_file_conf['server_type']]['server_conf']).logger_format
 
@@ -383,7 +388,7 @@ class Reader(Base):
 
 
             end_time = time.perf_counter()
-            self.logging.debug("\n end_time -------pid: %s -- read file---line len :%s --- 耗时:%s \n" % (os.getpid(), len(list(self.dqueue)), round(end_time - start_time, 2)))
+            self.logging.debug("\n end_time -------pid: %s -- read file- %s--line len :%s --- 耗时:%s \n" % (os.getpid(),self.log_path, len(list(self.dqueue)), round(end_time - start_time, 2)))
 
             if self.event['cut_file'] == 1 and self.event['stop'] == None:
                 # 防止 重启进程服务后 新的日志文件并没有那么快重新打开

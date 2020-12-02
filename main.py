@@ -8,17 +8,16 @@ import multiprocessing,time,sys,os,click
 
 
 
-def runReader(log_files_conf):
+def runReader(log_files_conf,config_name):
 
-
-    r = Reader(log_file_conf=log_files_conf)
+    r = Reader(log_file_conf=log_files_conf ,config_name=config_name)
 
     pushQueue = ['pushDataToQueue'] * multiprocessing.cpu_count()
     jobs = ['readLog','cutFile'] + pushQueue
 
     t = []
     for i in jobs:
-        th = Thread(target=r.runMethod, args=(i,))
+        th = Thread(target=r.runMethod, args=(i, ))
         t.append(th)
 
     for i in t:
@@ -50,13 +49,14 @@ def enter(run,stop,config):
 
     base = Base(config_name=config)
 
+
     if (run == 'inputer'):
 
         logFiles = getLogFilsDict(base)
 
         plist = []
         for i in logFiles:
-            p = Process(target=runReader, args=( i, ))
+            p = Process(target=runReader, args=( i, config ,))
             plist.append(p)
 
         for i in plist:
