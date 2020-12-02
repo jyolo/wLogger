@@ -26,8 +26,9 @@ def runReader(log_files_conf,config_name):
     for i in t:
         i.join()
 
-def customer(  ):
-    OutputCustomer().saveToStorage()
+def customer( config_name ):
+
+    OutputCustomer(config_name).saveToStorage()
 
 def getLogFilsDict(base):
     logFiles = []
@@ -68,7 +69,7 @@ def enter(run,stop,config):
     if (run == 'outputer'):
         p_list = []
         for i in range(int(base.conf['outputer']['worker_process_num'])):
-            p = Process(target=customer )
+            p = Process(target=customer , args=(config ,) )
             p_list.append(p)
 
         for i in p_list:

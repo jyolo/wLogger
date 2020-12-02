@@ -410,11 +410,9 @@ class Reader(Base):
 # 消费者 解析日志 && 存储日志
 class OutputCustomer(Base):
 
-    def __init__(self , multi_queue = None):
+    def __init__(self , config_name = None):
 
-        super(OutputCustomer,self).__init__()
-
-        self.multi_queue = multi_queue
+        super(OutputCustomer,self).__init__(config_name)
 
         self.dqueue = deque()
 
