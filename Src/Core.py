@@ -51,9 +51,9 @@ class loggerParse(object):
 class Base(object):
     conf = None
 
-    def __init__(self):
+    def __init__(self,config_name = None):
         self._root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-        self.conf = self.__getConfig()
+        self.conf = self.__getConfig(config_name)
         self.__initLogging()
 
 
@@ -83,10 +83,14 @@ class Base(object):
                             filename=r"./%s.log" % log_file_name)
         self.logging = logging
 
-    def __getConfig(self):
-        config_path = self._root + '/config.ini'
+    def __getConfig(self,config_name):
+        if not config_name:
+            config_path = self._root + '/config.ini'
+        else:
+            config_path = self._root + '/' +config_name
+
         if ( not os.path.exists(config_path) ):
-            raise FileNotFoundError('config.ini not found in the project root path')
+            raise FileNotFoundError('config file: %s not found ' % config_path)
 
         conf = ConfigParser()
         conf.read(config_path, encoding="utf-8")
@@ -128,6 +132,7 @@ class Reader(Base):
         super(Reader, self).__init__()
 
         self.log_path = log_file_conf['file_path']
+
         if len(log_file_conf['log_format_name']) == 0:
             self.log_format_name = 'defualt'
         else:
@@ -193,6 +198,7 @@ class Reader(Base):
         self.server_conf = loggerParse(log_file_conf['server_type'],self.conf[log_file_conf['server_type']]['server_conf']).logger_format
 
         self.fd = self.__getFileFd()
+
         # 文件切割中标志
         self.cutting_file = False
         self.lock = RLock()
@@ -204,6 +210,10 @@ class Reader(Base):
     def __getFileFd(self):
         try:
             return open(self.log_path, mode='r+' ,newline=self.newline_char)
+
+        except PermissionError as e:
+            self.event['stop'] = self.log_path + '没有权限读取文件 请尝试sudo'
+            return False
 
         except OSError as e:
             self.event['stop'] = self.log_path + ' 文件不存在'
@@ -339,13 +349,16 @@ class Reader(Base):
         if self.read_type not in ['head','tail']:
             self.event['stop'] = 'read_type 只支持 head 从头开始 或者 tail 从末尾开始'
 
+        if self.fd == False:
+            return
+
         try:
             if self.read_type == 'head':
                 self.fd.seek(position, 0)
             elif self.read_type == 'tail':
                 self.fd.seek(position, 2)
         except Exception as e:
-            self.event['stop'] = self.log_path + ' 文件句柄 seek 错误'
+            self.event['stop'] = self.log_path + ' 文件句柄 seek 错误 %s ; %s' % (e.__class__ , e.args)
 
 
         max_retry_open_file_time = 3

@@ -618,7 +618,7 @@ window.chart_load_func['spider_by_ua'] = function () {
       company_data = [ ]
 
       $.each(data,function(k,v){
-        company_data.push({value:v['total_num'] , name:v['http_user_agent']})
+        company_data.push({value:v['total_num'] , name:v['ua']})
       })
 
       // 2. 指定配置项和数据
