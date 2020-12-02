@@ -1,7 +1,7 @@
 from ParserAdapter.BaseAdapter import Adapter
 
 #日志格式官方文档 http://httpd.apache.org/docs/2.4/logs.html
-#日志切割官方文档 http://httpd.apache.org/docs/2.4/programs/rotatelogs.html
+#日志切割官方文档 http://httpd.apache.org/docs/2.4/programs/rotatelogs.html   /www/server/apache/bin/apachectl graceful
 
 class Handler(Adapter):
 
