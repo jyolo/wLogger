@@ -50,6 +50,8 @@ class loggerParse(object):
 
 class Base(object):
     conf = None
+    CONFIG_FIEL_SUFFIX = '.ini'
+    config_name = 'config'
 
     def __init__(self,config_name = None):
         self._root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -63,36 +65,30 @@ class Base(object):
         if self.__class__.__name__ == 'Base':return
 
         logg_setting_map = {
-            'Reader': {
-                'config_name': 'inputer',
-            },
-            'OutputCustomer': {
-                'config_name': 'outputer',
-            }
+            'Reader': 'inputer',
+            'OutputCustomer': 'outputer',
         }
 
-        log_file_name = conf_name = logg_setting_map[self.__class__.__name__]['config_name']
-
+        conf_name = logg_setting_map[self.__class__.__name__]
 
         if 'log_debug' in self.conf[conf_name] and self.conf[conf_name]['log_debug'] == 'True':
             _level = logging.DEBUG
         else:
             _level = logging.INFO
 
-        log_file_name = log_file_name
-
         logging.basicConfig(level=_level, format=LOG_FORMAT, datefmt=DATE_FORMAT,
-                            filename=r"./%s.log" % log_file_name)
+                            filename=r"./%s_%s.log" % (conf_name ,self.config_name) )
+
         self.logging = logging
 
     def __getConfig(self,config_name):
-        if not config_name:
-            config_path = self._root + '/config.ini'
-        else:
-            config_path = self._root + '/' +config_name
+        if config_name:
+            self.config_name = config_name
+
+        config_path = self._root + '/' + self.config_name + self.CONFIG_FIEL_SUFFIX
 
         if ( not os.path.exists(config_path) ):
-            raise FileNotFoundError('config file: %s not found ' % config_path)
+            raise FileNotFoundError('config file: %s not found ' % (config_path) )
 
         conf = ConfigParser()
         conf.read(config_path, encoding="utf-8")
