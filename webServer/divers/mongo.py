@@ -14,7 +14,7 @@ class MongoDb():
     def get_total_ip(cls):
         res = current_app.db[current_app.db_engine_table].aggregate([
             {'$match': {'time_str': {'$regex': '^%s' % cls.today}}},
-            {'$group': {'_id': '$remote_addr'}},
+            {'$group': {'_id': '$ip'}},
             {'$group': {'_id': '','total_num':{'$sum':1} }},
             {'$project': { '_id': 0}},
             {'$sort': {'total_num': -1}},
@@ -75,9 +75,9 @@ class MongoDb():
 
         res = current_app.db[current_app.db_engine_table].aggregate([
             {'$match': {'time_str': {'$regex': '^%s' % cls.today}}},
-            {'$group': {'_id': '$remote_addr', 'total_num': {'$sum': 1}}},
+            {'$group': {'_id': '$ip', 'total_num': {'$sum': 1}}},
             {'$project': {
-                'remote_addr':'$_id',
+                'ip':'$_id',
                 'total_num': 1,
                 '_id':0
                 # 'percent':{ '$toDouble': {'$substr':[  {'$multiply':[ {'$divide':['$total_num' , total]} ,100] }  ,0,4  ] }   }
@@ -105,7 +105,7 @@ class MongoDb():
 
 
         res = current_app.db[collection].aggregate([
-            {'$match': {'time_str': {'$regex': '^%s' % cls.today}, 'remote_addr': request.args.get('ip')}},
+            {'$match': {'time_str': {'$regex': '^%s' % cls.today}, 'ip': request.args.get('ip')}},
             {'$group': {'_id': '$request_url', 'total_num': {'$sum': 1}}},
             {'$project': {
                 'total_num': 1,
@@ -128,9 +128,9 @@ class MongoDb():
 
 
         res = current_app.db[current_app.db_engine_table].aggregate([
-            {'$match': {'time_str': {'$regex': '^%s' % cls.today}, 'status': {'$ne': '200'}}},
-            {'$group': {'_id': '$status', 'total_num': {'$sum': 1}}},
-            {'$project': {'status': '$_id', 'total_num': 1, '_id': 0}},
+            {'$match': {'time_str': {'$regex': '^%s' % cls.today}, 'status_code': {'$ne': '200'}}},
+            {'$group': {'_id': '$status_code', 'total_num': {'$sum': 1}}},
+            {'$project': {'status_code': '$_id', 'total_num': 1, '_id': 0}},
             {'$sort': {'total_num': -1}},
         ])
 
@@ -230,7 +230,7 @@ class MongoDb():
             {'$match': {'time_str': {'$regex': '^%s' % current_hour}}},
             {'$project': {
                 '_id': 0,
-                'remote_addr': 1,
+                'ip': 1,
                 'time_minute': {
                     '$dateToString': {
                         'format': '%Y-%m-%d %H:%M',
@@ -241,7 +241,7 @@ class MongoDb():
                     }
                 }
             },
-            {'$group': {'_id': '$time_minute', 'ips': {'$addToSet': '$remote_addr'}}},
+            {'$group': {'_id': '$time_minute', 'ips': {'$addToSet': '$ip'}}},
             {'$project': {'total_num': {'$size': '$ips'}, 'time_str': '$_id', '_id': 0}},
             {'$sort': {'time_str': -1}},
 
@@ -276,11 +276,11 @@ class MongoDb():
         res = current_app.db[current_app.db_engine_table].aggregate([
             {'$match': {
                 'time_str': {'$regex': '^%s' % cls.today} ,
-                'http_user_agent':{'$regex':'spider'}
+                'ua':{'$regex':'spider'}
                 }
             },
-            {'$group': {'_id': '$http_user_agent', 'total_num': {'$sum': 1}}},
-            {'$project': {'http_user_agent': '$_id', 'total_num': 1, '_id': 0}},
+            {'$group': {'_id': '$ua', 'total_num': {'$sum': 1}}},
+            {'$project': {'ua': '$_id', 'total_num': 1, '_id': 0}},
             {'$sort': {'total_num': -1}},
         ])
 

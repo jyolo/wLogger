@@ -38,15 +38,19 @@
     
 > 启动 采集器
     
-     python3 main.py -run inputer
+     python3 main.py -r inputer
      
 > 启动 解析存储器
 
-    python3 main.py -run inputer
+    python3 main.py -r inputer
     
 > 启动 web服务
 
-    python3 main.py -run web
+    python3 main.py -r web
+    
+> 查看支持的命令
+    
+    python3 main.py --help
     
    * 以上三个应用均可单独启用
     
@@ -57,18 +61,23 @@
 
 > 公共配置
     
-    [nginx]                                         # 当 input 和 outputer 中指定了 server_type = nginx 才需此配置  
+    # 当 input 和 outputer 中指定了 server_type = nginx 才需此配置  
+    
+    [nginx]                                         
     pid_path = /www/server/nginx/logs/nginx.pid     # 指定nginx.pid 的绝对路径       
     server_conf = /www/server/nginx/conf/nginx.conf # 指定nginx配置文件的路径   
     
-    [redis]                                         # 当inputer 和 outputer 中指定了 queue = redis 才需此配置      
+    # 当inputer 和 outputer 中指定了 queue = redis 才需此配置
+    
+    [redis]                                               
     host = 127.0.0.1
     port = 6379
     password = xxxxxxxx
     db = 1
-    prefix = logger_watch:
-
-    [mysql]                                         # 当 outputer 中指定了 save_engine = mysql 才需此配置     
+    
+    #  当outputer中save_engine = mongodb 和 web中data_engine = mongodb 需此配置   
+    
+    [mysql]                                         
     host = 127.0.0.1
     port = 3306
     username = nginx_logger
@@ -77,7 +86,9 @@
     table = logger
     split_save = day                                # 当有该配置项则代表开启自动分表 目前支持按 天，周，月，年 ；参数：[day, week, month ,year] ,进行存储
     
-    [mongodb]                                       # 当 outputer 中指定了 save_engine = mongodb 才需此配置 
+    # 当outputer中save_engine = mongodb 和 web中data_engine = mongodb 需此配置 
+    
+    [mongodb]                                       
     host = 192.168.0.166
     port = 7002
     username = logger_watcher
@@ -98,7 +109,7 @@
     max_retry_open_file_time = 10          # 当文件读取失败之后重新打开日志文件，最多重试多少次
     max_retry_reconnect_time = 20          # 连接队列失败的时候，最多重试多少次
     
-    [inputer.log_file.web1]
+    [inputer.log_file.web1]                # inputer.log_file.web1 中的 web1 代表应用名称 唯一 app_name 
     server_type = nginx                    # 服务器应用目前只支持 nginx
     file_path = /wwwlogs/ww.aaa.com.log    # 日志绝对路径
     log_format_name = online               # 配置文件中 日志名称 example : "access_log  /www/wwwlogs/xxx.log online;" 中的 `online` 则代表启用的日志配置名称
@@ -108,7 +119,7 @@
     cut_file_save_dir = /wwwlogs/cut_file/ # 日志切割后存储绝对路径
     
     
-    [inputer.log_file.web2]                # 支持同时采集多个应用日志 追加配置即可
+    [inputer.log_file.api]                # 支持同时采集多个应用日志 追加配置即可
     ..........................
     
              
@@ -128,9 +139,9 @@
 > 大屏监控端
 
     [web]
-    env = development                     # 是否开启调试模式 development | production
+    env = development                     # 运行环境 development | production
     debug = True                          # 是否开启 debug
     secret_key = xxxx                     # flask session key 
     server_name = 127.0.0.1:5000          # 指定域名和端口
-    data_engine = mysql                   # 指定日志存储引擎
+    data_engine = mysql                   # 指定日志存储引擎 目前内置了 [redis , mongodb]
 
