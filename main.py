@@ -14,6 +14,7 @@ def runReader(log_files_conf,config_name):
 
     pushQueue = ['pushDataToQueue'] * multiprocessing.cpu_count()
     jobs = ['readLog','cutFile'] + pushQueue
+    # jobs = ['cutFile']
 
     t = []
     for i in jobs:

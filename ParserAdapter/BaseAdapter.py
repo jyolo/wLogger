@@ -11,8 +11,9 @@ class Adapter():
     __metaclass__ = ABCMeta
 
     ip_parser = None
+    log_line_pattern_dict = {}
 
-    def __init__(self):
+    def __init__(self,*args,**kwargs):
 
         if self.ip_parser == None:
             ip_data_path = os.path.dirname(os.path.dirname(__file__)) + '/Src/ip2region.db'
@@ -22,13 +23,14 @@ class Adapter():
 
             self.ip_parser = Ip2Region(ip_data_path)
 
-
-
     @abstractmethod
     def getLogFormat(self): pass
 
     @abstractmethod
     def parse(self): pass
+
+    @abstractmethod
+    def cutFile(self):pass
 
     @abstractmethod
     def getLogFormatByConfStr(self): pass
@@ -88,7 +90,10 @@ class Adapter():
     # 解析 time_iso8601 time_local 变成 time_str timestamp
     @abstractmethod
     def parse_time_to_str(self,time_type , time_data):
+
         data = {}
+        time_data = time_data.replace('[', '').replace(']', '')
+
         if 'time_iso8601' == time_type:
             _strarr = time_data.split('+')
             ts = time.strptime(_strarr[0], '%Y-%m-%dT%H:%M:%S')

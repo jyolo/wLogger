@@ -15,6 +15,7 @@ except ImportError:
     from urllib import quote_plus
 
 
+
 # 日志解析
 class loggerParse(object):
 
@@ -22,7 +23,7 @@ class loggerParse(object):
     def __init__(self ,server_type,server_conf = None):
 
         self.server_type = server_type
-        self.__handler = self.__findHandlerAdapter(server_type)()
+        self.__handler = Base.findAdapterHandler('server',server_type)()
         self.format = self.__handler.getLogFormat()
         if server_conf:
             self.logger_format = self.__handler.getLoggerFormatByServerConf(server_conf_path=server_conf)
@@ -38,14 +39,6 @@ class loggerParse(object):
 
 
 
-    def __findHandlerAdapter(self,server_type):
-        handler_module = 'ParserAdapter.%s' % server_type.lower().capitalize()
-        try:
-
-            return importlib.import_module(handler_module).Handler
-        except ImportError:
-            sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))) + '/ParserAdapter')
-            return importlib.import_module(handler_module).Handler
 
 
 class Base(object):
@@ -95,21 +88,22 @@ class Base(object):
 
         return conf
 
-    def _findAdapterHandler(self,adapter_type,queue_type):
+    @classmethod
+    def findAdapterHandler(cls,adapter_type,name):
 
-        if adapter_type not in ['queue','storage']:
+        if adapter_type not in ['server', 'queue', 'storage']:
             raise ValueError('%s Adapter 类型不存在' % adapter_type)
 
-        handler_module = '%sAdapter.%s' % (adapter_type.lower().capitalize(),queue_type.lower().capitalize())
+        if adapter_type in ['queue', 'storage']:
+            handler_module = '%sAdapter.%s' % (adapter_type.lower().capitalize(), name.lower().capitalize())
+        else:
+            handler_module = 'ParserAdapter.%s' % name.lower().capitalize()
 
-        try:
-            if adapter_type == 'queue':
-                return importlib.import_module(handler_module).QueueAp
-            if adapter_type == 'storage':
-                return importlib.import_module(handler_module).StorageAp
-
-        except ImportError:
-            sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))) + '/ParserAdapter')
+        if adapter_type == 'queue':
+            return importlib.import_module(handler_module).QueueAp
+        if adapter_type == 'storage':
+            return importlib.import_module(handler_module).StorageAp
+        if adapter_type == 'server':
             return importlib.import_module(handler_module).Handler
 
 
@@ -194,8 +188,6 @@ class Reader(Base):
 
         self.queue_key = self.conf['inputer']['queue_name']
 
-
-
         self.server_conf = loggerParse(log_file_conf['server_type'],self.conf[log_file_conf['server_type']]['server_conf']).logger_format
 
         self.fd = self.__getFileFd()
@@ -205,7 +197,8 @@ class Reader(Base):
         self.lock = RLock()
 
         # 外部队列handle
-        self.queue_handle = self._findAdapterHandler('queue',self.conf['inputer']['queue']).initQueue(self)
+        self.queue_handle = self.findAdapterHandler('queue',self.conf['inputer']['queue']).initQueue(self)
+        self.server_handle = self.findAdapterHandler('server',log_file_conf['server_type'])()
 
 
     def __getFileFd(self):
@@ -221,7 +214,8 @@ class Reader(Base):
             return False
 
 
-    def __cutFileHandle(self,server_pid_path,log_path ,target_path = None ):
+    def __cutFileHandle(self,server_conf,log_path ,target_path = None ):
+
         start_time = time.perf_counter()
         self.logging.debug("\n start_time -------cutting file start ---  %s \n" % (
              start_time))
@@ -247,24 +241,12 @@ class Reader(Base):
 
         target_file = target_dir + '/' + log_name + '_' + file_suffix
 
-        # 这里需要注意 日志目录的 权限 是否有www  否则会导致 ngixn 重开日志问件 无法写入的问题
-        cmd = 'kill -USR1 `cat %s`' % ( server_pid_path )
-
-        try:
-            shutil.move(log_path, target_file)
-        except Exception as e:
-            self.event['stop'] = '切割日志失败 : ' + target_file + ' ;' + e.args[1]
-            return
-
-        res = os.popen(cmd)
-        if  len(res.readlines()) > 0:
-            self.logging.debug(res.readlines())
-            self.event['stop'] = 'reload 服务器进程失败'
-            return
-
+        res = self.server_handle.rotatelog(server_conf,log_path,target_file)
+        if(isinstance(res,str) and res != True):
+            self.event['stop'] = res
 
         end_time = time.perf_counter()
-        self.logging.debug(';;;;;;;;;;;;;;;;full_cut;;;;;;finnish truncate;;;;;;;;;;;;; mark at %s' % (time.time()))
+        self.logging.debug('finnish file_cut  take time : %s' % round((start_time - end_time)))
 
 
     def cutFile(self):
@@ -275,19 +257,6 @@ class Reader(Base):
                 self.logging.debug( '%s ; cutFile threading stop pid: %s' % (self.event['stop'] , os.getpid()))
                 return
 
-            try:
-                server_pid_path = self.conf[self.server_type]['pid_path']
-                if not os.path.exists(server_pid_path):
-                    self.event['stop'] = server_pid_path + '配置项 server nginx_pid_path 不存在'
-                    continue
-
-                if not os.path.exists(self.log_path):
-                    self.event['stop'] = self.log_path + ' 不存在'
-                    continue
-
-            except KeyError as e:
-                self.event['stop'] = self.server_type + '配置项缺失'
-                continue
 
             if self.cut_file_type not in ['filesize', 'time']:
                 self.event['stop'] = 'cut_file_type 只支持 filesize 文件大小 或者 time 指定每天的时间'
@@ -313,7 +282,12 @@ class Reader(Base):
                     self.lock.release()
                     continue
 
-                self.__cutFileHandle(server_pid_path , self.log_path , target_path = self.cut_file_save_dir)
+                self.__cutFileHandle(
+                    server_conf = dict(self.conf[self.server_type]) ,
+                    log_path= self.log_path ,
+                    target_path = self.cut_file_save_dir
+                )
+
                 self.event['cut_file'] = 1
 
             elif self.cut_file_type == 'time':
@@ -323,7 +297,12 @@ class Reader(Base):
                 # now,os.getpid(), threading.get_ident(), self.cut_file_point, self.cutting_file))
 
                 if now == self.cut_file_point and self.cutting_file == False:
-                    self.__cutFileHandle(server_pid_path, self.log_path ,target_path = self.cut_file_save_dir)
+                    self.__cutFileHandle(
+                        server_conf = dict(self.conf[self.server_type]) ,
+                        log_path = self.log_path ,
+                        target_path = self.cut_file_save_dir
+                    )
+
                     self.cutting_file = True
                     self.event['cut_file'] = 1
                 elif now == self.cut_file_point and self.cutting_file == True and  self.event['cut_file'] == 1:
@@ -344,6 +323,7 @@ class Reader(Base):
 
 
     def readLog(self):
+
 
         position = 0
 
@@ -427,7 +407,6 @@ class OutputCustomer(Base):
         self.server_type = self.conf['outputer']['server_type']
         self.logParse = loggerParse(self.conf['outputer']['server_type'] ,server_conf=None)
 
-
         if 'max_batch_insert_db_size' in self.conf['outputer']:
             self.max_batch_insert_db_size = int(self.conf['outputer']['max_batch_insert_db_size'])
         else:
@@ -435,9 +414,9 @@ class OutputCustomer(Base):
 
 
         # 外部队列handle
-        self.queue_handle = self._findAdapterHandler('queue',self.conf['outputer']['queue']).initQueue(self)
+        self.queue_handle = self.findAdapterHandler('queue',self.conf['outputer']['queue']).initQueue(self)
         # 外部 存储引擎
-        self.storage_handle = self._findAdapterHandler('storage',self.conf['outputer']['save_engine']).initStorage(self)
+        self.storage_handle = self.findAdapterHandler('storage',self.conf['outputer']['save_engine']).initStorage(self)
 
 
     def _parse_line_data(self,line):
@@ -452,6 +431,7 @@ class OutputCustomer(Base):
         try:
             # 预编译对应的正则
             self.logParse.getLogFormatByConfStr(line_data['log_format_str'], line_data['log_format_name'])
+
             line_data['line'] = line_data['line'].strip()
 
             parse_data = self.logParse.parse(line_data['log_format_name'], line_data['line'])

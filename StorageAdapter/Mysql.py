@@ -140,6 +140,7 @@ class StorageAp(Adapter):
 
         # 开始组装 mysql字典
         data_key = list(example_data.keys())
+
         for i in self.runner.logParse.format:
             format_key = i.replace('$', '')
 
@@ -192,34 +193,34 @@ class StorageAp(Adapter):
             self.field_map ,self.key_field_map = self.build_field_map(data[0])
 
 
-        fields = None
+        try:
+            fields = None
 
+            _valuelist = []
+            for item in data:
 
-        _valuelist = []
-        for item in data:
+                fk = list(item.keys())
+                fields = ','.join(fk)
 
-            fk = list(item.keys())
-            fields = ','.join(fk)
+                for i in item:
 
+                    field_type = self.field_map[i]
 
-            for i in item:
+                    if (field_type.find('int') > -1 or field_type.find('float') > -1) and str(item[i]) == '':
+                        item[i] = '"0"'
+                    elif str(item[i]) == '':
+                        item[i] = '"-"'
+                    else:
+                        item[i] = '"%s"' % str(item[i]).strip('"')
 
-                field_type = self.field_map[i]
-
-                if (field_type.find('int') > -1 or field_type.find('float') > -1) and str(item[i]) == '':
-                    item[i] = '"0"'
-                elif str(item[i]) == '' :
-                    item[i] = '"-"'
-                else:
-                    item[i] = '"%s"' % str(item[i]).strip('"')
-
-            values = '(%s)' % ','.join(list(item.values()))
-            _valuelist.append(values)
-
+                values = '(%s)' % ','.join(list(item.values()))
+                _valuelist.append(values)
+        except KeyError as e:
+            self.runner.logging.error('Exception: %s ; 数据写入错误: %s 请检查 ParserAdapter 中的 getLogFormat 配置' % (e.__class__, e.args))
+            raise Exception(' Exception: %s ;  数据写入错误: %s ;请检查 ParserAdapter 中的 getLogFormat 配置' % (e.__class__, e.args))
 
 
         sql = "INSERT INTO %s(%s)  VALUES %s" % (self.table,fields,','.join(_valuelist))
-
 
         self.debug_sql = sql
 
@@ -242,7 +243,6 @@ class StorageAp(Adapter):
                 return affected_rows
             # 数据表存在的 其它错误
             else:
-
                 self.runner.logging.error('Exception: %s ; %s 数据写入错误: %s ;sql: %s' % (e.__class__,e.args , self.debug_sql))
                 raise Exception(' Exception: %s ;  数据写入错误: %s ;sql: %s' % (e.__class__,e.args , self.debug_sql))
 

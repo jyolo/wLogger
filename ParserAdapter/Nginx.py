@@ -1,7 +1,7 @@
 # coding=UTF-8
 from ParserAdapter.BaseAdapter import Adapter,ParseError
 from parse import parse,search,findall,compile
-import os,json,re,time
+import os,json,re,shutil
 
 """
 $remote_addr,$http_x_forwarded_for  #记录客户端IP地址
@@ -41,7 +41,7 @@ class Handler(Adapter):
 
     unsupport_nickname = ['request',]
 
-    log_line_pattern_dict = {}
+
 
     def __init__(self,*args ,**kwargs):
         super(Handler,self).__init__()
@@ -323,7 +323,6 @@ class Handler(Adapter):
         if len(matched) == len(log_format_list):
             data = {}
             del_key_name = []
-            field_type_map = {}
 
             for i in range(len(list(log_format_list))):
                 key_name = log_format_list[i]
@@ -456,7 +455,30 @@ class Handler(Adapter):
 
 
 
+    def rotatelog(self,server_conf,log_path ,target_file = None ):
+        try:
 
+            if not os.path.exists(server_conf['pid_path']):
+                raise FileNotFoundError(server_conf['pid_path'] + '配置项 server nginx_pid_path 不存在')
+
+            if not os.path.exists(log_path):
+                raise FileNotFoundError(log_path + ' 不存在')
+
+
+            # 这里需要注意 日志目录的 权限 是否有www  否则会导致 ngixn 重开日志问件 无法写入的问题
+            cmd = 'kill -USR1 `cat %s`' % (server_conf['pid_path'])
+            shutil.move(log_path, target_file)
+
+            res = os.popen(cmd)
+            if  len(res.readlines()) > 0:
+                cmd_res = ''
+                for i in res.readlines():
+                    cmd_res += i + '\n'
+                raise Exception ('reload 服务器进程失败: %s' % cmd_res)
+
+            return True
+        except Exception as e:
+            return '切割日志失败 : %s ; error class : %s error info : %s' % (target_file ,e.__class__, e.args[1])
 
 
 
