@@ -47,14 +47,17 @@ def getLogFilsDict(base):
 @click.option('-s', '--stop', help="stop the proccess" ,type=click.Choice(['inputer', 'outputer']))
 @click.option('-c', '--config', help="config file name" )
 def enter(run,stop,config):
+    print(config)
+    exit()
+
+    if (config == None):
+        print('please use "-c" to bind config.ini file')
+        exit()
 
     base = Base(config_name=config)
 
-    print(config)
-    exit()
-    if(config == None):
-        print('please use "-c" to bind config.ini file')
-        exit()
+
+
 
     if (run == 'inputer'):
 
