@@ -223,7 +223,7 @@ class Handler(Adapter):
             } ,
             # 请求的来源网址 example www.baidu.com
             '$http_referer':{
-                'mysql_field_type': 'varchar(255)',
+                'mysql_field_type': 'varchar(3000)',
 
             } ,
             # 客户端的UA信息 example Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/73.0.3683.86 Safari/537.36

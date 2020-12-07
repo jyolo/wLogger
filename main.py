@@ -51,7 +51,7 @@ def enter(run,stop,config):
     if (config == None):
         print('please use "-c" to bind config.ini file')
         exit()
-    
+
     base = Base(config_name=config)
 
     if (run == 'inputer'):
