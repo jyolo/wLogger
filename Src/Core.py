@@ -75,7 +75,10 @@ class Base(object):
         if config_name:
             self.config_name = config_name
 
-        config_path = self._root + '/' + self.config_name + self.CONFIG_FIEL_SUFFIX
+        if self.config_name.find(self.CONFIG_FIEL_SUFFIX) == -1:
+            config_path = self._root + '/' + self.config_name + self.CONFIG_FIEL_SUFFIX
+        else:
+            config_path = self._root + '/' + self.config_name
 
         if ( not os.path.exists(config_path) ):
             raise FileNotFoundError('config file: %s not found ' % (config_path) )
