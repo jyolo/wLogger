@@ -68,10 +68,15 @@ class QueueAp(Adapter):
                         data['line'] = line.strip()
 
                         try:
-                            data['log_format_str'] = self.runner.server_conf[self.runner.log_format_name].strip()
+                            # 日志的原始字符串
+                            data['log_format_str'] = self.runner.server_conf[self.runner.log_format_name]['log_format_str'].strip()
+                            # 日志中提取出的日志变量
+                            data['log_format_vars'] = self.runner.server_conf[self.runner.log_format_name]['log_format_vars'].strip()
+
                         except KeyError as e:
                             self.runner.event['stop'] = self.runner.log_format_name + '日志格式不存在'
                             break
+
 
                         data = json.dumps(data)
                         pipe.lpush(self.runner.queue_key, data)

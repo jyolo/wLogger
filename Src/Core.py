@@ -1,10 +1,9 @@
 # coding=UTF-8
-from multiprocessing import Process
-from ParserAdapter.BaseAdapter import ParseError
+from ParserAdapter.BaseAdapter import ParseError,ReCompile
 from configparser import ConfigParser
-from threading import Thread,RLock
+from threading import RLock
 from collections import deque
-import time,shutil,json,os,platform,importlib,sys,logging
+import time,json,os,platform,importlib,logging
 
 
 try:
@@ -29,15 +28,13 @@ class loggerParse(object):
             self.logger_format = self.__handler.getLoggerFormatByServerConf(server_conf_path=server_conf)
 
 
-    def getLogFormatByConfStr(self,log_format_conf,log_format_name):
+    def getLogFormatByConfStr(self,log_format_str,log_format_vars,log_format_name):
 
-        return  self.__handler.getLogFormatByConfStr( log_format_conf,log_format_name,'string')
+        return  self.__handler.getLogFormatByConfStr( log_format_str,log_format_vars,log_format_name,'string')
 
 
     def parse(self,log_format_name,log_line):
         return  self.__handler.parse(log_format_name=log_format_name,log_line=log_line)
-
-
 
 
 
@@ -126,10 +123,11 @@ class Reader(Base):
         self.log_path = log_file_conf['file_path']
 
 
-        if len(log_file_conf['log_format_name']) == 0:
+        if 'log_format_name' not in log_file_conf or len(log_file_conf['log_format_name']) == 0:
             self.log_format_name = 'defualt'
         else:
             self.log_format_name = log_file_conf['log_format_name']
+
 
         self.node_id = self.conf['inputer']['node_id']
 
@@ -386,7 +384,6 @@ class Reader(Base):
 
 
 
-
 # 消费者 解析日志 && 存储日志
 class OutputCustomer(Base):
 
@@ -426,11 +423,10 @@ class OutputCustomer(Base):
         else:
             line_data = line
 
-
-
         try:
+
             # 预编译对应的正则
-            self.logParse.getLogFormatByConfStr(line_data['log_format_str'], line_data['log_format_name'])
+            self.logParse.getLogFormatByConfStr(line_data['log_format_str'],line_data['log_format_vars'], line_data['log_format_name'])
 
             line_data['line'] = line_data['line'].strip()
 
@@ -440,6 +436,10 @@ class OutputCustomer(Base):
         except ParseError as e:
             self.logging.error('\n pid : %s 数据解析错误: %s 数据: %s' % (os.getpid(), e.args, line))
             return False
+        except ReCompile as e:
+            unkown_error = '\n pid : %s 预编译错误: %s ,error_class: %s ,数据: %s' % (os.getpid(), e.__class__, e.args, line)
+            self.logging.error(unkown_error)
+            raise Exception(unkown_error)
 
         except Exception as e:
             unkown_error = '\n pid : %s 未知错误: %s ,error_class: %s ,数据: %s' % (os.getpid(), e.__class__, e.args, line)
@@ -449,6 +449,7 @@ class OutputCustomer(Base):
 
         del line_data['log_format_name']
         del line_data['log_format_str']
+        del line_data['log_format_vars']
         del line_data['line']
 
         line_data.update(parse_data)

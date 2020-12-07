@@ -1,5 +1,5 @@
-from ParserAdapter.BaseAdapter import Adapter,ParseError
-import re,os,shutil,time
+from ParserAdapter.BaseAdapter import Adapter,ParseError,ReCompile
+import re,os,shutil,json
 
 
 #日志格式官方文档 http://httpd.apache.org/docs/2.4/logs.html
@@ -7,6 +7,8 @@ import re,os,shutil,time
 #日志切割官方文档 http://httpd.apache.org/docs/2.4/programs/rotatelogs.html   /www/server/apache/bin/apachectl graceful
 
 class Handler(Adapter):
+
+
 
     def __init__(self,*args ,**kwargs):
         super(Handler,self).__init__(*args,**kwargs)
@@ -29,7 +31,6 @@ class Handler(Adapter):
                 'nickname': 'ip',
                 'mysql_field_type': 'varchar(15)',
                 'mysql_key_field': [
-                    '%t.timestamp',
                     '%t.timestamp',
                     ['%>s', '%r.request_url', '%r.request_method']
                 ],
@@ -56,11 +57,11 @@ class Handler(Adapter):
                     }
                 }
             },
-            '%l': {
-                'nickname': 'ip',
+            '%l':{
+                'nickname': 'remote_logname',
             },
-            '%u': {
-                'nickname': 'ip',
+            '%u':{
+                'nickname': 'remote_user'
             },
             '%t': {
                 'nickname': 'time',
@@ -152,18 +153,18 @@ class Handler(Adapter):
                     key_name = self.getLogFormat()[ log_format_list[i]]['nickname']
 
                 # 解析 %h 成对应的 地理位置信息 isp,city,city_id,province,country,ip,
-                if log_format_list[i] == '%h':
+                if key_name == '%h':
                     ip_data = self.parse_ip_to_area(matched[i])
                     data.update(ip_data)
 
                 # 解析 %r 成 request_method ,request_url ,args ,server_protocol ,
-                if log_format_list[i] == '%r':
+                if key_name == '%r':
                     request_extend_data = self.parse_request_to_extend(matched[i])
                     data.update(request_extend_data)
                     del_key_name.append(key_name)
 
                 # 解析 %t 成 timestr , timestamp
-                if log_format_list[i] == '%t':
+                if key_name == '%t':
                     time_data = self.parse_time_to_str('time_local',matched[i])
                     data.update(time_data)
                     del_key_name.append(key_name)
@@ -176,7 +177,6 @@ class Handler(Adapter):
         # 剔除掉 解析出拓展字符串的 字段
         for i in del_key_name:
             del data[i]
-
 
 
         return data
@@ -198,13 +198,17 @@ class Handler(Adapter):
         if len(log_list) == 0:
             return format_list
 
-
+        # 从日志格式字符串中提取日志变量
         for i in log_list:
+            res = re.findall(r'(\%[\>|\{]?[a-zA-Z|\-|\_]+[\}|\^]?\w?)', i[0].strip())
+            if len(res):
+                format_list[i[1]] = {
+                    'log_format_str':i[0].strip(),
+                    'log_format_vars':self.LOG_FORMAT_SPLIT_TAG.join(res)
+                }
 
-            format_list[i[1]] = i[0].strip()
 
         del content
-
 
 
         return format_list
@@ -263,31 +267,37 @@ class Handler(Adapter):
     """
         根据录入的格式化字符串 返回 parse 所需 log_format 配置
     """
-    def getLogFormatByConfStr(self ,log_format_conf ,log_format_name ,log_type):
+    def getLogFormatByConfStr(self ,log_format_str,log_format_vars ,log_format_name ,log_type):
 
 
         # 日志格式不存在 则 预编译
         if log_format_name not in self.log_line_pattern_dict:
 
-            # 去掉换行
-            str = log_format_conf.replace("\n", '')
-
+            # 过滤下 正则中 特殊字符
+            log_format_str = log_format_str.strip() \
+                .replace('[', '\[').replace(']', '\]') \
+                .replace('(', '\(').replace(')', '\)')
 
 
             if (log_type == 'string'):
 
 
-                # 提取日志变量
-                log_format_list = re.findall(r'(\%[\>|\{]?[a-zA-Z|\-|\_]+[\}|\^]?\w?)',str)
+                # 获取日志变量
+                log_format_list = log_format_vars.split(self.LOG_FORMAT_SPLIT_TAG)
 
+                # 按照日志格式顺序 替换日志变量成正则 进行预编译
+                format = re.sub(r'(\%[\>|\{]?[a-zA-Z|\-|\_]+[\}|\^]?\w?)', self.__replaceLogVars, log_format_str).strip()
+                try:
+                    re_compile = re.compile(format, re.I)
+                except re.error:
+                    raise Exception('预编译错误,请检查日志字符串中是否包含特殊字符串; 日志:%s' % log_format_str)
 
-
-                format = re.sub(r'(\%[\>|\{]?[a-zA-Z|\-|\_]+[\}|\^]?\w?)', self.__replaceLogVars, str).strip()
 
                 self.log_line_pattern_dict[log_format_name] = {
                     'log_format_list': log_format_list,
-                    'log_format_recompile': re.compile(format, re.I)
+                    'log_format_recompile':re_compile
                 }
+
 
 
 

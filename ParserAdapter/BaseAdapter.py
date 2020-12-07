@@ -2,13 +2,17 @@ from abc import abstractmethod,ABCMeta
 from Src.ip2Region import Ip2Region
 import os,time
 
-
+# 解析错误
 class ParseError(Exception):pass
+# 预编译错误
+class ReCompile(Exception):pass
 
 
 
 class Adapter():
     __metaclass__ = ABCMeta
+
+    LOG_FORMAT_SPLIT_TAG = '<@>'
 
     ip_parser = None
     log_line_pattern_dict = {}
@@ -35,12 +39,16 @@ class Adapter():
     @abstractmethod
     def getLogFormatByConfStr(self): pass
 
+    @abstractmethod
+    def rotatelog(self):pass
+
     # 解析 ip 新增地域字段  isp city city_id province country
     @abstractmethod
     def parse_ip_to_area(self,ip):
         data = {}
         try:
             res = self.ip_parser.memorySearch(ip)
+
             _arg = res['region'].decode('utf-8').split('|')
 
             # _城市Id|国家|区域|省份|城市|ISP_
@@ -99,6 +107,7 @@ class Adapter():
             ts = time.strptime(_strarr[0], '%Y-%m-%dT%H:%M:%S')
 
 
+
         if 'time_local' == time_type:
             _strarr = time_data.split('+')
             ts = time.strptime(_strarr[0].strip(), '%d/%b/%Y:%H:%M:%S')
@@ -106,5 +115,8 @@ class Adapter():
 
         data['time_str'] = time.strftime('%Y-%m-%d %H:%M:%S', ts)
         data['timestamp'] = int(time.mktime(ts))
+
+
+
 
         return data

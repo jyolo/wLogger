@@ -1,7 +1,7 @@
 # coding=UTF-8
-from ParserAdapter.BaseAdapter import Adapter,ParseError
+from ParserAdapter.BaseAdapter import Adapter,ParseError,ReCompile
 from parse import parse,search,findall,compile
-import os,json,re,shutil
+import os,json,re,shutil,time
 
 """
 $remote_addr,$http_x_forwarded_for  #记录客户端IP地址
@@ -313,7 +313,10 @@ class Handler(Adapter):
         log_format_list = self.log_line_pattern_dict[log_format_name]['log_format_list']
         log_format_recompile = self.log_line_pattern_dict[log_format_name]['log_format_recompile']
 
+        start_time = time.perf_counter()
+
         res = log_format_recompile.match(log_line)
+
 
         if res == None:
             raise ParseError('解析日志失败,请检查client 配置中 日志的 格式名称是否一致 log_format_name')
@@ -325,30 +328,34 @@ class Handler(Adapter):
             del_key_name = []
 
             for i in range(len(list(log_format_list))):
-                key_name = log_format_list[i]
+                key_name = log_format_list[i].replace('$','')
 
                 # request 参数不支持别名
-                if 'nickname' in self.getLogFormat()['$' + log_format_list[i]] :
-                    key_name = self.getLogFormat()['$' + log_format_list[i]]['nickname']
+                if 'nickname' in self.getLogFormat()[ log_format_list[i] ] :
+                    key_name = self.getLogFormat()[ log_format_list[i] ]['nickname']
+
 
                 # 解析 ip 对应的 地理位置信息
-                if log_format_list[i] == 'remote_addr':
+                if log_format_list[i] == '$remote_addr':
                     ip_data = self.parse_ip_to_area(matched[i])
                     data.update(ip_data)
 
-                # 解析 request 成 request_method ,request_url ,args ,server_protocol ,
-                if log_format_list[i] == 'request':
+
+                # 解析 $request 成 request_method ,request_url ,args ,server_protocol ,
+                if log_format_list[i] == '$request':
                     request_extend_data = self.parse_request_to_extend(matched[i])
                     data.update(request_extend_data)
                     del_key_name.append(key_name)
 
                 # 解析 time_iso8601 成 timestr , timestamp
-                if log_format_list[i] == 'time_local':
-                    time_data = self.parse_time_to_str(log_format_list[i],matched[i])
+                if log_format_list[i] == '$time_local':
+                    time_data = self.parse_time_to_str(log_format_list[i].replace('$',''),matched[i])
                     data.update(time_data)
                     del_key_name.append(key_name)
 
+
                 data[key_name] = matched[i]
+
 
 
         # 剔除掉 解析出拓展字符串的 字段
@@ -362,45 +369,36 @@ class Handler(Adapter):
     """
         根据录入的格式化字符串 返回 parse 所需 log_format 配置
     """
-    def getLogFormatByConfStr(self ,log_format_conf ,log_format_name ,log_type):
+    def getLogFormatByConfStr(self ,log_format_str,log_format_vars,log_format_name ,log_type):
         if log_type not in ['string','json']:
             raise ValueError('_type 参数类型错误')
 
         # 日志格式不存在 则 预编译
         if log_format_name not in self.log_line_pattern_dict:
 
-            # 去掉换行
-            str = log_format_conf.replace("\n", '')
-
-            # 处理换行后的 引号
-            str = re.sub(r'\'\s+\'', '', str)
-
+            # 过滤下 正则中 特殊字符
+            log_format_str = log_format_str.strip()\
+                .replace('[','\[').replace(']','\]')\
+                .replace('(','\(').replace(')','\)')
 
             if (log_type == 'string'):
-                # 获取日志名字后面的 日志格式
-                res = re.findall(r'\s?log_format\s+(\w+)\s+\'([\s|\S]?\$\w+[\s|\S]+)+\'', str)
 
-            elif (log_type == 'json'):
-                # 获取日志名字后面的 日志格式
-                res = re.findall(r'\s?log_format\s+(\w+)\s+\'\{([\'|\"](\w+)[\'|\"]\:[\'|\"](\S+)[\'|\"])+\}\'', str)
+                # 获取到匹配到的 日志格式
 
-            if not res:
-                raise ValueError('获取格式化字符串失败')
-                return
+                log_format_list = log_format_vars.split(self.LOG_FORMAT_SPLIT_TAG)
 
-            # 日志名称
-            log_name = res[0][0]
-            # 获取到匹配到的 日志格式
-            log_format_str = res[0][1].strip().replace('[', '\[').replace(']', '\]')
+                re_str = re.sub(r'(\$\w+)+', self.__replaceLogVars, log_format_str).strip()
 
-            log_format_list = re.findall(r'(\w+)',log_format_str)
+                try:
+                    re_compile = re.compile(re_str, re.I)
 
-            format = re.sub(r'(\$\w+)+', self.__replaceLogVars, log_format_str).strip()
+                except re.error:
+                    raise ReCompile('预编译错误,请检查日志字符串中是否包含特殊正则字符; 日志:%s' % log_format_str)
 
-            self.log_line_pattern_dict[log_format_name] = {
-                'log_format_list':log_format_list ,
-                'log_format_recompile':re.compile(format ,re.I)
-            }
+                self.log_line_pattern_dict[log_format_name] = {
+                    'log_format_list':log_format_list ,
+                    'log_format_recompile':re_compile
+                }
 
 
 
@@ -431,23 +429,39 @@ class Handler(Adapter):
         with open(server_conf_path,'rb') as fd:
             content = fd.read().decode(encoding="utf-8")
 
-        format_list = {}
-        format_list['defualt'] = """
-                    log_format  main '$remote_addr - $remote_user [$time_local] "$request" $status $body_bytes_sent "$http_referer" "$http_user_agent"  ';
-                """
 
-        res = re.findall(r'log_format\s+\w+\s+\'[\s\S]*\S?\'\S?\;' ,content)
+        defualt_log_vars = self.LOG_FORMAT_SPLIT_TAG.join(
+                ['$remote_addr',
+                 '$remote_user',
+                 '$time_local',
+                 '$request',
+                 '$status',
+                 '$body_bytes_sent',
+                 '$http_referer',
+                 '$http_user_agent'
+                 ]
+            )
+        format_list = {}
+        format_list['defualt'] = {
+            'log_format_str':'$remote_addr - $remote_user [$time_local] "$request" $status $body_bytes_sent "$http_referer" "$http_user_agent"',
+            'log_format_vars' : defualt_log_vars
+        }
+
+
+        res = re.findall(r'log_format\s+(\w+)\s+\'([\s\S]*?\S?)\'\S?\;' ,content)
 
         if len(res) == 0:
             return format_list
 
 
-        conf_list = res[0].strip().strip(';').split(';')
-        for i in conf_list:
-            res = re.findall(r'log_format\s+(\w+)\s+',i)
-            if len(res):
-                format_list[res[0]] = i
-
+        for i in res:
+            log_str = i[1].strip()
+            log_vars = re.findall(r'(\$\w+)+',log_str)
+            if(len(log_vars)):
+                format_list[i[0]] =  {
+                    'log_format_str':log_str,
+                    'log_format_vars':self.LOG_FORMAT_SPLIT_TAG.join(log_vars)
+                }
 
         del content
 
@@ -478,7 +492,7 @@ class Handler(Adapter):
 
             return True
         except Exception as e:
-            return '切割日志失败 : %s ; error class : %s error info : %s' % (target_file ,e.__class__, e.args[1])
+            return '切割日志失败 : %s ; error class : %s error info : %s' % (target_file ,e.__class__, e.args)
 
 
 

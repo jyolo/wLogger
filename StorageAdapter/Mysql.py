@@ -89,6 +89,7 @@ class StorageAp(Adapter):
                     '\n outputerer ---pid: %s tid: %s reg data len:%s;  take time :  %s \n ' %
                     (os.getpid(), threading.get_ident(), len(_data), take_time))
 
+
             if 'max_retry_reconnect_time' in self.conf['outputer']:
                 max_retry_reconnect_time = int(self.conf['outputer']['max_retry_reconnect_time'])
             else:
