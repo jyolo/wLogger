@@ -52,13 +52,13 @@ def get_request_num_by_ip():
 def get_request_num_by_secends():
     return current_app.driver.get_request_num_by_secends()
 
-@home.route('/get_pv_num_by_minute' , methods=['GET'])
-def get_pv_num_by_minute():
-    return current_app.driver.get_pv_num_by_minute()
+@home.route('/get_network_traffic_by_minute' , methods=['GET'])
+def get_network_traffic_by_minute():
+    return current_app.driver.get_network_traffic_by_minute()
 
-@home.route('/get_ip_num_by_minute' , methods=['GET'])
-def get_ip_num_by_minute():
-    return current_app.driver.get_ip_num_by_minute()
+@home.route('/get_ip_pv_num_by_minute' , methods=['GET'])
+def get_ip_pv_num_by_minute():
+    return current_app.driver.get_ip_pv_num_by_minute()
 
 @home.route('/get_request_num_by_province' , methods=['GET'])
 def get_request_num_by_province():

@@ -181,34 +181,7 @@ class MysqlDb():
             return ApiCorsResponse.response(data)
 
     @classmethod
-    def get_pv_num_by_minute(cls):
-
-        with current_app.db.connect() as cursor:
-            current_hour_str = time.strftime('%Y-%m-%d %H', time.localtime(time.time()))
-            next_hour_str = time.strftime('%Y-%m-%d %H', time.localtime(time.time() + 3600))
-            current_hour = int(time.mktime(time.strptime(current_hour_str, '%Y-%m-%d %H')))
-            next_hour = int(time.mktime(time.strptime(next_hour_str ,'%Y-%m-%d %H')))
-
-            sql = text("""
-                select count(*) as total_num,unix_timestamp(STR_TO_DATE(time_str,'%Y-%m-%d %H:%i')) as time_str
-                from {0} FORCE INDEX(timestamp) 
-                where  `timestamp` >= {1} and `timestamp` < {2} and request_method != 'OPTIONS'
-                GROUP BY MINUTE(time_str)
-                ORDER BY MINUTE(time_str) desc
-                limit 10
-            """.format(current_app.db_engine_table ,current_hour ,next_hour )
-                       )
-
-
-
-
-            res = cursor.execute(sql )
-            data = Func.fetchall(res)
-            data.reverse()
-            return ApiCorsResponse.response(data)
-
-    @classmethod
-    def get_ip_num_by_minute(cls):
+    def get_network_traffic_by_minute(self):
         with current_app.db.connect() as cursor:
             current_hour_str = time.strftime('%Y-%m-%d %H', time.localtime(time.time()))
             next_hour_str = time.strftime('%Y-%m-%d %H', time.localtime(time.time() + 3600))
@@ -216,7 +189,31 @@ class MysqlDb():
             next_hour = int(time.mktime(time.strptime(next_hour_str, '%Y-%m-%d %H')))
 
             sql = text("""
-            select count(DISTINCT ip) as total_num  ,unix_timestamp(STR_TO_DATE(time_str,'%Y-%m-%d %H:%i')) as time_str
+            select round((sum(bytes_sent) /1024),2)  as out_network, round((sum(request_length) / 1024) ,2) as in_network  ,unix_timestamp(STR_TO_DATE(time_str,'%Y-%m-%d %H:%i')) as time_str
+            from {0}
+            where `timestamp` >= {1} and `timestamp` < {2}
+            GROUP BY MINUTE(time_str)
+            ORDER BY MINUTE(time_str) desc
+            limit 10
+            """.format(current_app.db_engine_table, current_hour, next_hour)
+                       )
+
+            res = cursor.execute(sql)
+            data = Func.fetchall(res)
+            data.reverse()
+
+            return ApiCorsResponse.response(data)
+
+    @classmethod
+    def get_ip_pv_num_by_minute(cls):
+        with current_app.db.connect() as cursor:
+            current_hour_str = time.strftime('%Y-%m-%d %H', time.localtime(time.time()))
+            next_hour_str = time.strftime('%Y-%m-%d %H', time.localtime(time.time() + 3600))
+            current_hour = int(time.mktime(time.strptime(current_hour_str, '%Y-%m-%d %H')))
+            next_hour = int(time.mktime(time.strptime(next_hour_str, '%Y-%m-%d %H')))
+
+            sql = text("""
+            select count(DISTINCT ip) as ip_num,count(*) as pv_num  ,unix_timestamp(STR_TO_DATE(time_str,'%Y-%m-%d %H:%i')) as time_str
             from {0}
             where `timestamp` >= {1} and `timestamp` < {2}
             GROUP BY MINUTE(time_str)

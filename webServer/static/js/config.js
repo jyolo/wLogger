@@ -11,9 +11,7 @@ window.chart_load_func['total_ip'] = function(){
         async:true,
         headers: { 'Authorization':Authorization,},
         success:function(msg){
-
             $('.total_ip').html(msg.data['total_num'])
-
         }
 
     })

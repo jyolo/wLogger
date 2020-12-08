@@ -99,21 +99,20 @@ window.chart_load_func['top_ip_chart'] = function () {
 
 
 
-
 }
 // 请求量最高的IP TOP50 ------------------------------- end -------------------------------
 
 
-// 最近10分钟pv  ------------------------------- start -------------------------------
-var pv_num_by_minute = echarts.init(document.querySelector(".line .chart"));
+// 最近10分钟每分钟流量 ------------------------------- start -------------------------------
+var network_traffic_by_minute = echarts.init(document.querySelector(".line .chart"));
 window.addEventListener("resize", function () {
-  pv_num_by_minute.resize();
+  network_traffic_by_minute.resize();
 });
-window.chart_load_func['request_pv_by_minute']  = function (type = null) {
+window.chart_load_func['network_traffic_by_minute']  = function (type = null) {
   if(type == 'init'){
-    __url =  host + '/get_pv_num_by_minute?type=init'
+    __url =  host + '/get_network_traffic_by_minute?type=init'
   }else {
-    __url =  host + '/get_pv_num_by_minute'
+    __url =  host + '/get_network_traffic_by_minute'
   }
   $.ajax({
     url:__url,
@@ -123,19 +122,17 @@ window.chart_load_func['request_pv_by_minute']  = function (type = null) {
     success:function(msg){
       data = msg.data
 
-      secends_values = []
+      secends_values = {
+        'in_network':[],
+        'out_network':[],
+        'xAxis':[]
+      }
       secends_xAxis = []
       $.each(data,function(k,v){
-        secends_values.push(v['total_num'])
-        secends_xAxis.push(timestampToTime(v['time_str']))
+        secends_values['in_network'].push(v['in_network'])
+        secends_values['out_network'].push(v['out_network'])
+        secends_values['xAxis'].push(timestampToTime(v['time_str']))
       })
-
-      // (1)准备数据
-      var data = {
-        year: [
-          secends_values
-        ]
-      };
 
       // 2. 指定配置和数据
       var option = {
@@ -167,7 +164,7 @@ window.chart_load_func['request_pv_by_minute']  = function (type = null) {
         xAxis: {
           type: "category",
           boundaryGap: false,
-          data: secends_xAxis,
+          data: secends_values['xAxis'],
           // 去除刻度
           axisTick: {
             show: false
@@ -200,15 +197,23 @@ window.chart_load_func['request_pv_by_minute']  = function (type = null) {
         },
         series: [
           {
+            name:'入网 KB',
             type: "line",
             // stack: "总量",
             smooth: true,
-            data: data.year[0]
+            data: secends_values['in_network']
+          },
+          {
+            name:'出网 KB',
+            type: "line",
+            // stack: "总量",
+            smooth: true,
+            data: secends_values['out_network']
           }
         ]
       };
       // 3. 把配置和数据给实例对象
-      pv_num_by_minute.setOption(option);
+      network_traffic_by_minute.setOption(option);
     }
 
 
@@ -358,25 +363,35 @@ window.chart_load_func['status_code_chart']  = function () {
 // 非200状态码 二级分类  ------------------------------- end -------------------------------
 
 
-// 最近10分钟IP ------------------------------- start -------------------------------
-var request_ip_by_minute = echarts.init(document.querySelector(".member .chart"));
+// 最近10分钟IP / PV ------------------------------- start -------------------------------
+var request_ip_pv_by_minute = echarts.init(document.querySelector(".member .chart"));
 window.addEventListener("resize", function () {
-  request_ip_by_minute.resize();
+  request_ip_pv_by_minute.resize();
 });
-window.chart_load_func['request_ip_by_minute'] = function () {
+window.chart_load_func['request_ip_pv_by_minute'] = function () {
   $.ajax({
-    url: host + '/get_ip_num_by_minute',
+    url: host + '/get_ip_pv_num_by_minute',
     type:'GET',
     async:true,
     headers: { 'Authorization':Authorization,},
     success:function(msg){
       data = msg.data
-      nums = []
+
+
+      nums = {
+        'ip_num':[],
+        'pv_num':[]
+      }
       timestamp = []
       $.each(data,function(k,v){
-        nums.push(v['total_num'])
+
+        nums['ip_num'].push(v['ip_num'])
+        nums['pv_num'].push(v['pv_num'])
         timestamp.push(timestampToTime(v['time_str']))
       })
+
+
+
       option = {
         tooltip: {
           trigger: "axis",
@@ -451,11 +466,12 @@ window.chart_load_func['request_ip_by_minute'] = function () {
         ],
         series: [
           {
+            name: "每分钟IP数",
             type: "line",
             smooth: true,
             symbol: "circle",
             symbolSize: 5,
-            showSymbol: false,
+            showSymbol: true,
             lineStyle: {
               normal: {
                 color: "#00d887",
@@ -491,12 +507,56 @@ window.chart_load_func['request_ip_by_minute'] = function () {
                 borderWidth: 12
               }
             },
-            data: nums
+            data: nums['ip_num']
+          },
+          {
+            name: "每分钟PV数",
+            type: "line",
+            smooth: true,
+            symbol: "circle",
+            symbolSize: 5,
+            showSymbol: true,
+            lineStyle: {
+              normal: {
+                color: "#006cff",
+                width: 2
+              }
+            },
+            areaStyle: {
+              normal: {
+                color: new echarts.graphic.LinearGradient(
+                    0,
+                    0,
+                    0,
+                    1,
+                    [
+                      {
+                        offset: 0,
+                        color: "rgba(0, 216, 135, 0.4)"
+                      },
+                      {
+                        offset: 0.8,
+                        color: "rgba(0, 216, 135, 0.1)"
+                      }
+                    ],
+                    false
+                ),
+                shadowColor: "rgba(0, 0, 0, 0.1)"
+              }
+            },
+            itemStyle: {
+              normal: {
+                color: "#006cff",
+                borderColor: "rgba(221, 220, 107, .1)",
+                borderWidth: 12
+              }
+            },
+            data: nums['pv_num']
           }
         ]
       };
       // 使用刚指定的配置项和数据显示图表。
-      request_ip_by_minute.setOption(option);
+      request_ip_pv_by_minute.setOption(option);
     }
 
   })

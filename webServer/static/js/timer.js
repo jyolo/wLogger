@@ -9,8 +9,8 @@ var each_loader_timmer = {
 
     status_code_chart : global_timer_secends,
 
-    request_pv_by_minute : global_timer_secends,
-    request_ip_by_minute : global_timer_secends,
+    network_traffic_by_minute : global_timer_secends,
+    request_ip_pv_by_minute : global_timer_secends,
 
     request_num_by_url : global_timer_secends,
     spider_by_ua : global_timer_secends,
@@ -22,8 +22,8 @@ var each_loader_timmer = {
 // window.chart_load_func['map_chart']()
 // window.chart_load_func['top_ip_chart']()
 // window.chart_load_func['status_code_chart']()
-// window.chart_load_func['request_pv_by_minute']()
-// window.chart_load_func['request_ip_by_minute']()
+// window.chart_load_func['request_ip_pv_by_minute']()
+// window.chart_load_func['network_traffic_by_minute']()
 // window.chart_load_func['request_num_by_url']()
 // window.chart_load_func['spider_by_ua']()
 
