@@ -4,79 +4,43 @@ pid_path = /www/server/nginx/logs/nginx.pid
 server_conf = /www/server/nginx/conf/nginx.conf
 
 [apache]
-pid_path = /www/server/nginx/logs/nginx.pid
-server_conf = /www/server/nginx/conf/nginx.conf
+apachectl_bin = /www/server/apache/bin/apachectl
+server_conf = /www/server/apache/conf/httpd.conf
 
-;[redis]
-;host = 127.0.0.1
-;port = 6379
-;password =
-;db = 1
-;prefix = logger_watch:
-
-
-;[mysql]
-;host = 127.0.0.1
-;port = 3306
-;username = logger
-;password = logger
-;db = logger
-;table = logger_watcher
 
 [mysql]
-host = 110.42.1.208
+host = 127.0.0.1
 port = 3306
-db = nginx_logger
-username = nginx_logger
-password = YmP82nHeTsfwSyce
+db = logger
+username = logger
+password = xxxxx
 table = logger_watcher
 # 输出 日志 切割 到不同的表 或者 集合 支持 [day, week, month ,year]
 split_save = day
 
-;[mysql]
-;host = 127.0.0.1
-;port = 3306
-;db = logger
-;username = logger
-;password = logger
-;table = logger_watcher
-;# 输出 日志 切割 到不同的表 或者 集合 支持 [day, week, month ,year]
-;split_save = day
-
 [redis]
-host = 47.112.167.32
-port = 6666
-password = 4*Mn0eXYm^z!_2020
+host = 127.0.0.1
+port = 6379
+password = xxx
 db = 1
-prefix = logger_watch:
+
 
 [mongodb]
-host = 120.78.248.191
-port = 7002
-username = logger_watcher
-password = q7758414
+host = 127.0.0.1
+port = 27017
+username = xxxx
+password = xxxx
 db = logger_watcher
 collection = logger
-;split_save = day
-
-;[mongodb]
-;host = 127.0.0.1
-;port = 27017
-;username =
-;password =
-;db = logger_watcher
-;collection = logger
-;# 输出 日志 切割 到不同的表 或者 集合 支持 [day, week, month ,year]
-;split_save = day
-
+# 输出 日志 切割 到不同的表 或者 集合 支持 [day, week, month ,year]
+split_save = day
 
 
 [inputer]
 log_debug = True
 node_id = server_80
 queue = redis
-;queue = mongodb
-queue_name = queue_logger
+queue_name = logger_watch:logger
 max_batch_push_queue_size = 5000
 max_retry_open_file_time = 10
 max_retry_reconnect_time = 20
@@ -84,11 +48,12 @@ max_retry_reconnect_time = 20
 
 [inputer.log_file.web1]
 server_type = nginx
-file_path = /www/wwwlogs/local.test.com.log
+file_path = /www/wwwlogs/local.test3.com.log
+;log_format_name = combined
 log_format_name = online
 read_type = tail
 cut_file_type = filesize
-cut_file_point = 200
+cut_file_point = 10
 cut_file_save_dir = /www/wwwlogs/cut_file/
 
 
@@ -96,16 +61,14 @@ cut_file_save_dir = /www/wwwlogs/cut_file/
 log_debug = True
 ;save_engine = mongodb
 save_engine = mysql
-# 输出 日志 切割 到不同的表 或者 集合 支持 [day, week, month ,year]
-split_save = day
 queue = redis
 ;queue = mongodb
 queue_name = logger_watch:logger
+;server_type = apache
 server_type = nginx
 worker_process_num = 1
 max_batch_insert_db_size = 1
 max_retry_reconnect_time = 200
-
 
 
 [web]
@@ -113,12 +76,8 @@ max_retry_reconnect_time = 200
 env = development
 debug = True
 secret_key = asdasdasdsadasd
-server_name = 127.0.0.1:5500
-;data_engine = mongodb
+server_name = 127.0.0.1:5000
 data_engine = mysql
-# 输出 日志 切割 到不同的表 或者 集合 支持 [day, week, month ,year]
-
-
-
+;data_engine = mysql
 
 
