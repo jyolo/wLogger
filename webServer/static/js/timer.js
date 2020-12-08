@@ -4,7 +4,6 @@ var each_loader_timmer = {
     total_ip: global_timer_secends,
     total_pv: global_timer_secends,
 
-
     map_chart: global_timer_secends,
     top_ip_chart : global_timer_secends ,
 

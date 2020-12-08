@@ -80,7 +80,7 @@ window.chart_load_func['top_ip_chart'] = function () {
         ],
         series: [
           {
-            name: "投诉量",
+            name: "IP",
             type: "bar",
             barWidth: "35%",
             // data: [200, 300, 300, 900, 1500, 1200, 600],
@@ -98,18 +98,6 @@ window.chart_load_func['top_ip_chart'] = function () {
   })
 
 
-
-  // // 数据变化
-  // var dataAll = [
-  //   { year: "2019", data: [200, 300, 300, 900, 1500, 1200, 600] },
-  //   { year: "2020", data: [300, 400, 350, 800, 1800, 1400, 700] }
-  // ];
-  //
-  // document.querySelector(".bar h2").addEventListener("click", function (e) {
-  //   var i = e.target == this.children[0] ? 0 : 1;
-  //   option.series[0].data = dataAll[i].data;
-  //   problem_chart.setOption(option);
-  // });
 
 
 }
@@ -212,7 +200,6 @@ window.chart_load_func['request_pv_by_minute']  = function (type = null) {
         },
         series: [
           {
-            // name: "本周投诉量",
             type: "line",
             // stack: "总量",
             smooth: true,
@@ -230,7 +217,7 @@ window.chart_load_func['request_pv_by_minute']  = function (type = null) {
 
 
 }
-// 本周上周 投诉量对比折线图 ------------------------------- end -------------------------------
+// 最近10分钟pv ------------------------------- end -------------------------------
 
 
 // 非200状态码 二级分类  ------------------------------- start -------------------------------
@@ -368,7 +355,7 @@ window.chart_load_func['status_code_chart']  = function () {
 
   })
 }
-// 本周投诉量最高的10个 二级分类  ------------------------------- end -------------------------------
+// 非200状态码 二级分类  ------------------------------- end -------------------------------
 
 
 // 最近10分钟IP ------------------------------- start -------------------------------
@@ -530,21 +517,12 @@ window.chart_load_func['request_num_by_url'] = function () {
     headers: { 'Authorization':Authorization,},
     success:function(msg){
       data = msg.data
-
       range_keys = []
       range_values = []
       $.each(data ,function(k,v){
         range_keys.push(v['request_url'])
         range_values.push({value:v['total_num'] ,name:v['request_url']})
       })
-      // range_keys = ["0岁以下", "20-29岁", "30-39岁", "40-49岁", "50岁以上"]
-      // range_value = [
-      //   { value: 1, name: "0岁以下" },
-      //   { value: 4, name: "20-29岁" },
-      //   { value: 2, name: "30-39岁" },
-      //   { value: 2, name: "40-49岁" },
-      //   { value: 1, name: "50岁以上" }
-      // ]
       option = {
         tooltip: {
           trigger: "item",
@@ -566,23 +544,22 @@ window.chart_load_func['request_num_by_url'] = function () {
         },
         series: [
           {
-            name: "年龄分布",
+            name: "接口分布",
             type: "pie",
             center: ["50%", "42%"],
             radius: ["40%", "60%"],
             color: [
-              "#065aab",
-              "#066eab",
-              "#0682ab",
-              "#0696ab",
-              "#06a0ab",
-              "#06b4ab",
-              "#06c8ab",
-              "#06dcab",
-              "#06f0ab"
+            "#006cff",
+            "#60cda0",
+            "#ed8884",
+            "#ff9f7f",
+            "#0096ff",
+            "#9fe6b8",
+            "#32c5e9",
+            "#1d9dff"
             ],
-            label: { show: false },
-            labelLine: { show: false },
+            label: { show: true },
+            labelLine: { show: true },
             data:range_values
           }
         ]
@@ -596,14 +573,12 @@ window.chart_load_func['request_num_by_url'] = function () {
 
   })
 }
-// 本周涉及金额分布 ------------------------------- end -------------------------------
+// 热门接口URL请求TOP 10 ------------------------------- end -------------------------------
 
 
 // 搜索引擎蜘蛛占比 ------------------------------- start -------------------------------
 var spider_by_ua = echarts.init(document.querySelector(".pie1  .chart"));
-// 4. 当我们浏览器缩放的时候，图表也等比例缩放
 window.addEventListener("resize", function () {
-  // 让我们的图表调用 resize这个方法
   spider_by_ua.resize();
 });
 window.chart_load_func['spider_by_ua'] = function () {
@@ -621,7 +596,6 @@ window.chart_load_func['spider_by_ua'] = function () {
         company_data.push({value:v['total_num'] , name:v['ua']})
       })
 
-      // 2. 指定配置项和数据
       var option = {
         legend: {
           top: "90%",
@@ -676,4 +650,4 @@ window.chart_load_func['spider_by_ua'] = function () {
   })
 
 }
-// 本周投诉最多的企业TOP10 ------------------------------- end -------------------------------
+// 搜索引擎蜘蛛占比 ------------------------------- end -------------------------------

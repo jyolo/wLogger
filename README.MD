@@ -1,7 +1,7 @@
 # 介绍
 
 > webLogger 介绍
-
+    
     * 天然支持分布式
     * 简单配置 开箱即用
     * 无入侵 低占用 低配主机也能愉快玩耍
@@ -55,15 +55,13 @@
     
     python3 main.py --help
     
-   * 以上三个应用均可单独启用 
+   * 以上三个应用均可单独部署和启用 
    
     -r --run ; start ['inputer', 'outputer','web']
     -s --stop ; stop ['inputer', 'outputer']
     -c --config ;  bind config.ini file
 
     
-   
-
 
 # 配置详解
 
@@ -119,7 +117,7 @@
     max_retry_reconnect_time = 20          # 连接队列失败的时候，最多重试多少次
     
     [inputer.log_file.web1]                # inputer.log_file.web1 中的 web1 代表应用名称 唯一 app_name 
-    server_type = nginx                    # 服务器应用目前只支持 nginx
+    server_type = nginx                    # 服务器应用 [nginx ,apache]
     file_path = /wwwlogs/ww.aaa.com.log    # 日志绝对路径
     log_format_name = online               # 配置文件中 日志名称 example : "access_log  /www/wwwlogs/xxx.log online;" 中的 `online` 则代表启用的日志配置名称
     read_type = tail                       # 读取文件方式 支持 tail 从末尾最后一行开始 ; head 从头第一行开始 * 当文件较大的时候 建议使用 tail 
