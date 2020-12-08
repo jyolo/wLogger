@@ -38,21 +38,26 @@
     
 > 启动 采集器
     
-     python3 main.py -r inputer
+     python3 main.py -r inputer -c config.ini
      
 > 启动 解析存储器
 
-    python3 main.py -r inputer
+    python3 main.py -r outputer -c config.ini
     
 > 启动 web服务
 
-    python3 main.py -r web
+    python3 main.py -r web -c config.ini
     
 > 查看支持的命令
     
     python3 main.py --help
     
-   * 以上三个应用均可单独启用
+   * 以上三个应用均可单独启用 
+   
+    -r --run ; start ['inputer', 'outputer','web']
+    -s --stop ; stop ['inputer', 'outputer']
+    -c --config ;  bind config.ini file
+
     
    
 
@@ -62,21 +67,23 @@
 > 公共配置
     
     # 当 input 和 outputer 中指定了 server_type = nginx 才需此配置  
-    
     [nginx]                                         
-    pid_path = /www/server/nginx/logs/nginx.pid     # 指定nginx.pid 的绝对路径       
-    server_conf = /www/server/nginx/conf/nginx.conf # 指定nginx配置文件的路径   
+    pid_path = /www/server/nginx/logs/nginx.pid     # 指定 nginx.pid 的绝对路径       
+    server_conf = /www/server/nginx/conf/nginx.conf # 指定 nginx 配置文件的绝对路径   
     
+    # 当 input 和 outputer 中指定了 server_type = apache 才需此配置  
+    [apache]
+    apachectl_bin = /www/server/apache/bin/apachectl # 指定 apachectl 命令的绝对路径       
+    server_conf = /www/server/apache/conf/httpd.conf # 指定 apache 配置文件的绝对路径     
+        
     # 当inputer 和 outputer 中指定了 queue = redis 才需此配置
-    
     [redis]                                               
     host = 127.0.0.1
     port = 6379
     password = xxxxxxxx
     db = 1
     
-    #  当outputer中save_engine = mongodb 和 web中data_engine = mongodb 需此配置   
-    
+    #  当outputer中save_engine = mysql 和 web中data_engine = mysql 需此配置   
     [mysql]                                         
     host = 127.0.0.1
     port = 3306
@@ -87,7 +94,6 @@
     split_save = day                                # 当有该配置项则代表开启自动分表 目前支持按 天，周，月，年 ；参数：[day, week, month ,year] ,进行存储
     
     # 当outputer中save_engine = mongodb 和 web中data_engine = mongodb 需此配置 
-    
     [mongodb]                                       
     host = 192.168.0.166
     port = 7002

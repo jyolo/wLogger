@@ -34,10 +34,9 @@ class Adapter():
     def parse(self): pass
 
     @abstractmethod
-    def cutFile(self):pass
-
-    @abstractmethod
     def getLogFormatByConfStr(self): pass
+
+    def getLoggerFormatByServerConf(self):pass
 
     @abstractmethod
     def rotatelog(self):pass

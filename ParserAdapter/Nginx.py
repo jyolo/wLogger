@@ -39,33 +39,49 @@ $upstream_http_host  服务端响应的地址
 
 class Handler(Adapter):
 
-    unsupport_nickname = ['request',]
-
-
-
     def __init__(self,*args ,**kwargs):
-        super(Handler,self).__init__()
+        super(Handler,self).__init__(*args ,**kwargs)
 
 
     """
-    每个日志变量 dict 支持一下key 
-    nickname 对该变量名称取别名 ; 默认直接使用变量名称
-    re 指定该变量匹配的正则  ; 默认 [\s|\S]+?
-    
-    mysql_field_type 指定该变量值mysql中的 字段类型
-    mysql_key_field True (bool) 默认普通索引 ,指定索引 用字符串 UNIQUE ,FULLTEXT (区分大小写)
+    日志变量 dict map:
+        nickname 对该变量名称取别名 ; 默认直接使用变量名称
+        re 指定该变量匹配的正则  ; 默认 [\s|\S]+?
+        
+        mysql_field_type 指定该变量值mysql中的 字段类型  【当存储引擎为 mysql 的时候才需配置】
+        mysql_key_field True (bool) 默认普通索引 ,指定索引 用字符串 UNIQUE ,FULLTEXT (区分大小写) 【当存储引擎为 mysql 的时候才需配置】
+        extend_field 拓展字段 【拓展字段不支持nickname】
         列表的时候 
         '$remote_addr': {
                 'nickname':'ip' ,
-                'mysql_field_type':'varchar(15)',
+                'mysql_field_type':'varchar(15)',   #【当存储引擎为 mysql 的时候才需配置】
                 'mysql_key_field': [
-                    表示当前字段 和 $time_local 里 extend timestamp 联合索引 key ip_timestamp (ip,timestamp)
-                    '$time_local.timestamp', 
-                    表示当前字段 和 $time_iso8601 里 extend timestamp 联合索引 key ip_timestamp (ip,timestamp)
-                    '$time_iso8601.timestamp',
-                    表示当前字段 和 $time_iso8601 里 extend timestamp 联合索引 key ip_status_request_url_method (ip,status,request,url,method)
-                    ['$status','$request.request_url','$request.method']
+                    '$time_local.timestamp',   # 表示当前字段 和 $time_local 里 extend timestamp 联合索引 key ip_timestamp (ip,timestamp)
+                    '$time_iso8601.timestamp', # 表示当前字段 和 $time_iso8601 里 extend timestamp 联合索引 key ip_timestamp (ip,timestamp)
+                    ['$status','$request.request_url','$request.method'] # 表示当前字段 和 $time_iso8601 里 extend timestamp 联合索引 key ip_status_request_url_method (ip,status,request,url,method)
                 ],
+                'extend_field':{ # 拓展字段 由 parse_ip_to_area方法 拓展出来的
+                    'isp':{      # 字段名称
+                        'mysql_field_type': 'varchar(30)', # 字段类型及长度 【当存储引擎为 mysql 的时候才需配置】
+                    },
+                    'city':{ # 字段名称 
+                        'mysql_field_type': 'varchar(30)', # 字段类型及长度 【当存储引擎为 mysql 的时候才需配置】
+                        'mysql_key_field': ['$status'],
+                    },
+                    'city_id':{
+                        'mysql_field_type': 'int(10)',
+                    },
+                    'province':{
+                        'mysql_field_type': 'varchar(30)',
+                        'mysql_key_field': [
+                            '$time_local.timestamp',
+                            '$time_iso8601.timestamp',
+                        ],
+                    },
+                    'country':{
+                        'mysql_field_type': 'varchar(30)',
+                    }
+                }
         }
         
     """
@@ -269,44 +285,7 @@ class Handler(Adapter):
             } ,
         }
 
-
-    def parse_request_url(self, data):
-
-        try:
-            if 'request' in data:
-                _strarr = data['request'].split(' ')
-
-                data['request_method'] = _strarr[0]
-                _url = _strarr[1].split('?')
-
-                if len(_url) > 1:
-                    data['request_url'] = _url[0]
-                    data['args'] = _url[1]
-                else:
-                    data['request_url'] = _url[0]
-                    data['args'] = ''
-
-                data['server_protocol'] = _strarr[2]
-
-                del data['request']
-
-            if 'request_uri' in data:
-                _strarr = data['request_uri'].split('?')
-
-                data['request_url'] = _url[0]
-                data['args'] = _url[1]
-
-                del data['request_uri']
-        except IndexError as e:
-            raise ValueError('解析日志 request_url 错误;data : %s' % json.dumps(data))
-
-        return data
-
-
-
-    """
-        日志解析
-    """
+    # 日志解析
     def parse(self,log_format_name='',log_line=''):
 
 
@@ -366,9 +345,7 @@ class Handler(Adapter):
         return data
 
 
-    """
-        根据录入的格式化字符串 返回 parse 所需 log_format 配置
-    """
+    #  根据录入的格式化字符串 返回 parse 所需 log_format 配置以及进行对应的表达式预编译
     def getLogFormatByConfStr(self ,log_format_str,log_format_vars,log_format_name ,log_type):
         if log_type not in ['string','json']:
             raise ValueError('_type 参数类型错误')
@@ -400,11 +377,7 @@ class Handler(Adapter):
                     'log_format_recompile':re_compile
                 }
 
-
-
-    """
-        找到匹配中的日志变量
-    """
+    # 找到匹配中的日志变量替换成正则表达式
     def __replaceLogVars(self,matched):
 
 
@@ -420,15 +393,12 @@ class Handler(Adapter):
 
         return '(%s)' % re_str
 
-
-
+    # 获取服务器配置文件中所有的日志配置
     def getLoggerFormatByServerConf(self,server_conf_path):
-
 
         # 根据配置文件 自动获取 log_format 字符串
         with open(server_conf_path,'rb') as fd:
             content = fd.read().decode(encoding="utf-8")
-
 
         defualt_log_vars = self.LOG_FORMAT_SPLIT_TAG.join(
                 ['$remote_addr',
@@ -468,7 +438,7 @@ class Handler(Adapter):
         return format_list
 
 
-
+    # 切割日志
     def rotatelog(self,server_conf,log_path ,target_file = None ):
         try:
 
