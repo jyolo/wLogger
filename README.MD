@@ -33,9 +33,7 @@
     * 同时支持 mysql 或者 mongodb 作为 数据源 
 
     
-    
-    
-    
+ 
 # 快速开始
 > 安装拓展
      
@@ -53,7 +51,7 @@
 
     python3 main.py -r web -c config.ini
     
-> 查看支持的命令
+> 查看命令行帮助
     
     python3 main.py --help
     
