@@ -1,20 +1,27 @@
 # 介绍
-> nlog
->> 功能
+
+> webLogger 介绍
+
+    * 天然支持分布式
+    * 简单配置 开箱即用
+    * 无入侵 低占用 低配主机也能愉快玩耍
+    * 高拓展 采集器 ，解析存储器 均可自行拓展 
+     
+
+> 功能
     
     采集器 inputer
     
-    * 实时日志采集,支持多个web日志同时采集 
-    * 可指定日志文件大小或指定时间,自动切割文件到指定目录, 虚拟机 ab实测2W并发发下切割日志不丢数据.
+    * 实时日志采集,同时支持多个web日志同时采集 
+    * 可指定按照日志文件大小或指定时间,自动切割文件到指定目录, （虚拟机 ab实测2W并发发下切割日志不丢数据.）
     * 可自定义队列服务软件,接受采集的日志信息. 已内置redis 如需kafka ,mq 等其它队列可自行拓展
     * 极低的cpu内存占用 ,低配小主机也能愉快的玩耍
-    
-    
+
     解析存储器 outputer
     
     * 实时解析日志并存储到指定的数据库, 已内置 mysql 和 mongodb 如需使用elastic全家桶或其它存储引擎 可自行拓展
     * 采集器,解析器,web服务均可 独立分布到不同的服务器节点上运行
-    * 目前已内置 nginx 解析器, 可随意指定日志格式, 只需在配置文件里面指定格式名称即可正确解析并存储
+    * 目前已内置 nginx，apache 解析器, 可随意指定日志格式, 只需在配置文件里面指定格式名称即可正确解析并存储
     * 支持按日期天,周,月,年. 自动分表或集合存储日志
     * 支持指定工作进程来快速消费队列数据,大流量也能实时解析并存储日志, 虚拟机中ab 实测2W并发延迟小于1秒
     * 注: 当海量流量来的时候发现解析存储延迟过高的情况,可将解析器部署到集群中其它多个节点同时消费队列数据,提升解析存储效率
@@ -22,12 +29,10 @@
     
     web服务 web
     
-    * 已内置大屏监控web面板,流量情况一目了然
-    * 同时支持 mysql 或者 mongodb 作为 解析器的存储引擎
- 
-    * 简单配置 开箱即用
-    * 无入侵 低占用 高拓展
-    * 采集器 已内置 redis ; 解析存储器 已内置 mysql 和 mongodb 
+    * 已内置大屏监控web面板,流量情况一目了然 
+    * 同时支持 mysql 或者 mongodb 作为 数据源 
+
+    
     
     
     
@@ -66,24 +71,24 @@
 
 > 公共配置
     
-    # 当 input 和 outputer 中指定了 server_type = nginx 才需此配置  
+    # 当 inputer 和 outputer 中指定了 server_type = nginx 才需此配置  
     [nginx]                                         
     pid_path = /www/server/nginx/logs/nginx.pid     # 指定 nginx.pid 的绝对路径       
     server_conf = /www/server/nginx/conf/nginx.conf # 指定 nginx 配置文件的绝对路径   
     
-    # 当 input 和 outputer 中指定了 server_type = apache 才需此配置  
+    # 当 inputer 和 outputer 中指定了 server_type = apache 才需此配置  
     [apache]
     apachectl_bin = /www/server/apache/bin/apachectl # 指定 apachectl 命令的绝对路径       
     server_conf = /www/server/apache/conf/httpd.conf # 指定 apache 配置文件的绝对路径     
         
-    # 当inputer 和 outputer 中指定了 queue = redis 才需此配置
+    # 当 inputer 和 outputer 中指定了 queue = redis 才需此配置
     [redis]                                               
     host = 127.0.0.1
     port = 6379
     password = xxxxxxxx
     db = 1
     
-    #  当outputer中save_engine = mysql 和 web中data_engine = mysql 需此配置   
+    #  当 outputer 中 save_engine = mysql 和 web中data_engine = mysql 需此配置   
     [mysql]                                         
     host = 127.0.0.1
     port = 3306
@@ -93,7 +98,7 @@
     table = logger
     split_save = day                                # 当有该配置项则代表开启自动分表 目前支持按 天，周，月，年 ；参数：[day, week, month ,year] ,进行存储
     
-    # 当outputer中save_engine = mongodb 和 web中data_engine = mongodb 需此配置 
+    # 当 outputer 中save_engine = mongodb 和 web中data_engine = mongodb 需此配置 
     [mongodb]                                       
     host = 192.168.0.166
     port = 7002
@@ -125,7 +130,7 @@
     cut_file_save_dir = /wwwlogs/cut_file/ # 日志切割后存储绝对路径
     
     
-    [inputer.log_file.api]                # 支持同时采集多个应用日志 追加配置即可
+    [inputer.log_file.web2]                # 支持同时采集多个应用日志 追加配置即可
     ..........................
     
              
@@ -133,7 +138,7 @@
 > 日志解析输出端
 
     [outputer]
-    log_debug = True                      # 开启日志debug模式
+    log_debug = True                      # 开启日志debug模式 
     save_engine = mongodb                 # 解析后的日志存储引擎目前支持 [mysql,mongodb]
     queue = redis                         # 队列引擎 此处需要和 inputer 采集端保持一致
     queue_name = queue_logger             # 队列中 key 或 collection 集合的名称  此处需要和 inputer 采集端保持一致
@@ -149,5 +154,5 @@
     debug = True                          # 是否开启 debug
     secret_key = xxxx                     # flask session key 
     server_name = 127.0.0.1:5000          # 指定域名和端口
-    data_engine = mysql                   # 指定日志存储引擎 目前内置了 [redis , mongodb]
+    data_engine = mysql                   # 指定读取日志存储引擎 目前内置了 [ mysql , mongodb ]
 

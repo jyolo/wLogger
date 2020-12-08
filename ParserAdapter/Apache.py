@@ -2,13 +2,7 @@ from ParserAdapter.BaseAdapter import Adapter,ParseError,ReCompile
 import re,os,shutil,json
 
 
-#日志格式官方文档 http://httpd.apache.org/docs/2.4/logs.html
-#日志格式官方文档 http://httpd.apache.org/docs/2.4/en/mod/mod_log_config.html
-#日志切割官方文档 http://httpd.apache.org/docs/2.4/programs/rotatelogs.html   /www/server/apache/bin/apachectl graceful
-
 class Handler(Adapter):
-
-
 
     def __init__(self,*args ,**kwargs):
         super(Handler,self).__init__(*args,**kwargs)
