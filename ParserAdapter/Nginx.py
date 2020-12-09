@@ -1,7 +1,6 @@
 # coding=UTF-8
 from ParserAdapter.BaseAdapter import Adapter,ParseError,ReCompile
-from parse import parse,search,findall,compile
-import os,json,re,shutil,time
+import os,re,shutil,time
 
 """
 $remote_addr,$http_x_forwarded_for  #记录客户端IP地址
