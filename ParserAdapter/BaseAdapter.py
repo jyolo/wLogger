@@ -70,7 +70,23 @@ class Adapter():
     def parse_request_to_extend(self,request_data):
         data = {}
         try:
+
+
+            if len(request_data.strip()) == 0:
+                data['request_method'] = ''
+                data['request_url'] = ''
+                data['args'] = ''
+                data['server_protocol'] = ''
+                return data
+
             _strarr = request_data.split(' ')
+
+            if(len(_strarr) == 1) :
+                data['request_method'] = ''
+                data['request_url'] = _strarr[0]
+                data['args'] = ''
+                data['server_protocol'] = ''
+                return data
 
             data['request_method'] = _strarr[0]
             _url = _strarr[1].split('?')

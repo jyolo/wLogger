@@ -353,10 +353,14 @@ class Handler(Adapter):
         # 日志格式不存在 则 预编译
         if log_format_name not in self.log_line_pattern_dict:
 
-            # 过滤下 正则中 特殊字符
+            # 过滤下 日志配置字符串 与 正则冲突特殊字符
             log_format_str = log_format_str.strip()\
                 .replace('[','\[').replace(']','\]')\
-                .replace('(','\(').replace(')','\)')
+                .replace('(','\(').replace(')','\)')\
+                .replace('|','\|').replace('-','\-')\
+                .replace('+','\+').replace('*','\*')\
+                .replace('?','\?')
+
 
             if (log_type == 'string'):
 

@@ -115,7 +115,6 @@ class StorageAp(Adapter):
                     os.getpid(), affected_rows, round(end_time - start_time, 3)))
 
             except pymysql.err.DataError as e:
-                print(_data[0])
                 error_msg = "\n outputerer -------pid: %s -- pymysql.err.DataError 数据类型错误 请检查 field_map 配置---- Exceptions: %s \n" % (
                         os.getpid(), e.args)
                 self.logging.error( error_msg )
@@ -357,7 +356,7 @@ class StorageAp(Adapter):
             res = cursor.fetchone()
 
             if not res:
-                self.logging.warn('没有发现数据表,开始尝试创建数据表')
+                self.logging.warn('没有发现数据表,开始创建数据表')
                 self.__createTable(org_data)
                 return True
 
