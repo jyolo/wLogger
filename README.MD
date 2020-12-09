@@ -17,7 +17,7 @@
     
     如果该项目有帮助到您，请不要吝啬随手给个star
     
-    大屏实时监控效果图
+    大屏实时监控效果图 本人显示器太小，截图略显拥挤
     
     ![Image text](https://gitee.com/zenhiss/wLogger/raw/master/webServer/static/images/webserver_monitor.png)
 
@@ -97,7 +97,7 @@
     password = xxxxxxxx
     db = 1
     
-    #  当 outputer 中 save_engine = mysql 和 web中data_engine = mysql 需此配置   
+    #  当 outputer 中 save_engine = mysql 或 web 中 data_engine = mysql 才需此配置   
     [mysql]                                         
     host = 127.0.0.1
     port = 3306
@@ -107,7 +107,7 @@
     table = logger
     split_save = day                                # 当有该配置项则代表开启自动分表 目前支持按 天，周，月，年 ；参数：[day, week, month ,year] ,进行存储
     
-    # 当 outputer 中save_engine = mongodb 和 web中data_engine = mongodb 需此配置 
+    # 当 outputer 中save_engine = mongodb 或 web 中 data_engine = mongodb 需此配置 
     [mongodb]                                       
     host = 192.168.0.166
     port = 7002
@@ -144,7 +144,7 @@
     
              
 
-> 日志解析输出端
+> 日志解析存储端
 
     [outputer]
     log_debug = True                      # 开启日志debug模式 
@@ -153,7 +153,7 @@
     queue_name = queue_logger             # 队列中 key 或 collection 集合的名称  此处需要和 inputer 采集端保持一致
     server_type = nginx                   # 服务器的类型 
     worker_process_num = 1                # 指定工作进程数量 根据自己网站流量情况而定，一般4个worker即可
-    max_batch_insert_db_size = 1          # 最多每次批量写入存储引擎的数量，根据自己应用而定，一般5000即可
+    max_batch_insert_db_size = 1          # 最多每次批量写入存储引擎的数量，根据自己应用情况而定，一般5000即可
     max_retry_reconnect_time = 200        # 连接存储引擎失败后，最多重试连接次数
     
 > 大屏监控端
@@ -163,5 +163,5 @@
     debug = True                          # 是否开启 debug
     secret_key = xxxx                     # flask session key 
     server_name = 127.0.0.1:5000          # 指定域名和端口
-    data_engine = mysql                   # 指定读取日志存储引擎 目前内置了 [ mysql , mongodb ]
+    data_engine = mysql                   # 指定读取日志存储数据库引擎 目前内置了 [ mysql , mongodb ]
 
