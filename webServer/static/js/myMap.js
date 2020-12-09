@@ -103,7 +103,7 @@ window.chart_load_func['map_chart'] = function() {
               }
             },
             symbolSize: function(val) {
-              return val[2] / 1000;
+              return val[2] / 10000;
               // return  10;
             },
             itemStyle: {
