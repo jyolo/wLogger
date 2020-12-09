@@ -2,13 +2,24 @@
 
 > webLogger 介绍
     
-    * 天然支持分布式
-    * 简单配置 开箱即用
-    * 无入侵 低占用 低配主机也能愉快玩耍
-    * 高拓展 采集器 ，解析存储器 均可自行拓展 
-     
+  * 介绍
+    
+    weblogger 是一款集合 日志采集服务,日志解析持久化存储服务，实时监控web流量webserver服务 。日志采集监控服务
+    三个服务器均可独立部署启用互不干扰。目前已内置 nginx 和 apache 的日志解析存储器，简单配置一下，开箱即用。
+    虽然市面上已经很多类似的开源日志采集监控服务比如goaccess，用了一圈之后始终没有一款能满足我的需求。
+    
+    * 它可以在日志采集的时候可以按照日志文件的大小，或者在指定时间内自动对日志进行切割日志，存储到指定的目录 （已测2W并发切割日志不丢数据）
+    * 它可以不用像goaccess那样必须配置指定格式才能解析到数据，只用指定nginx/apache 日志格式名称 即可解析数据
+    * 它可以在日志采集的时候A项目的日志数据放到mysql里面;B项目的日志数据存放到mongodb;自己按照需求将日志存放到不同的数据库 
+    * 它天然支持分布式，日志采集服务队列已内置redis LIST结构，可执行拓展kafka ,mq等其它队列服务
+    * 它支持自定义持久化存储引擎，日志解析持久化存储服务已内置 mongodb 和 mysql ,可执行拓展其它数据库
+    * 简单配置，开箱即用，无入侵，高拓展，低内存占用 低配主机也能愉快玩耍
+    
+    如果该项目有帮助到您，请不要吝啬随手给个star
+    
+    ![Image text](https://raw.githubusercontent.com/hongmaju/light7Local/master/img/productShow/20170518152848.png)
 
-> 功能
+> 功能说明
     
     采集器 inputer
     
@@ -139,8 +150,8 @@
     queue = redis                         # 队列引擎 此处需要和 inputer 采集端保持一致
     queue_name = queue_logger             # 队列中 key 或 collection 集合的名称  此处需要和 inputer 采集端保持一致
     server_type = nginx                   # 服务器的类型 
-    worker_process_num = 1                # 指定工作进程数量 
-    max_batch_insert_db_size = 1          # 最多每次批量写入存储引擎的数量
+    worker_process_num = 1                # 指定工作进程数量 根据自己网站流量情况而定，一般4个worker即可
+    max_batch_insert_db_size = 1          # 最多每次批量写入存储引擎的数量，根据自己应用而定，一般5000即可
     max_retry_reconnect_time = 200        # 连接存储引擎失败后，最多重试连接次数
     
 > 大屏监控端
