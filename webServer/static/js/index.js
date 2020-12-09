@@ -129,8 +129,8 @@ window.chart_load_func['network_traffic_by_minute']  = function (type = null) {
       }
       secends_xAxis = []
       $.each(data,function(k,v){
-        secends_values['in_network'].push(v['in_network'])
-        secends_values['out_network'].push(v['out_network'])
+        secends_values['in_network'].push(Math.round(v['in_network'],0))
+        secends_values['out_network'].push(Math.round(v['out_network'],0))
         secends_values['xAxis'].push(timestampToTime(v['time_str']))
       })
 

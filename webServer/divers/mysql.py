@@ -15,7 +15,7 @@ class MysqlDb():
     def get_total_ip(cls):
         with current_app.db.connect() as cursor:
             sql = text("""
-                       select count(DISTINCT ip) as total_num from {0} FORCE INDEX(timestamp)  
+                       select count(DISTINCT ip) as total_num from {0} 
                        where `timestamp` >= UNIX_TIMESTAMP(:today)
                        """.format(current_app.db_engine_table)
                        )
@@ -45,7 +45,7 @@ class MysqlDb():
 
         with current_app.db.connect() as cursor:
             sql = text("""
-                select count(*) as total_num,request_url from {0} FORCE INDEX(timestamp) 
+                select count(*) as total_num,request_url from {0} 
                 where `timestamp` >= UNIX_TIMESTAMP(:today)
                 group by request_url
                 order by total_num desc

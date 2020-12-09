@@ -191,23 +191,29 @@ class MongoDb():
         return ApiCorsResponse.response(data)
 
     @classmethod
-    def get_pv_num_by_minute(cls):
+    def get_network_traffic_by_minute(cls):
         current_hour = time.strftime('%Y-%m-%d %H', time.localtime(time.time()))
 
         res = current_app.db[current_app.db_engine_table].aggregate([
             {'$match': {'time_str': {'$regex': '^%s' % current_hour}}},
             {'$project': {
                 '_id': 0,
-                'time_minute': {
-                    '$dateToString': {
-                        'format': '%Y-%m-%d %H:%M',
-                        'date': {'$dateFromString': {'dateString': '$time_str'}}
-                        }
-                    }
+                'time_minute': {'$dateToString': {
+                    'format': '%Y-%m-%d %H:%M', 'date': {'$dateFromString': {'dateString': '$time_str'}}
                 }
+                },
+                'request_length': {'$toInt': '$request_length'},
+                'bytes_sent': {'$toInt': '$bytes_sent'}
             },
-            {'$group': {'_id': '$time_minute', 'total_num': {'$sum': 1}}},
-            {'$project': {'total_num': 1, 'time_str': '$_id', '_id': 0}},
+            },
+            {'$group': {
+                '_id': '$time_minute',
+                'in_network_sum': {'$sum': '$request_length'},
+                'out_network_sum': {'$sum': '$bytes_sent'}
+            }
+            },
+            {'$project': {'_id': 0, 'time_str': '$_id', 'in_network': {'$divide': ['$in_network_sum', 1024]},
+                          'out_network': {'$divide': ['$out_network_sum', 1024]}}},
             {'$sort': {'time_str': -1}},
 
         ])
@@ -222,29 +228,30 @@ class MongoDb():
         return ApiCorsResponse.response(data)
 
     @classmethod
-    def get_ip_num_by_minute(cls):
+    def get_ip_pv_num_by_minute(cls):
 
         current_hour = time.strftime('%Y-%m-%d %H', time.localtime(time.time()))
 
         res = current_app.db[current_app.db_engine_table].aggregate([
             {'$match': {'time_str': {'$regex': '^%s' % current_hour}}},
             {'$project': {
-                '_id': 0,
-                'ip': 1,
-                'time_minute': {
-                    '$dateToString': {
-                        'format': '%Y-%m-%d %H:%M',
-                        'date': {
-                            '$dateFromString': {'dateString': '$time_str' }
+                    '_id': 0,
+                    'time_minute': {
+                            '$dateToString': {
+                                'format': '%Y-%m-%d %H:%M', 'date': {'$dateFromString': {'dateString': '$time_str'}}
                             }
-                        }
-                    }
+                    },
+                    'ip': 1
+                },
+            },
+            {'$group': {
+                '_id': '$time_minute',
+                'pv_num': {'$sum': 1},
+                'ip_arr': {'$addToSet': '$ip'}
                 }
             },
-            {'$group': {'_id': '$time_minute', 'ips': {'$addToSet': '$ip'}}},
-            {'$project': {'total_num': {'$size': '$ips'}, 'time_str': '$_id', '_id': 0}},
+            {'$project': {'_id': 0, 'time_str': '$_id', 'pv_num': 1, 'ip_num': {'$size': '$ip_arr'}}},
             {'$sort': {'time_str': -1}},
-
         ])
 
         data = []
