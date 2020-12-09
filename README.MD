@@ -1,23 +1,25 @@
 # 介绍
 
-> webLogger 介绍
+> wLogger 介绍
     
   * 介绍
     
-    weblogger 是一款集合 日志采集服务,日志解析持久化存储服务，实时监控web流量webserver服务 。日志采集监控服务
-    三个服务器均可独立部署启用互不干扰。目前已内置 nginx 和 apache 的日志解析存储器，简单配置一下，开箱即用。
-    虽然市面上已经很多类似的开源日志采集监控服务比如goaccess，用了一圈之后始终没有一款能满足我的需求。
+    wLogger 是一款集合 日志采集,日志解析持久化存储，web流量实时监控 。三位一体的web服务流量监控应用。
+    三大功能模块均可独立部署启用互不干扰。目前已内置 nginx 和 apache 的日志解析存储器，简单配置一下，开箱即用。
+    虽然市面上已经很多类似的开源日志采集监控服务比如goaccess，用了一圈之后始终没有一款用的特别舒心。
     
     * 它可以在日志采集的时候可以按照日志文件的大小，或者在指定时间内自动对日志进行切割日志，存储到指定的目录 （已测2W并发切割日志不丢数据）
     * 它可以不用像goaccess那样必须配置指定格式才能解析到数据，只用指定nginx/apache 日志格式名称 即可解析数据
-    * 它可以在日志采集的时候A项目的日志数据放到mysql里面;B项目的日志数据存放到mongodb;自己按照需求将日志存放到不同的数据库 
+    * 它可以指定不同的项目走不同的队列服务，分别解析存储到不同的数据库，完全可以自己按需灵活配置 
     * 它天然支持分布式，日志采集服务队列已内置redis LIST结构，可执行拓展kafka ,mq等其它队列服务
     * 它支持自定义持久化存储引擎，日志解析持久化存储服务已内置 mongodb 和 mysql ,可执行拓展其它数据库
-    * 简单配置，开箱即用，无入侵，高拓展，低内存占用 低配主机也能愉快玩耍
+    * 简单配置，开箱即用，无入侵，高拓展，灵活配置，按需应用
     
     如果该项目有帮助到您，请不要吝啬随手给个star
     
-    ![Image text](https://raw.githubusercontent.com/hongmaju/light7Local/master/img/productShow/20170518152848.png)
+    大屏实时监控效果图
+    
+    ![Image text](https://gitee.com/zenhiss/wLogger/raw/master/webServer/static/images/webserver_monitor.png)
 
 > 功能说明
     
