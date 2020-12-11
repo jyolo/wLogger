@@ -17,16 +17,18 @@
     
     如果该项目有帮助到您，请不要吝啬随手给个star
     
-    大屏实时监控效果图 本人显示器太小，截图略显拥挤
+    您也可以从数据库中取数据自己定义流量监控的UI界面和数据展现方式;
     
-    ![Image text](https://gitee.com/zenhiss/wLogger/raw/master/webServer/static/images/webserver_monitor.png)
+    大屏实时监控效果图 本人显示器太小，截图略显拥挤;
+    
+    ![Image text](https://cdn.jsdelivr.net/gh/jyolo/wLogger/webServer/static/images/webserver_monitor.png)
 
 > 功能说明
     
     采集器 inputer
     
     * 实时日志采集,同时支持多个web日志同时采集 
-    * 可指定按照日志文件大小或指定时间,自动切割文件到指定目录, （虚拟机 ab实测2W并发发下切割日志不丢数据.）
+    * 可指定按照日志文件大小或指定时间,自动切割文件到指定目录, （日志切割不丢数据.）
     * 可自定义队列服务软件,接受采集的日志信息. 已内置redis 如需kafka ,mq 等其它队列可自行拓展
     * 极低的cpu内存占用 ,低配小主机也能愉快的玩耍
 
@@ -109,8 +111,8 @@
     
     # 当 outputer 中save_engine = mongodb 或 web 中 data_engine = mongodb 需此配置 
     [mongodb]                                       
-    host = 192.168.0.166
-    port = 7002
+    host = 127.0.0.1
+    port = 27017
     username = logger_watcher
     password = xxxxxxxx
     db = nginx_logger
