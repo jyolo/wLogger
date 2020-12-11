@@ -21,7 +21,7 @@
     
     大屏实时监控效果图 本人显示器太小，截图略显拥挤;
     
-    ![Image text](https://cdn.jsdelivr.net/gh/jyolo/wLogger/webServer/static/images/webserver_monitor.png)
+    ![image](https://cdn.jsdelivr.net/gh/jyolo/wLogger/webServer/static/images/webserver_monitor.png)
 
 > 功能说明
     
