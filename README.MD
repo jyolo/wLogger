@@ -124,7 +124,7 @@
 > 日志采集端 配置
 
     [inputer]
-    log_debug = True                       # 开启日志debug模式 会在项目中生成日志文件。 类似 ： outpuer_config.ini.log   名称的日志文件
+    log_debug = True                       # 开启日志debug模式 会在项目中生成日志文件。 类似 ： inputer_config.ini.log   名称的日志文件
     node_id = server_80                    # 当前节点ID 唯一
     queue = redis                          # 队列配置 目前内置了 [redis , mongodb]
     queue_name = queue_logger              # 队列 key 的名称
