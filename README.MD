@@ -30,7 +30,7 @@
     
     * 实时日志采集,同时支持多个web日志同时采集 
     * 可指定按照日志文件大小或指定时间,自动切割文件到指定目录, （日志切割不丢数据.）
-    * 可自定义队列服务软件,接受采集的日志信息. 已内置redis 如需kafka ,mq 等其它队列可自行拓展
+    * 可自定义队列服务软件,接受采集的日志信息. 已内置redis 如需kafka  等其它mq队列可自行拓展
     * 极低的cpu内存占用 ,低配小主机也能愉快的玩耍
 
     解析存储器 outputer
@@ -53,19 +53,19 @@
 # 快速开始
 > 安装拓展
      
-    pip3 install -r requirements.txt 
+    sudo pip3 install -r requirements.txt 
     
 > 启动 采集器
     
-     python3 main.py -r inputer -c config.ini
+    sudo python3 main.py -r inputer -c config.ini
      
 > 启动 解析存储器
 
-    python3 main.py -r outputer -c config.ini
+    sudo python3 main.py -r outputer -c config.ini
     
 > 启动 web服务
 
-    python3 main.py -r web -c config.ini
+    sudo python3 main.py -r web -c config.ini
     
 > 查看命令行帮助
     
