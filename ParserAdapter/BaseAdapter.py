@@ -69,6 +69,7 @@ class Adapter():
     @abstractmethod
     def parse_request_to_extend(self,request_data):
         data = {}
+
         try:
 
 
@@ -88,6 +89,8 @@ class Adapter():
                 data['server_protocol'] = ''
                 return data
 
+
+
             data['request_method'] = _strarr[0]
             _url = _strarr[1].split('?')
 
@@ -98,7 +101,9 @@ class Adapter():
                 data['request_url'] = _url[0]
                 data['args'] = ''
 
+
             data['server_protocol'] = _strarr[2]
+
 
             if 'request_uri' in data:
                 _strarr = data['request_uri'].split('?')
@@ -106,9 +111,17 @@ class Adapter():
                 data['request_url'] = _url[0]
                 data['args'] = _url[1]
 
+
             return data
         except IndexError as e:
-            raise ParseError('解析日志 request_url 错误;request_data : %s' % request_data)
+            # 异常攻击流量数据 解析错误 不在抛出exception 直接原样返回数据 以供分析
+            data['request_method'] = ''
+            data['request_url'] = request_data
+            data['args'] = ''
+            data['server_protocol'] = ''
+
+            return data
+
 
     # 解析 time_iso8601 time_local 变成 time_str timestamp
     @abstractmethod

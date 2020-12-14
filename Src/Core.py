@@ -426,6 +426,8 @@ class OutputCustomer(Base):
         else:
             line_data = line
 
+        line_data['line'] = '193.106.30.234 - http \"\\x03\\x00\\x00/*\\xE0\\x00\\x00\\x00\\x00\\x00Cookie: mstshash=Administr\" [-] 0 0.230 - 400 150 295 41123406 1 - \"-\" \"12/Dec/2020:07:13:03 +0800\" \"-\"'
+
         try:
 
             # 预编译对应的正则
