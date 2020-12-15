@@ -109,7 +109,7 @@ class Handler(Adapter):
                 ],
                 'extend_field':{
                     'isp':{
-                        'mysql_field_type': 'text',
+                        'mysql_field_type': 'varchar(30)',
                     },
                     'city':{
                         'mysql_field_type': 'varchar(30)',
