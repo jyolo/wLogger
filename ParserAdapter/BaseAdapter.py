@@ -58,11 +58,11 @@ class Adapter():
             data['country'] = _arg[0]
 
         except Exception as e:
-            data['isp'] = ''
-            data['city'] = ''
-            data['city_id'] = ''
-            data['province'] = ''
-            data['country'] = ''
+            data['isp'] = 0
+            data['city'] = 0
+            data['city_id'] = 0
+            data['province'] = 0
+            data['country'] = 0
 
         return data
 

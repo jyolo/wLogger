@@ -46,6 +46,7 @@ class Base(object):
     def __init__(self,config_name = None):
         self._root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
         self.conf = self.__getConfig(config_name)
+        self.config_name = config_name
         self.__initLogging()
 
 
@@ -425,6 +426,8 @@ class OutputCustomer(Base):
             line_data = json.loads(line)
         else:
             line_data = line
+
+
 
         try:
 

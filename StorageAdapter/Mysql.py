@@ -60,6 +60,7 @@ class StorageAp(Adapter):
                 # 获取队列数据
                 queue_data = self.runner.getQueueData()
 
+
                 if len(queue_data) == 0:
                     self.logging.debug('\n outputerer ---pid: %s wait for queue data \n ' % (os.getpid()))
                     continue
@@ -73,6 +74,7 @@ class StorageAp(Adapter):
                 for item in queue_data:
                     if isinstance(item, bytes):
                         item = item.decode(encoding='utf-8')
+
 
                     self.backup_for_push_back_queue.append(item)
                     # 解析日志数据
@@ -118,7 +120,20 @@ class StorageAp(Adapter):
                 error_msg = "\n outputerer -------pid: %s -- pymysql.err.DataError 数据类型错误 请检查 field_map 配置---- Exceptions: %s \n" % (
                         os.getpid(), e.args)
                 self.logging.error( error_msg )
-                raise Exception( error_msg)
+
+                # 写入错误的数据 输出成json文件以供分析
+                error_json_file_dir = self.runner._root + '/error_insert_data/%s' % self.runner.config_name.replace('.ini','')
+                error_json_file = error_json_file_dir + '/%s_pid_%s.json' % (time.strftime( '%Y_%m_%d_%H:%M:%S.%s' , time.localtime()),os.getpid())
+
+                if not os.path.exists(error_json_file_dir):
+                    os.makedirs(error_json_file_dir)
+
+                if not os.path.exists(error_json_file):
+                    with open(error_json_file,'w+') as fd:
+                        json.dump(_data,fd)
+                    fd.close()
+
+                continue
 
             except pymysql.err.MySQLError as e:
                 time.sleep(2)
