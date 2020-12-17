@@ -56,12 +56,13 @@ class Adapter():
             data['city_id'] = int(res['city_id'])
             data['province'] = _arg[-3]
             data['country'] = _arg[0]
+
         except Exception as e:
-            data['isp'] = -1
-            data['city'] = -1
-            data['city_id'] = -1
-            data['province'] = -1
-            data['country'] = -1
+            data['isp'] = 0
+            data['city'] = 0
+            data['city_id'] = 0
+            data['province'] = 0
+            data['country'] = 0
 
         return data
 
