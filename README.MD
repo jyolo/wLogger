@@ -83,10 +83,10 @@
     
     example:
         # 启动 web 服务
-        docker run jyolo/wlogger:v1.3 -r web -c config.ini  #  需要把配置文件copy 进 docker /wLogger 目录内
+        docker run jyolo/wlogger:v1.3 -r web -c config.ini  #  需要把配置文件复制或者挂载进 容器中/wLogger 目录内
         
         # 启动 解析存储器 服务
-        docker run jyolo/wlogger:v1.3 -r outputer -c config.ini  #  需要把配置文件copy 进 docker /wLogger 目录内
+        docker run jyolo/wlogger:v1.3 -r outputer -c config.ini  #  需要把配置文件复制或者挂载进 容器中/wLogger 目录内
         
     * 由于采集器 inputer 中切割日志操作,需要操作容器外部 nginx/apache 相关服务器,因此无法在docker中隔离环境下运行 . 
     * 如果容器中有部署nginx 或者 apache 则可以  
