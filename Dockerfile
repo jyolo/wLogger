@@ -1,8 +1,14 @@
 FROM centos
-RUN yum list \
+RUN yum list | grep python \
     && yum -y install python38 \ 
-    && yum -y install wget \ 
-    && cd / && wget -O wLogger-1.3.tar.gz "https://codeload.github.com/jyolo/wLogger/tar.gz/v1.3" \ 
-    && tar -zxvf wLogger-1.3.tar.gz && cd wLogger-1.3 \
-    && pip3 install -r requirements.txt \
-    && echo done
+    && yum -y install git \ 
+    && cd / &&  git clone https://github.com/jyolo/wLogger \ 
+    && cd /wLogger \ 
+    && pip3 install -r requirements.txt \ 
+    && echo "/usr/bin/python3 /wLogger/main.py \$@" > run.sh  
+    
+
+EXPOSE 5000
+
+
+ENTRYPOINT ["/bin/bash","/wLogger/run.sh"]
