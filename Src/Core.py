@@ -169,17 +169,17 @@ class Reader(Base):
 
         if platform.system() == 'Linux':
             self.newline_char = '\n'
-            # import pwd
-            # """
-            #     这里需要将 nginx 日志的所属 目录修改为 www 否则在切割日志的时候 kill -USR1 pid 之后 日志文件会被重新打开但是因权限问题不会继续写入文件中
-            # """
-            # # 检查日志目录所属用户 ; 不是 www 则修改成 www
-            # if pwd.getpwuid(os.stat(log_prev_path).st_uid).pw_name != 'www' and platform.system() == 'Linux':
-            #     try:
-            #         www_uid = pwd.getpwnam('www').pw_uid
-            #         os.chown(log_prev_path, www_uid, www_uid)
-            #     except PermissionError as e:
-            #         exit('权限不足 : 修改目录: %s 所属用户和用户组 为 www 失败 ' % (log_prev_path))
+            import pwd
+            """
+                这里需要将 nginx 日志的所属 目录修改为 www 否则在切割日志的时候 kill -USR1 pid 之后 日志文件会被重新打开但是因权限问题不会继续写入文件中
+            """
+            # 检查日志目录所属用户 ; 不是 www 则修改成 www
+            if pwd.getpwuid(os.stat(log_prev_path).st_uid).pw_name != 'www' and platform.system() == 'Linux':
+                try:
+                    www_uid = pwd.getpwnam('www').pw_uid
+                    os.chown(log_prev_path, www_uid, www_uid)
+                except PermissionError as e:
+                    exit('权限不足 : 修改目录: %s 所属用户和用户组 为 www 失败 ' % (log_prev_path))
 
 
         elif platform.system() == 'Windows':
