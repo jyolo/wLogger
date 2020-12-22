@@ -8,7 +8,6 @@ RUN yum list | grep python \
     && echo "/usr/bin/python3 /wLogger/main.py \$@" > run.sh  
     
 
-EXPOSE 5000
 
 
 ENTRYPOINT ["/bin/bash","/wLogger/run.sh"]
