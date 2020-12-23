@@ -126,7 +126,7 @@ class StorageAp(Adapter):
                         self.__changeFieldTypeReInsert(wrong_field,_data)
 
                 else:
-                    self.__saveWrongData(_data)
+                    self.__saveWrongData(_data ,e)
                     continue
 
             except pymysql.err.MySQLError as e:
@@ -306,11 +306,11 @@ class StorageAp(Adapter):
         try:
             self.__insertToMysql(data)
         except pymysql.err.DataError as e:
-            self.__saveWrongData(data)
+            self.__saveWrongData(data ,e)
 
 
 
-    def __saveWrongData(self,data):
+    def __saveWrongData(self,data ,e):
         # 写入错误的数据 输出成json文件以供分析
         error_json_file_dir = self.runner._root + '/error_insert_data/%s' % self.runner.config_name.replace(
             '.ini', '')
