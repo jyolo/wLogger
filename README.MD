@@ -177,6 +177,8 @@
     env = development                     # 运行环境 development | production
     debug = True                          # 是否开启 debug
     secret_key = xxxx                     # flask session key 
-    server_name = 127.0.0.1:5000          # 指定域名和端口
+    host = 127.0.0.1                      # 指定ip   
+    port = 5000                           # 指定端口
+    server_name = 127.0.0.1:5000          # 绑定域名和端口 (不推荐 ,如果是要nginx反代进行访问的话 请不要配置此项.)
     data_engine = mysql                   # 指定读取日志存储数据库引擎 目前内置了 [ mysql , mongodb ]
 

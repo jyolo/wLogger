@@ -76,7 +76,8 @@ max_retry_reconnect_time = 200
 env = development
 debug = True
 secret_key = asdasdasdsadasd
-server_name = 127.0.0.1:5000
+host = 127.0.0.1
+port = 5000
 data_engine = mysql
 ;data_engine = mysql
 

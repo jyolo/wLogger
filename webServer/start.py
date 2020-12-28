@@ -30,7 +30,19 @@ def start_web(conf_dict = {}):
         app.debug = False
 
     app.secret_key = conf_dict['secret_key']
-    app.config['SERVER_NAME'] = conf_dict['server_name']
+    if 'host' in conf_dict:
+        _host = conf_dict['host']
+    else:
+        _host = '127.0.0.1'
+
+    if 'port' in conf_dict:
+        _port = conf_dict['port']
+    else:
+        _port = 5000
+
+    if 'server_name' in conf_dict:
+        app.config['SERVER_NAME'] = conf_dict['server_name']
+
     app.config.from_mapping(conf_dict)
     app.register_blueprint(home, url_prefix='/')
 
@@ -38,7 +50,10 @@ def start_web(conf_dict = {}):
     # init flask db engine
     setAppDataEngine(conf_dict)
 
-    app.run()
+    app.run(
+        host=_host,
+        port=_port
+    )
 
 
 

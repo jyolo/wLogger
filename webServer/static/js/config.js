@@ -1,10 +1,12 @@
-window.host = 'http://127.0.0.1:5000';
+window.host = '';
 window.Authorization = 'eyJ0eXAiOiJKV1QiLCJhbGciOiJSUzI1NiJ9.eyJpc3MiOiJsb2NhbC5rcGkuY29tIiwiaWF0IjoxNTkxNjg1OTA1LCJzdWIiOiJ3ZWIiLCJhdWQiOiJBcGFjaGUtSHR0cENsaWVudFwvNC41LjYgKEphdmFcLzEuOC4wXzIwMi1yZWxlYXNlKSIsImV4cCI6MTYyMzIyMTkwNSwidWlkIjo4NCwibmlja25hbWUiOiJ3ZWljb25nIn0.fX1RrO4aOJ-v0QKQ4lSBcjIWyDzzl4F96yDv7_aySHnacUU-4VZbYeec4804-iJBLBmWcM3YheoO-XFqyY9ffdQTjNfobD9WiYPBNJBJAooSQJMOo2H7mwJrXgPTGlFEds1rpXfGHEH2yl7SidPwa4Hq4itR6B1aJOdEY23-8GU'
 window.global_timer_secends = 10000 // 全局定时器 20秒
 window.chart_load_func = []
 
+
 //total ip today
 window.chart_load_func['total_ip'] = function(){
+    console.log(window.location.href)
     $.ajax({
         url: host + '/get_total_ip',
         type:'GET',
@@ -20,6 +22,7 @@ window.chart_load_func['total_ip'] = function(){
 
 //total_pv
 window.chart_load_func['total_pv']  = function(){
+
     $.ajax({
         url: host + '/get_total_pv',
         type:'GET',

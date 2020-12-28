@@ -13,20 +13,9 @@ home = Blueprint('home',__name__)
 def index():
     # flash('You were successfully logged in asdasd')
     if(request.method == 'GET'):
-        print(request.args.get('var1'))
         return render_template('home/index.html')
 
-    if(request.method == 'POST'):
-        var1 = request.form['username']
-        var2 = request.form['password']
 
-        return {
-            'username':var1,
-            'password':var2,
-            'asd':'asd',
-            'sdfsdf':'asdfsdfsdsd'
-
-        }
 
 @home.route('/get_total_ip' , methods=['GET'])
 def get_total_ip():

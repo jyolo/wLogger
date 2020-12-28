@@ -19,11 +19,14 @@ class ApiCorsResponse():
         rep = Response(
             response=json.dumps(re_data) + "\n" ,
             status=status_code,
-            mimetype= current_app.config["JSONIFY_MIMETYPE"]
+            mimetype= current_app.config["JSONIFY_MIMETYPE"],
+            headers={
+                'Access-Control-Allow-Origin':'*',
+                'Access-Control-Allow-Method':'GET,POST,OPTIONS,PUT,DELETE',
+                'Access-Control-Allow-Headers':'*',
+            }
         )
 
-        rep.access_control_allow_origin = '*'
-        rep.access_control_allow_methods = ['GET','POST','OPTIONS','PUT','DELETE']
 
         return rep
 # 自定义函数class
