@@ -22,6 +22,8 @@
     
     大屏实时监控效果图 本人显示器太小，截图略显拥挤;
     
+    QQ交流群 : 862251895
+    
     ![image](https://cdn.jsdelivr.net/gh/jyolo/wLogger/webServer/static/images/webserver_monitor.png)
 
 > 功能说明
