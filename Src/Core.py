@@ -426,7 +426,8 @@ class OutputCustomer(Base):
         # 外部 存储引擎
         self.storage_handle = self.findAdapterHandler('storage',self.conf['outputer']['save_engine']).initStorage(self)
 
-        self.traffic_analysis_handel = self.findAdapterHandler('traffic_analysis',self.conf['outputer']['save_engine']).initStorage(self)
+        # self.traffic_analysis_handel = self.findAdapterHandler('traffic_analysis',self.conf['outputer']['save_engine']).initStorage(self)
+
 
 
     def _parse_line_data(self,line):
@@ -482,7 +483,6 @@ class OutputCustomer(Base):
 
     # 消费队列
     def saveToStorage(self ):
-
         self.storage_handle.pushDataToStorage()
 
     def watchTraffic(self):

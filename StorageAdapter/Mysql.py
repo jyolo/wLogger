@@ -1,3 +1,5 @@
+import redis.exceptions
+
 from StorageAdapter.BaseAdapter import Adapter
 import time,threading,os,json,pymysql,re
 
@@ -50,15 +52,23 @@ class StorageAp(Adapter):
     def pushDataToStorage(self):
         retry_reconnect_time = 0
 
-
         while True:
             time.sleep(0.1)
             self._getTableName('table')
 
             if retry_reconnect_time == 0:
+                try:
+                    # 获取队列数据
+                    queue_data = self.runner.getQueueData()
+                except redis.exceptions.RedisError as e:
+                    self.logging.error(
+                        "\n outputerer -------pid: %s -- redis error at: %s time---- Exceptions %s ; %s \n" % (
+                            os.getpid(), retry_reconnect_time, e.__class__, e.args))
+                    print("\n outputerer -------pid: %s -- redis error at: %s time---- Exceptions %s ; %s \n" % (
+                            os.getpid(), retry_reconnect_time, e.__class__, e.args))
+                    return
 
-                # 获取队列数据
-                queue_data = self.runner.getQueueData()
+
 
 
                 if len(queue_data) == 0:
@@ -141,6 +151,8 @@ class StorageAp(Adapter):
                     self.logging.error("\n outputerer -------pid: %s -- retry_reconnect_mysql at: %s time---- Exceptions %s ; %s \n" % (
                         os.getpid(),retry_reconnect_time,e.__class__  ,e.args))
                     continue
+
+
 
     # 根据数据 和 nginx 解析器中的format 创建 mysql 字段类型的映射
     def build_field_map(self,example_data):
