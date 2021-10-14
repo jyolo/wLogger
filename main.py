@@ -92,17 +92,18 @@ def enter(run,stop,config):
         pid = os.fork()
         if pid > 0 :
             exit()
+        else:
+            startInputer(base, config)
 
-        startInputer(base , config)
-        return
 
 
     if (run == 'outputer'):
         pid = os.fork()
         if pid > 0:
             exit()
-        startOutputer(base, config)
-        return
+        else:
+            startOutputer(base, config)
+
 
 
     if (run == 'traffic'):
