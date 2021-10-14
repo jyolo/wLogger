@@ -212,7 +212,8 @@ class StorageAp(Adapter):
 
         if self.field_map == None:
             self.field_map ,self.key_field_map = self.build_field_map(data[0])
-
+        print(len(data))
+        
         try:
             fields = None
 
