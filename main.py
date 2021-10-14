@@ -30,6 +30,10 @@ def customer( config_name ):
 
     OutputCustomer(config_name).saveToStorage()
 
+def analysis(confg_name):
+
+    OutputCustomer(confg_name).watchTraffic()
+
 def getLogFilsDict(base):
     logFiles = []
 
@@ -43,7 +47,7 @@ def getLogFilsDict(base):
 
 
 @click.command()
-@click.option('-r', '--run', help="run type" ,type=click.Choice(['inputer', 'outputer','web']))
+@click.option('-r', '--run', help="run type" ,type=click.Choice(['inputer', 'outputer','traffic','web']))
 @click.option('-s', '--stop', help="stop the proccess" ,type=click.Choice(['inputer', 'outputer']))
 @click.option('-c', '--config', help="config file name" )
 def enter(run,stop,config):
@@ -80,6 +84,10 @@ def enter(run,stop,config):
 
         for i in p_list:
             i.join()
+
+    if (run == 'traffic'):
+
+        analysis(config)
 
     if (run == 'web'):
         web_conf = dict(base.conf['web'])

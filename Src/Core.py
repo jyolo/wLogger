@@ -92,11 +92,16 @@ class Base(object):
     @classmethod
     def findAdapterHandler(cls,adapter_type,name):
 
-        if adapter_type not in ['server', 'queue', 'storage']:
+        if adapter_type not in ['server', 'queue', 'storage','traffic_analysis']:
             raise ValueError('%s Adapter 类型不存在' % adapter_type)
 
         if adapter_type in ['queue', 'storage']:
             handler_module = '%sAdapter.%s' % (adapter_type.lower().capitalize(), name.lower().capitalize())
+            print(handler_module)
+        elif adapter_type == 'traffic_analysis':
+            handler_module = '%sAdapter.%s' % (adapter_type.lower().capitalize(), name.lower().capitalize())
+            print(handler_module)
+            exit()
         else:
             handler_module = 'ParserAdapter.%s' % name.lower().capitalize()
 
@@ -104,6 +109,8 @@ class Base(object):
             return importlib.import_module(handler_module).QueueAp
         if adapter_type == 'storage':
             return importlib.import_module(handler_module).StorageAp
+        if adapter_type == 'traffic_analysis':
+            return importlib.import_module(handler_module).TrafficAnalysisAp
         if adapter_type == 'server':
             return importlib.import_module(handler_module).Handler
 
@@ -419,6 +426,8 @@ class OutputCustomer(Base):
         # 外部 存储引擎
         self.storage_handle = self.findAdapterHandler('storage',self.conf['outputer']['save_engine']).initStorage(self)
 
+        self.traffic_analysis_handel = self.findAdapterHandler('traffic_analysis',self.conf['outputer']['save_engine']).initStorage(self)
+
 
     def _parse_line_data(self,line):
 
@@ -426,7 +435,6 @@ class OutputCustomer(Base):
             line_data = json.loads(line)
         else:
             line_data = line
-
 
 
         try:
@@ -476,6 +484,10 @@ class OutputCustomer(Base):
     def saveToStorage(self ):
 
         self.storage_handle.pushDataToStorage()
+
+    def watchTraffic(self):
+
+        self.traffic_analysis_handel.start()
 
     #退回队列
     def rollBackQueue(self,data_list):

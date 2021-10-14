@@ -55,6 +55,9 @@ class Adapter():
     def initStorage(self): pass
 
     @abstractmethod
+    def analysisTraffic(self):pass
+
+    @abstractmethod
     def pushDataToStorage(self ): pass
 
     @abstractmethod

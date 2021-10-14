@@ -433,18 +433,24 @@ class StorageAp(Adapter):
                 self.logging.error('数据表 %s.%s 创建失败 ;Exception: %s ; SQL:%s' % (self.conf['mysql']['db'], self.conf['mysql']['table'] , e.args ,sql))
                 raise Exception('数据表 %s.%s 创建失败 ;Exception: %s ; SQL:%s' % (self.conf['mysql']['db'], self.conf['mysql']['table'], e.args ,sql))
 
-    # 检查table　是否存在
-    def _handle_queue_data_before_into_storage(self ,org_data):
 
+    def __checkTableExist(self):
         sql = "SELECT table_name FROM information_schema.TABLES WHERE table_name ='%s'" % self.table;
         with self.db.cursor() as cursor:
             cursor.execute(sql)
             res = cursor.fetchone()
 
-            if not res:
-                self.logging.warn('没有发现数据表,开始创建数据表')
-                self.__createTable(org_data)
-                return True
+        return res
+
+    # 检查table　是否存在
+    def _handle_queue_data_before_into_storage(self ,org_data):
+
+        res = self.__checkTableExist()
+
+        if not res:
+            self.logging.warn('没有发现数据表,开始创建数据表')
+            self.__createTable(org_data)
+            return True
 
 
         return False
@@ -456,4 +462,11 @@ class StorageAp(Adapter):
 
 
 
+# 流量分析
+class TrafficAnalysisAp(StorageAp):
 
+    def analysisTraffic(self):
+        table_exist = self.__checkTableExist()
+
+        print(table_exist)
+        pass
