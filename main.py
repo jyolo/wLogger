@@ -1,4 +1,6 @@
 # coding=UTF-8
+import time
+
 from Src.Core import OutputCustomer,Reader,Base
 from multiprocessing import Process
 from threading import Thread
@@ -46,6 +48,33 @@ def getLogFilsDict(base):
     return logFiles
 
 
+def startInputer(base , config):
+
+    logFiles = getLogFilsDict(base)
+
+    plist = []
+    for i in logFiles:
+        p = Process(target=runReader, args=(i, config,))
+        plist.append(p)
+
+    for i in plist:
+        i.start()
+
+    for i in plist:
+        i.join()
+
+def startOutputer(base , config):
+    p_list = []
+    for start_webi in range(int(base.conf['outputer']['worker_process_num'])):
+        p = Process(target=customer, args=(config,))
+        p_list.append(p)
+
+    for i in p_list:
+        i.start()
+
+    for i in p_list:
+        i.join()
+
 @click.command()
 @click.option('-r', '--run', help="run type" ,type=click.Choice(['inputer', 'outputer','traffic','web']))
 @click.option('-s', '--stop', help="stop the proccess" ,type=click.Choice(['inputer', 'outputer']))
@@ -60,30 +89,21 @@ def enter(run,stop,config):
 
     if (run == 'inputer'):
 
-        logFiles = getLogFilsDict(base)
+        pid = os.fork()
+        if pid > 0 :
+            exit()
 
-        plist = []
-        for i in logFiles:
-            p = Process(target=runReader, args=( i, config ,))
-            plist.append(p)
+        startInputer(base , config)
+        return
 
-        for i in plist:
-            i.start()
-
-        for i in plist:
-            i.join()
 
     if (run == 'outputer'):
-        p_list = []
-        for start_webi in range(int(base.conf['outputer']['worker_process_num'])):
-            p = Process(target=customer , args=(config ,) )
-            p_list.append(p)
+        pid = os.fork()
+        if pid > 0:
+            exit()
+        startOutputer(base, config)
+        return
 
-        for i in p_list:
-            i.start()
-
-        for i in p_list:
-            i.join()
 
     if (run == 'traffic'):
 
