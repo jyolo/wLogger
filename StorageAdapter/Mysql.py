@@ -75,6 +75,8 @@ class StorageAp(Adapter):
                     self.logging.debug('\n outputerer ---pid: %s wait for queue data \n ' % (os.getpid()))
                     continue
 
+
+
                 start_time = time.perf_counter()
 
                 # 　错误退回队列 (未解析的原始的数据)
@@ -212,8 +214,7 @@ class StorageAp(Adapter):
 
         if self.field_map == None:
             self.field_map ,self.key_field_map = self.build_field_map(data[0])
-        print(len(data))
-        
+
         try:
             fields = None
 

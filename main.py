@@ -112,8 +112,9 @@ def enter(run,stop,config):
 
     if (run == 'web'):
         web_conf = dict(base.conf['web'])
-        web_conf[ web_conf['data_engine'] ] = dict(base.conf[ web_conf['data_engine'] ])
+        web_conf[web_conf['data_engine']] = dict(base.conf[web_conf['data_engine']])
         start_web(web_conf)
+
 
     if (stop ):
         if isinstance(config,str) and len(config) :

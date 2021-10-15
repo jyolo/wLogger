@@ -21,8 +21,6 @@ def start_web(conf_dict = {}):
     if(not conf_dict ):
         raise ValueError('miss flask config of args conf_dict')
 
-
-
     app.env = conf_dict['env']
     if conf_dict['debug'] == 'True':
         app.debug = True
@@ -33,7 +31,7 @@ def start_web(conf_dict = {}):
     if 'host' in conf_dict:
         _host = conf_dict['host']
     else:
-        _host = '127.0.0.1'
+        _host = '0.0.0.0'
 
     if 'port' in conf_dict:
         _port = conf_dict['port']
